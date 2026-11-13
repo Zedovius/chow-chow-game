@@ -1,12 +1,12 @@
-// Un obstáculo: en el suelo (hay que saltarlo) o una criatura que vuela a cierta altura (ver
-// world/obstacles.js). Las criaturas van un poco más rápido que el suelo y se mecen.
+// Un obstáculo: en el suelo (hay que saltarlo) o algo en el aire a cierta altura (ver
+// world/obstacles.js). Las criaturas van un poco más rápido que el suelo; lo del aire se mece.
 
 import { CONFIG } from '../config.js';
 import { KINDS } from '../world/obstacles.js';
 
 export class Obstacle {
   /**
-   * kind: un tipo de KINDS; x: borde izquierdo. Para las criaturas, height ('low', 'mid', 'high',
+   * kind: un tipo de KINDS; x: borde izquierdo. Para lo del aire, height ('low', 'mid', 'high' o
    * 'sky') y center: la altura de su centro sobre el suelo.
    */
   constructor(kind, x, { height = null, center = 0 } = {}) {
@@ -22,9 +22,14 @@ export class Obstacle {
     this.y = this.baseY; // borde de arriba
     this.bob = spec.ground ? 0 : 2;
     this.t = Math.random() * Math.PI * 2;
-    this.speedBonus = spec.ground ? 0 : CONFIG.obstacles.flyerSpeedBonus;
+    this.speedBonus = kind === 'flyer' ? CONFIG.obstacles.flyerSpeedBonus : 0; // las criaturas, más rápido
     // Cómo lo va pasando el dragón: qué tan cerca lo saltó, si pasó agachado (core/closeCalls.js)
     this.closeCall = { gap: Infinity, ducked: false, passed: false, spoiled: false };
+  }
+
+  /** El tamaño de un tipo: { w, h } (ver world/obstacles.js). */
+  static size(kind) {
+    return KINDS[kind];
   }
 
   update(dt, speed) {

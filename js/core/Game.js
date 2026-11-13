@@ -4,8 +4,9 @@
 //                  playing → dying → gameOver → (reintentar | title)
 //                  playing → ending (al terminar el nivel 12: nombre en HI RECORDS) → title
 //
-// Un corredor sin fin, como Chispas: el dragón corre, salta y se agacha entre obstáculos; en los
-// niveles del Dragón y el Gallo además vuela. Dispara bolas de fuego que se recargan con cócteles.
+// Un corredor sin fin, como Chispas: el dragón corre, salta y se agacha entre obstáculos, y en el
+// aire puede aletear y volar (hasta CONFIG.skyJumps saltos de alto; la cámara lo sigue). El Dragón y
+// el Gallo son niveles sin suelo. Dispara bolas de fuego que se recargan con cócteles.
 // Los 12 niveles van seguidos, sin escenas: al terminar uno se cobran los corazones y el siguiente
 // empieza sin detenerse, con su cartel.
 //
@@ -23,6 +24,7 @@ import { Spawner } from '../world/Spawner.js';
 import { Dragon } from '../entities/Dragon.js';
 import { Fireball } from '../entities/Fireball.js';
 import { Scene } from '../graphics/Scene.js';
+import { Camera } from '../graphics/Camera.js';
 import { enterName } from '../ui/NameEntry.js';
 import { recordNode } from '../ui/record.js';
 import { pad } from '../ui/HUD.js';
@@ -55,6 +57,7 @@ const STATES = {
       this.scroll += CONFIG.speed.title * dt;
       this.dragon.prevY = this.dragon.y;
       this.dragon.hover(time, this.scroll);
+      this.camera.update(dt, this.dragon.y);
       if (this.input.wasPressed('confirm')) this.titleScreen.confirm();
     },
   },
@@ -71,6 +74,7 @@ const STATES = {
       this.advanceWorld(dt);
       this.dragon.prevY = this.dragon.y;
       this.dragon.fall(dt, this.scroll);
+      this.camera.update(dt, this.dragon.y);
       if (time >= CONFIG.deathDelay) this.gameOver();
     },
   },
@@ -102,6 +106,7 @@ export class Game {
     this.levelIndex = 0;
     this.level = this.levels[0];
     this.dragon = new Dragon();
+    this.camera = new Camera();
     this.obstacles = [];
     this.pickups = []; // la perla y los cócteles
     this.fireballs = [];
@@ -172,8 +177,8 @@ export class Game {
     this.level = this.levels[0];
     this.levelIndex = 0;
     this.clearWorld();
-    this.dragon.reset();
-    this.dragon.flight = false;
+    this.dragon.reset(true);
+    this.camera.snap(this.dragon.y);
     this.score = 0;
     this.hud.setScore(0);
     this.hud.setHigh(this.record);
@@ -224,22 +229,28 @@ export class Game {
     this.distance = 0;
     this.speed = this.level.speed;
     this.spawner = new Spawner(this.level);
-    if (!continued) {
+    if (continued) this.dragon.setGround(this.level.ground);
+    else {
       this.clearWorld();
-      this.dragon.reset();
+      this.dragon.reset(this.level.ground);
+      this.camera.snap(this.dragon.y);
     }
-    this.dragon.flight = this.level.flight;
     this.hud.setScore(this.score);
     this.hud.setLevel(this.levelLabel());
     this.hud.setAmmo(this.ammo, CONFIG.fire.max);
     this.showLives();
     // Si el dragón espera el primer salto, el cartel se queda con el aviso hasta que empiece
-    const lines = [this.levelLabel()];
-    if (this.level.flight) lines.push(t('level.flight'));
-    if (this.dragon.waiting) lines.push(t('level.start'));
+    const lines = [this.levelLabel(), ...this.levelHints()];
+    if (this.dragon.waiting) lines.push(t(this.level.ground ? 'level.start' : 'level.startSky'));
     this.showBanner(lines.join('\n'), !this.dragon.waiting);
     this.fsm.set('playing');
-    this.events.emit('levelStart', { index, id: this.level.id, continued, flight: this.level.flight });
+    this.events.emit('levelStart', { index, id: this.level.id, continued, ground: this.level.ground });
+  }
+
+  /** Lo que el cartel de un nivel avisa debajo del nombre. */
+  levelHints() {
+    if (!this.level.ground) return [t('level.sky')];
+    return this.levelIndex === 0 ? [t('level.flyHint')] : [];
   }
 
   levelLabel() {
@@ -252,15 +263,15 @@ export class Game {
       this.pause();
       return;
     }
-    // Antes del primer salto, el mundo espera: el dragón está de pie. El paso del primer salto ya
-    // es de juego (Dragon.update lo hizo), así que el mundo arranca en el siguiente.
+    // Antes del primer salto, el mundo espera: el dragón está de pie (o flotando, sin suelo). El
+    // paso del primer salto ya es de juego (Dragon.update lo hizo): el mundo arranca en el siguiente.
     if (this.dragon.waiting) {
       this.prevScroll = this.scroll;
       this.dragon.prevY = this.dragon.y;
       this.dragon.update(dt, this.input, this.scroll);
       if (this.dragon.waiting) return;
-      this.showBanner(this.level.flight ? `${this.levelLabel()}\n${t('level.flight')}` : this.levelLabel());
-      this.events.emit('jump');
+      this.showBanner([this.levelLabel(), ...this.levelHints()].join('\n'));
+      this.events.emit(this.dragon.flapped ? 'flap' : 'jump');
       return;
     }
     this.updateBanner(dt);
@@ -277,6 +288,7 @@ export class Game {
     if (this.dragon.jumped) this.events.emit('jump');
     if (this.dragon.flapped) this.events.emit('flap');
     if (this.dragon.landed) this.events.emit('land');
+    this.camera.update(dt, this.dragon.y);
     this.spawner.update(dt, this.speed, this.distance, this.obstacles, this.pickups);
 
     this.fireControl(dt);
@@ -347,7 +359,9 @@ export class Game {
 
   checkCollisions() {
     const body = this.dragon.hitboxes();
-    if (this.dragon.canBeHit && this.obstacles.some((o) => anyOverlap(body, o.hitboxes()))) {
+    // Sin suelo, tocar las nubes de abajo también cuesta un corazón (el dragón ya rebotó)
+    if (this.dragon.bumped) this.events.emit('bump');
+    if (this.dragon.canBeHit && (this.dragon.bumped || this.obstacles.some((o) => anyOverlap(body, o.hitboxes())))) {
       this.hit();
       return;
     }
@@ -570,7 +584,8 @@ export class Game {
     if (this.input.wasPressed('mute')) this.events.emit('toggleMute');
     this.fsm.update(dt);
     if (this.stage.dataset.state !== this.fsm.name) this.stage.dataset.state = this.fsm.name;
-    this.stage.dataset.flight = String(Boolean(this.level.flight && !this.fsm.is('title')));
+    this.stage.dataset.ground = String(this.fsm.is('title') || this.level.ground);
+    this.stage.dataset.high = String(this.camera.y < -CONFIG.jumpHeight); // volando alto
     this.input.endStep();
   }
 
@@ -605,6 +620,7 @@ export class Game {
       progress: this.fsm.is('title') ? 0 : Math.min(1, this.distance / this.level.length),
       state: this.fsm.name,
       scroll: lerp(this.prevScroll, this.scroll),
+      cameraY: lerp(this.camera.prevY, this.camera.y),
       dragon: this.dragon,
       headY: lerp(this.dragon.prevY, this.dragon.y),
       obstacles: this.obstacles.map((o) => ({ kind: o.kind, height: o.height, burnable: o.burnable, x: lerp(o.prevX, o.x), y: o.y, w: o.w, h: o.h, t: o.t })),

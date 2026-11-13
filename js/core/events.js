@@ -5,11 +5,12 @@
 // Los avisos que manda Game (con sus datos):
 //   title                                       se volvió a la pantalla de inicio
 //   start      { difficulty }                   empezó una partida
-//   levelStart { index, id, continued, flight } empezó un nivel (continued: viene del anterior;
-//                                               flight: en este se puede volar)
+//   levelStart { index, id, continued, ground } empezó un nivel (continued: viene del anterior;
+//                                               ground: false si es de puro cielo)
 //   jump                                        saltó desde el suelo
-//   flap                                        aleteó en el aire (niveles de vuelo)
+//   flap                                        aleteó en el aire
 //   land                                        tocó el suelo después de saltar o volar
+//   bump                                        sin suelo: tocó las nubes de abajo y rebotó
 //   fire       { ammo }                         lanzó una bola de fuego (ammo: las que quedan)
 //   fireEmpty                                   quiso lanzar una, pero no quedan
 //   burn       { kind, x, y }                   una bola de fuego quemó un obstáculo

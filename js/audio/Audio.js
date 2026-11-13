@@ -195,7 +195,7 @@ export class AudioManager {
 
 /** Une los avisos del juego con el sonido. Para cambiar qué suena cuándo, aquí. */
 export function connectAudio(audio, events) {
-  const sfxOn = ['jump', 'flap', 'land', 'fire', 'fireEmpty', 'burn', 'fizzle', 'cocktail', 'hit', 'pearl', 'heartGained', 'levelComplete', 'dying', 'newRecord', 'milestone', 'closeCall'];
+  const sfxOn = ['jump', 'flap', 'land', 'bump', 'fire', 'fireEmpty', 'burn', 'fizzle', 'cocktail', 'hit', 'pearl', 'heartGained', 'levelComplete', 'dying', 'newRecord', 'milestone', 'closeCall'];
   for (const name of sfxOn) events.on(name, () => audio.sfx(name));
 
   events.on('title', () => {

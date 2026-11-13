@@ -1,5 +1,6 @@
 // Lo que se recoge con la cabeza: la perla del dragón (una por nivel: puntos y, en difícil, medio
-// corazón) y los cócteles (recargan las bolas de fuego). Van con el mundo.
+// corazón) y los cócteles (recargan las bolas de fuego). Van con el mundo y se mecen un poco, como
+// los huesitos de Chispas. Dónde y cuándo salen: world/Spawner.js.
 
 import { CONFIG } from '../config.js';
 
@@ -14,13 +15,17 @@ export class Pickup {
     this.variety = variety;
     this.x = x;
     this.prevX = x;
+    this.baseY = y;
     this.y = y;
+    this.t = Math.random() * Math.PI * 2;
     this.r = type === 'pearl' ? CONFIG.pearl.radius : CONFIG.cocktails.radius;
   }
 
   update(dt, speed) {
     this.prevX = this.x;
     this.x -= speed * dt;
+    this.t += dt;
+    this.y = this.baseY + Math.sin(this.t * 2.4) * CONFIG.pickups.bob;
   }
 
   get offscreen() {

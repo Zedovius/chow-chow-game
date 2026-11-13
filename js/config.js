@@ -1,30 +1,48 @@
 // Ajustes globales del juego. Las medidas van en unidades del mundo: el mundo mide 800 × 300 y
 // el canvas lo dibuja a la mitad de resolución (pixel), ampliado sin suavizar.
 
-// Para probar: ?nivel=5 empieza en el nivel 5 (el Dragón, que vuela). En las pruebas de Node no hay
-// location.
+// Para probar: ?nivel=5 empieza en el nivel 5 (el Dragón, sin suelo). En las pruebas de Node no
+// hay location.
 const params = new URLSearchParams(globalThis.location?.search ?? '');
 const requestedLevel = Number.parseInt(params.get('nivel') ?? '', 10);
+
+// El salto completo: 700² / (2 · 2400) ≈ 102 de alto. Se puede volar hasta SKY_JUMPS saltos de alto.
+const JUMP = { gravity: 2400, velocity: 700 };
+const JUMP_HEIGHT = JUMP.velocity ** 2 / (2 * JUMP.gravity);
+const SKY_JUMPS = 5;
+const GROUND_Y = 250;
 
 export const CONFIG = {
   width: 800,
   height: 300,
-  ceilingY: 0,
-  groundY: 250,
+  groundY: GROUND_Y, // el suelo (en los niveles sin suelo, las nubes del fondo)
+  jumpHeight: JUMP_HEIGHT,
+  // El techo del cielo: se puede volar hasta SKY_JUMPS alturas de salto. El mundo es más alto que la
+  // pantalla: la cámara sube con el dragón (graphics/Camera.js), así que y puede ser negativa.
+  ceilingY: GROUND_Y - SKY_JUMPS * JUMP_HEIGHT,
+  skyJumps: SKY_JUMPS,
   pixel: 2,
+  // La cámara: al volar más alto que un salto, deja los pies del dragón a feetAt de la orilla de
+  // arriba de la pantalla (follow: qué tan rápido lo alcanza) y muestra un poco más arriba del techo
+  camera: { feetAt: 130, follow: 6, overCeiling: 60 },
 
   // El dragón: cabeza y cinco partes de cuerpo que siguen el camino de la cabeza (px/s y px/s²).
   dragon: {
     x: 190, // dónde va la cabeza; el cuerpo queda detrás
-    // Corriendo (todos los niveles): salto variable como en Chispas. Al soltar el botón antes, el
-    // salto se corta a jumpCutVelocity; mantener abajo en el aire lo hace caer más rápido.
-    gravity: 2400,
-    jumpVelocity: 700, // salto completo: 700² / (2 · 2400) ≈ 102 de alto, 0,58 s en el aire
+    // Corriendo: salto variable como en Chispas. Al soltar el botón antes, el salto se corta a
+    // jumpCutVelocity; mantener abajo en el aire lo hace caer más rápido.
+    gravity: JUMP.gravity,
+    jumpVelocity: JUMP.velocity, // salto completo: ≈ 102 de alto, 0,58 s en el aire
     jumpCutVelocity: 320,
     fastFallMultiplier: 3,
-    // Volando (solo en los niveles con flight, ver world/levels.js): después del salto, cada
-    // aleteo en el aire lo impulsa un poco, con menos gravedad. Más suave que el salto.
+    // Volando (en todos los niveles): en el aire, cada salto es un aleteo que lo impulsa un poco.
+    // Desde el primer aleteo y hasta tocar el suelo, la gravedad es más suave y la caída tiene un
+    // máximo. Sin aletear, el salto es el de siempre.
     flight: { gravity: 900, flap: 300, maxFall: 260, diveMultiplier: 2.5 },
+    // Sin suelo (el Dragón y el Gallo): tocar las nubes de abajo quita un corazón y rebota así
+    cloudBounce: 460,
+    // Al esperar el primer aleteo en un nivel sin suelo, flota a esta altura sobre las nubes
+    hoverHeight: 2 * JUMP_HEIGHT,
     duckScale: 0.55, // agachado, cada parte mide esto de alto
     spacing: 18, // distancia entre partes del cuerpo, medida sobre el camino de la cabeza
     head: { w: 26, h: 20 },
@@ -57,19 +75,28 @@ export const CONFIG = {
     densityRamp: { start: 1.15, end: 0.85 },
     clearDistance: 700, // deja de poner obstáculos esta distancia antes del final del nivel
     flyerSpeedBonus: 30, // las criaturas que vuelan van un poco más rápido que el suelo
-    // Altura del centro de una criatura sobre el suelo:
+    // Altura del centro de una criatura del suelo:
     //   low  hay que saltarla · mid  hay que agacharse (o saltarla) · high  golpea si saltas
     flyerHeights: { low: 12, mid: 20, high: 54 },
-    skyRange: [80, 215], // niveles de vuelo: las criaturas del cielo van entre estas alturas
+    // El cielo tiene su propia fila de obstáculos, en oleadas (world/obstacles.js). Con suelo, van
+    // de skyFloor (más alto que lo que alcanza la cabeza con un salto completo, ~122: solo estorban
+    // a quien vuela) al techo; sin suelo, de las nubes al techo. Cada oleada pone sus obstáculos en
+    // franjas distintas, y siempre queda al menos una libre.
+    skyFloor: 145,
+    skyMargin: 18, // lo que se deja libre junto a las nubes y al techo
   },
 
   // Bolas de fuego: queman lo que sea burnable (world/obstacles.js). Se recargan con cócteles.
   fire: { speed: 560, radius: 6, start: 3, max: 9, cooldown: 0.25 },
-  // Cócteles: salen entre obstáculos cada tantos (al azar entre los dos números) y dan perCocktail
-  // bolas de fuego. Sus alturas sobre el suelo: en el suelo, de un salto y, al volar, en el cielo.
-  cocktails: { every: [2, 4], perCocktail: 3, radius: 7, heights: [10, 50], skyHeights: [10, 50, 110, 170] },
-  // La perla del dragón: una por nivel, a la altura de un salto (o en el cielo, al volar)
-  pearl: { radius: 8, height: 56, skyHeight: [130, 190] },
+  // Lo que se recoge (world/Spawner.js), como los huesitos de Chispas: sale en momentos y alturas al
+  // azar (de casi el suelo hasta casi el techo), se mece un poco, y nunca obliga a chocar: solo
+  // aparece si no acaba de salir un obstáculo (clearBefore) y después los obstáculos esperan
+  // (clearAfter, en segundos).
+  pickups: { clearBefore: 220, clearAfter: 1.25, bob: 10, edge: 0.12 },
+  // Cócteles: cada tantos segundos (al azar entre los dos números); dan perCocktail bolas de fuego
+  cocktails: { everySeconds: [4, 8], perCocktail: 3, radius: 7 },
+  // La perla del dragón: una por nivel, en un momento al azar
+  pearl: { radius: 8 },
 
   deathDelay: 1.4, // segundos cayendo antes del Game Over
   deathSlowdown: 2.5, // al caer, el mundo sigue avanzando y frena así (más alto, frena antes)

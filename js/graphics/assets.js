@@ -5,10 +5,10 @@
 // tools/publicar.mjs copia assets/images/ y el service worker la guarda para jugar sin internet.
 
 const levelArt = () => ({
-  sky: null, // el fondo (se repite a lo ancho, con parallax)
-  ground: null, // el suelo (se repite)
+  sky: null, // el fondo, pegado a la pantalla (se repite a lo ancho, con parallax)
+  ground: null, // el suelo, o las nubes de abajo en los niveles sin suelo (se repite)
   // Un dibujo por tipo de obstáculo (world/obstacles.js), del tamaño de su caja de choque
-  obstacles: { post: null, crate: null, group: null, wall: null, flyer: null },
+  obstacles: { post: null, crate: null, group: null, wall: null, flyer: null, lantern: null, cloud: null },
 });
 
 export const IMAGES = {

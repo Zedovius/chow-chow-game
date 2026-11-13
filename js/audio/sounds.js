@@ -30,6 +30,7 @@ export const SOUNDS = {
     jump: null, // p. ej. 'assets/audio/sfx/jump.ogg'
     flap: null,
     land: null,
+    bump: null,
     fire: null,
     fireEmpty: null,
     burn: null,

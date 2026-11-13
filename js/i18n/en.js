@@ -27,7 +27,9 @@ export const en = {
 
   'level.label': 'Level {number} · {name}',
   'level.start': 'Jump to start',
-  'level.flight': 'Take flight! Jump, then flap in the air',
+  'level.startSky': 'Flap to start',
+  'level.flyHint': 'In the air, jump again to fly',
+  'level.sky': "All sky! Don't touch the clouds",
   'zodiac.rat': 'Rat',
   'zodiac.ox': 'Ox',
   'zodiac.tiger': 'Tiger',

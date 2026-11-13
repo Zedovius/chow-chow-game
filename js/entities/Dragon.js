@@ -2,8 +2,10 @@
 //   · salta (la acción 'jump'): mientras se mantiene el botón sube más; al soltarlo antes, el salto
 //     se corta (salto variable);
 //   · se agacha ('duck') en el suelo, y en el aire 'duck' lo hace caer más rápido;
-//   · en los niveles de vuelo (flight), en el aire cada 'jump' es un aleteo suave: puede quedarse
-//     volando, o bajar y seguir corriendo.
+//   · vuela: en el aire, cada 'jump' es un aleteo suave. Puede quedarse volando (hasta el techo del
+//     cielo, CONFIG.ceilingY) o bajar y seguir corriendo. Sin aletear, el salto es el de Chispas.
+//   · en los niveles sin suelo (ground = false) no hay dónde correr: tocar las nubes de abajo lo
+//     hace rebotar (bumped) y Game le quita un corazón.
 //
 // El cuerpo sigue el camino exacto de la cabeza, como una serpiente (o un dragón de la danza): se
 // guarda la altura de los pies de la cabeza según lo recorrido (la estela) y cada parte va sobre
@@ -11,7 +13,8 @@
 // por el mismo lugar.
 //
 // y es la altura de los PIES (el borde de abajo) de la cabeza: en el suelo, y = groundY.
-// Al empezar o reintentar un nivel espera de pie (waiting) hasta el primer salto.
+// Al empezar o reintentar un nivel espera (waiting) hasta el primer salto: de pie o, sin suelo,
+// flotando.
 //
 // Para el arte: parts() da de cada parte su centro, tamaño, inclinación (angle, en radianes;
 // positivo = mirando hacia abajo) y tipo. pose dice qué hace ('run', 'duck', 'jump', 'fall',
@@ -22,16 +25,20 @@ import { CONFIG } from '../config.js';
 
 export class Dragon {
   constructor() {
-    this.flight = false; // ¿este nivel deja volar?
+    this.ground = true; // ¿el nivel tiene suelo?
     this.reset();
   }
 
-  reset() {
+  /** Al empezar un nivel; ground: si tiene suelo (si no, empieza flotando). */
+  reset(ground = this.ground) {
+    this.ground = ground;
     this.x = CONFIG.dragon.x;
-    this.y = CONFIG.groundY;
+    this.baseY = ground ? CONFIG.groundY : CONFIG.groundY - CONFIG.dragon.hoverHeight;
+    this.y = this.baseY;
     this.prevY = this.y;
     this.vy = 0;
-    this.onGround = true;
+    this.wait = 0;
+    this.onGround = ground;
     this.ducking = false;
     this.jumpHeld = false; // el botón sigue presionado desde que saltó (salto variable)
     this.flying = false; // ya aleteó en este vuelo (gravedad suave hasta tocar el suelo)
@@ -46,6 +53,7 @@ export class Dragon {
     this.jumped = false;
     this.flapped = false;
     this.landed = false;
+    this.bumped = false; // tocó las nubes de un nivel sin suelo
     this.flapTime = Infinity; // segundos desde el último aleteo
     this.runTime = 0; // segundos corriendo en el suelo
   }
@@ -56,10 +64,16 @@ export class Dragon {
     this.jumped = false;
     this.flapped = false;
     this.landed = false;
+    this.bumped = false;
     this.flapTime += dt;
     const jump = input.wasPressed('jump');
     if (this.waiting) {
       if (!jump) {
+        // Sin suelo, flota meciéndose
+        if (!this.onGround) {
+          this.wait += dt;
+          this.y = this.baseY + Math.sin(this.wait * 3) * 6;
+        }
         this.remember(scroll);
         return;
       }
@@ -81,7 +95,7 @@ export class Dragon {
         this.jumpHeld = false;
         this.vy = Math.max(this.vy, -jumpCutVelocity);
       }
-      if (this.flight && jump) {
+      if (jump) {
         this.vy = Math.min(this.vy, -flight.flap);
         this.jumpHeld = false;
         this.flying = true;
@@ -98,13 +112,13 @@ export class Dragon {
   }
 
   /**
-   * Gravedad. Corriendo, la del salto; en un nivel de vuelo, en cuanto empieza a bajar (o tras el
-   * primer aleteo), la del vuelo: más suave y con caída máxima.
+   * Gravedad. Saltando, la del salto; desde el primer aleteo (o sin suelo), la del vuelo: más suave
+   * y con caída máxima.
    */
   physics(dt) {
     if (this.onGround) return;
     const { gravity, fastFallMultiplier, flight, head } = CONFIG.dragon;
-    const gliding = this.flight && (this.flying || this.vy >= 0);
+    const gliding = this.flying || !this.ground;
     const pull = gliding ? flight.gravity * (this.fastFall ? flight.diveMultiplier : 1) : gravity * (this.fastFall ? fastFallMultiplier : 1);
     this.vy += pull * dt;
     if (gliding && !this.fastFall) this.vy = Math.min(this.vy, flight.maxFall);
@@ -115,15 +129,31 @@ export class Dragon {
       this.y = top;
       this.vy = Math.max(0, this.vy);
     }
-    if (this.y >= CONFIG.groundY) {
-      this.y = CONFIG.groundY;
-      this.vy = 0;
-      this.onGround = true;
-      this.flying = false;
-      this.jumpHeld = false;
-      this.fastFall = false;
-      this.landed = true;
+    if (this.y < CONFIG.groundY) return;
+    this.y = CONFIG.groundY;
+    this.jumpHeld = false;
+    this.fastFall = false;
+    if (!this.ground) {
+      // Sin suelo: rebota en las nubes
+      this.vy = -CONFIG.dragon.cloudBounce;
+      this.flying = true;
+      this.bumped = true;
+      return;
     }
+    this.vy = 0;
+    this.onGround = true;
+    this.flying = false;
+    this.landed = true;
+  }
+
+  /** Pasa a un nivel con o sin suelo sin detenerse: si se queda sin suelo, lo lanza a volar. */
+  setGround(ground) {
+    this.ground = ground;
+    if (ground || !this.onGround) return;
+    this.onGround = false;
+    this.ducking = false;
+    this.flying = true;
+    this.vy = -CONFIG.dragon.jumpVelocity;
   }
 
   /** En la pantalla de inicio: corre solo, con un saltito de vez en cuando. */
