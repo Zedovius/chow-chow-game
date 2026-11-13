@@ -1,0 +1,10 @@
+{
+  "name": "chow-chow-game",
+  "private": true,
+  "type": "module",
+  "description": "Chow Chow: un pequeño dragón vuela por los doce animales del zodiaco chino.",
+  "scripts": {
+    "test": "node --test tools/*.test.mjs",
+    "publicar": "node tools/publicar.mjs"
+  }
+}

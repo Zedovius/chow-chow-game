@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Las rutas del juego son relativas: si se abre sin la diagonal final (firio.studio/chow-chow),
+       se agrega para que css/, js/ y assets/ se busquen dentro de la carpeta del juego. -->
+  <script>
+    if (!/(\/|\.html)$/.test(location.pathname)) location.replace(location.pathname + '/' + location.search + location.hash);
+  </script>
+  <title>Chow Chow</title>
+  <meta name="description" content="Un pequeño dragón corre, salta y vuela por los doce animales del zodiaco chino.">
+  <meta name="theme-color" content="#05060f">
+  <!-- Se puede instalar y jugar sin internet: manifiesto y service worker (sw.js) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <link rel="icon" href="assets/icons/icon-192.png">
+  <link rel="preload" href="assets/fonts/press-start-2p-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/styles.css">
+  <script>
+    // Si el juego no arranca (un archivo que no cargó, un error, un navegador muy viejo), en vez
+    // de un menú que no responde sale un aviso (#boot-error) con el detalle y un botón para
+    // recargar. main.js pone chowReady y llama a chowBooted al terminar de arrancar.
+    //   · Solo cuentan los errores de los archivos .js del juego, no los de las extensiones.
+    //   · Si solo va lento, a los 6 s dice «Cargando…», y no se da por perdido hasta los 60 s.
+    //   · Se recupera solo, para que funcione sin nadie que lo atienda (en un arcade): vuelve a
+    //     intentar a los 10 s, 3 veces, y después cada minuto. La tercera, si el servidor
+    //     responde, antes borra lo que guardó el service worker, por si eso estaba dañado.
+    // Sin funciones nuevas de JavaScript, para que el aviso salga aun en un navegador muy viejo.
+    (function () {
+      var BASE = location.href.replace(/[?#].*$/, '').replace(/[^/]*$/, '');
+      var RETRIES = 3;
+      var KEY = 'chowchow.retries';
+      function retries(value) {
+        try {
+          if (value === undefined) return Number(sessionStorage.getItem(KEY)) || 0;
+          if (value) sessionStorage.setItem(KEY, String(value));
+          else sessionStorage.removeItem(KEY);
+        } catch (error) {
+          return -1; // sin almacenamiento no se puede contar: sin reintentos solos
+        }
+        return value;
+      }
+      function show(id, visible) {
+        var el = document.getElementById(id);
+        if (el) el.hidden = !visible;
+      }
+      // La última vez, de cero (sin service worker ni lo guardado), pero solo si el servidor
+      // responde: sin internet, lo guardado es lo único que hay
+      function fresh() {
+        return fetch('sw.js?prueba=' + Date.now(), { cache: 'no-store' }).then(function (response) {
+          if (!response.ok) return;
+          return Promise.all([
+            navigator.serviceWorker.getRegistrations().then(function (list) {
+              return Promise.all(list.map(function (registration) { return registration.unregister(); }));
+            }),
+            caches.keys().then(function (keys) {
+              return Promise.all(keys.filter(function (key) { return key.indexOf('chowchow-') === 0; }).map(function (key) { return caches.delete(key); }));
+            }),
+          ]);
+        });
+      }
+      function retry() {
+        var count = retries(retries() + 1);
+        var reload = function () { location.reload(); };
+        if (count === RETRIES && window.fetch && window.caches && navigator.serviceWorker) fresh().then(reload, reload);
+        else reload();
+      }
+      window.chowBootFailed = function (detail) {
+        if (window.chowReady) return;
+        var box = document.getElementById('boot-error');
+        if (!box) {
+          document.addEventListener('DOMContentLoaded', function () { window.chowBootFailed(detail); });
+          return;
+        }
+        if (detail) document.getElementById('boot-error-detail').textContent = detail;
+        if (!box.hidden) return;
+        box.hidden = false;
+        show('boot-loading', false);
+        var count = retries();
+        if (count >= 0) {
+          show('boot-error-retry', true);
+          setTimeout(retry, count < RETRIES ? 10000 : 60000);
+        }
+      };
+      window.chowBooted = function () {
+        show('boot-error', false);
+        show('boot-loading', false);
+        retries(0);
+      };
+      setTimeout(function () {
+        var box = document.getElementById('boot-error');
+        if (!window.chowReady && box && box.hidden) show('boot-loading', true);
+      }, 6000);
+      setTimeout(function () {
+        window.chowBootFailed('No terminó de cargar en 60 s · It did not finish loading in 60 s');
+      }, 60000);
+      window.addEventListener('error', function (event) {
+        var file = event.filename || '';
+        if (file.indexOf(BASE) !== 0 || !/\.js(\?|$)/.test(file)) return;
+        window.chowBootFailed((event.message || 'Error') + ' (' + file.slice(BASE.length) + ':' + event.lineno + ')');
+      });
+    })();
+  </script>
+  <script type="module" src="js/main.js" onerror="chowBootFailed('No se pudo cargar js/main.js · Could not load js/main.js')"></script>
+</head>
+<body>
+  <!-- Los textos con data-i18n* se traducen desde js/i18n/ (es.js, en.js). -->
+  <main class="game">
+    <h1 class="visually-hidden">Chow Chow</h1>
+
+    <section class="stage" id="stage" aria-label="Juego" data-i18n-attr="aria-label:stage.label">
+      <canvas id="game-canvas" class="stage__canvas" width="400" height="150" role="img"
+        aria-label="Un dragón corre y salta entre obstáculos" data-i18n-attr="aria-label:canvas.label"></canvas>
+
+      <aside class="hud" aria-label="Estado del juego" data-i18n-attr="aria-label:hud.label">
+        <ul class="hud__lives" id="hud-lives"></ul>
+        <p class="hud__level" id="hud-level" aria-live="polite"></p>
+        <!-- Las bolas de fuego que quedan (HUD.setAmmo): data-count y .is-full / .is-empty /
+             .is-gained / .is-spent / .is-denied para los estilos -->
+        <p class="hud__ammo" id="hud-ammo" role="img">
+          <span class="hud__ammo-icon" aria-hidden="true"></span>
+          <span class="hud__ammo-count" aria-hidden="true">3</span>
+        </p>
+        <dl class="hud__scores">
+          <div class="hud__score hud__score--high">
+            <dt><abbr title="Récord" data-i18n-attr="title:hud.record">HI</abbr></dt>
+            <dd id="hud-high">00000</dd>
+          </div>
+          <div class="hud__score">
+            <dt class="visually-hidden" data-i18n="hud.score">Puntos</dt>
+            <dd id="hud-score">00000</dd>
+          </div>
+        </dl>
+        <button id="pause-button" class="hud__pause" type="button" aria-label="Pausar" data-i18n-attr="aria-label:hud.pause"></button>
+      </aside>
+
+      <!-- El nombre de cada nivel al empezarlo (Game.showBanner) -->
+      <p class="level-banner" id="level-banner" aria-live="polite" hidden></p>
+
+      <!-- Pantalla de inicio en dos pasos: primero el idioma, luego la dificultad (que empieza el juego). -->
+      <section id="title-screen" class="title-screen" aria-labelledby="title-screen-heading">
+        <h2 id="title-screen-heading" class="title-screen__heading">Chow Chow</h2>
+        <div class="title-screen__steps">
+          <div class="title-screen__step" id="lang-step">
+            <p class="title-screen__prompt" id="lang-prompt">
+              <span lang="en">Choose your language</span> · <span lang="es">Elige tu idioma</span>
+            </p>
+            <div class="lang-choice" id="lang-choice" role="group" aria-labelledby="lang-prompt" data-native-keys>
+              <button class="button lang-choice__option" type="button" data-lang="en" lang="en">English</button>
+              <button class="button lang-choice__option" type="button" data-lang="es" lang="es">Español</button>
+            </div>
+            <button class="title-screen__board" type="button" data-open-boards>HI RECORDS</button>
+          </div>
+          <div class="title-screen__step" id="difficulty-step" data-native-keys hidden>
+            <p class="title-screen__prompt" id="difficulty-prompt" data-i18n="difficulty.prompt">Elige la dificultad</p>
+            <div class="lang-choice" id="difficulty-choice" role="group" aria-labelledby="difficulty-prompt">
+              <button class="button lang-choice__option" type="button" data-difficulty="easy" data-i18n="difficulty.easy">Fácil</button>
+              <button class="button lang-choice__option" type="button" data-difficulty="hard" data-i18n="difficulty.hard">Difícil</button>
+            </div>
+            <button class="title-screen__back" type="button" data-i18n="difficulty.back">&lt; Cambiar idioma</button>
+            <button class="title-screen__board" type="button" data-open-boards>HI RECORDS</button>
+          </div>
+        </div>
+        <p class="title-screen__record">HI <output id="title-high">00000</output></p>
+        <!-- HI RECORDS, que se alterna con el menú (js/ui/TitleBoards.js) -->
+        <div class="title-boards" id="title-boards" hidden></div>
+      </section>
+    </section>
+
+    <!-- Botones táctiles (se muestran con pantalla táctil, ver css/styles.css). Además, tocar la
+         mitad izquierda del juego agacha y la derecha salta. -->
+    <section class="touch-controls" aria-label="Controles táctiles" data-i18n-attr="aria-label:controls.label">
+      <button class="touch-controls__button" type="button" data-action="duck" data-i18n="controls.duck">▼ Agacharse</button>
+      <button class="touch-controls__button touch-controls__button--fire" type="button" data-action="fire" data-i18n="controls.fire">✦ Fuego</button>
+      <button class="touch-controls__button touch-controls__button--jump" type="button" data-action="jump" data-i18n="controls.jump">▲ Saltar</button>
+    </section>
+  </main>
+
+  <dialog id="dialog" class="story" aria-labelledby="dialog-title">
+    <form method="dialog" class="story__form">
+      <h2 id="dialog-title" class="story__title"></h2>
+      <div class="story__body"></div>
+      <menu class="story__actions"></menu>
+    </form>
+  </dialog>
+
+  <noscript>
+    <p class="noscript">Este juego necesita JavaScript para funcionar. · <span lang="en">This game needs JavaScript to run.</span></p>
+  </noscript>
+
+  <!-- Mientras el juego tarda en cargar y, si no arranca, el aviso (ver el script del <head>) -->
+  <p class="boot-loading" id="boot-loading" role="status" hidden>Cargando… · <span lang="en">Loading…</span></p>
+  <div class="boot-error" id="boot-error" role="alert" hidden>
+    <p>No se pudo cargar el juego. · <span lang="en">The game couldn't load.</span></p>
+    <p class="boot-error__retry" id="boot-error-retry" hidden>Se vuelve a intentar solo. · <span lang="en">Retrying by itself.</span></p>
+    <button class="button button--primary" type="button" onclick="location.reload()">Recargar · <span lang="en">Reload</span></button>
+    <p class="boot-error__detail" id="boot-error-detail"></p>
+  </div>
+</body>
+</html>
