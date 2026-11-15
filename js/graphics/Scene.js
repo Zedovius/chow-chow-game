@@ -53,6 +53,8 @@ export class Scene {
    *   arriba a la izquierda; de lo demás: el centro. progress: cuánto del nivel se lleva (0 a 1),
    *   para un fundido al siguiente animal. state: el estado del juego ('title', 'playing'...).
    *   cameraY: lo que se ve arriba de la pantalla, en coordenadas del mundo (0 = el suelo abajo).
+   *   previous, previousAlpha: recién llegado de otro nivel, el anterior y cuánto se ve aún (1 a 0):
+   *   su cielo y su suelo se desvanecen encima de los del nuevo.
    */
   draw(view) {
     const ctx = this.ctx;
@@ -73,9 +75,26 @@ export class Scene {
 
   /**
    * El cielo del fondo, pegado a la pantalla (con parallax). Más arriba, más oscuro: así se nota la
-   * altura aunque el fondo no se mueva.
+   * altura aunque el fondo no se mueva. Recién llegado de otro nivel, el cielo del anterior se
+   * desvanece encima (previous, previousAlpha).
    */
-  drawSky({ level, scroll, cameraY }, art) {
+  drawSky({ level, previous, previousAlpha, scroll, cameraY }, art) {
+    const ctx = this.ctx;
+    this.skyLayer(level, art, scroll);
+    if (previous && previousAlpha > 0) {
+      ctx.globalAlpha = previousAlpha;
+      this.skyLayer(previous, this.images?.levels?.[previous.id] ?? null, scroll);
+      ctx.globalAlpha = 1;
+    }
+    const height = Math.min(1, Math.max(0, -cameraY / (groundY - ceilingY)));
+    if (height > 0) {
+      ctx.fillStyle = `rgba(0, 0, 0, ${(height * 0.45).toFixed(3)})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  /** El cielo de un nivel: su imagen si ya cargó; si no, su degradado. */
+  skyLayer(level, art, scroll) {
     const ctx = this.ctx;
     const { sky } = level.colors;
     const skyImage = ready(art?.sky);
@@ -87,18 +106,28 @@ export class Scene {
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, W, H);
     }
-    const height = Math.min(1, Math.max(0, -cameraY / (groundY - ceilingY)));
-    if (height > 0) {
-      ctx.fillStyle = `rgba(0, 0, 0, ${(height * 0.45).toFixed(3)})`;
-      ctx.fillRect(0, 0, W, H);
-    }
   }
 
   /**
    * El suelo (corre con el scroll para que se note la velocidad) o, sin suelo, las nubes de abajo.
-   * Y el techo del cielo, hasta donde se puede volar.
+   * Y el techo del cielo, hasta donde se puede volar. Recién llegado de otro nivel, el suelo del
+   * anterior se desvanece encima (así el suelo se vuelve nubes, o al revés, poco a poco).
    */
-  drawGround({ level, scroll }, art) {
+  drawGround({ level, previous, previousAlpha, scroll }, art) {
+    const ctx = this.ctx;
+    this.groundLayer(level, art, scroll);
+    if (previous && previousAlpha > 0) {
+      ctx.globalAlpha = previousAlpha;
+      this.groundLayer(previous, this.images?.levels?.[previous.id] ?? null, scroll);
+      ctx.globalAlpha = 1;
+    }
+    // El techo del cielo: una franja tenue
+    ctx.fillStyle = COLORS.ceiling;
+    ctx.fillRect(0, ceilingY - 40, W, 40);
+  }
+
+  /** El suelo de un nivel (o sus nubes, si no tiene): su imagen si ya cargó; si no, figuras. */
+  groundLayer(level, art, scroll) {
     const ctx = this.ctx;
     const { ground } = level.colors;
     const below = H + 40; // lo que se alcanza a ver debajo del suelo
@@ -115,9 +144,6 @@ export class Scene {
       ctx.fillRect(0, groundY + 6, W, below - groundY);
       for (let x = -((scroll * 0.6) % 64); x < W; x += 64) ctx.fillRect(x, groundY - 2, 40, 10);
     }
-    // El techo del cielo: una franja tenue
-    ctx.fillStyle = COLORS.ceiling;
-    ctx.fillRect(0, ceilingY - 40, W, 40);
   }
 
   /** Flechitas en el borde de arriba para lo que se puede recoger y aún no se ve (está más alto). */

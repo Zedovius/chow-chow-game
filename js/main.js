@@ -6,6 +6,7 @@ import { GamepadInput } from './core/Gamepad.js';
 import { listenToRemote } from './core/Remote.js';
 import { Game } from './core/Game.js';
 import { Events } from './core/events.js';
+import { touch } from './core/activity.js';
 import { AudioManager, connectAudio } from './audio/Audio.js';
 import { loadImages } from './graphics/assets.js';
 import { HUD } from './ui/HUD.js';
@@ -47,6 +48,7 @@ const titleBoards = new TitleBoards({
 // acciones. Start mantenido 3 segundos en la pantalla de inicio abre el ajuste de la palanca.
 const gamepad = new GamepadInput(input, {
   onButton: () => {
+    touch(); // alguien está jugando (para el regreso solo al menú principal)
     audio.unlock(); // un botón del control también cuenta como primer gesto, si el navegador lo deja
     return titleBoards.activity();
   },

@@ -343,7 +343,6 @@ export class Player {
     });
   }
 
-  /** Cajas de colisión, un poco más chicas que cada parte para que los roces se sientan justos. */
   /**
    * La caja de choque: la cabeza, un poco más chica que su dibujo para que los roces se sientan
    * justos. Es la misma para todos los animales (el cuerpo largo del Dragón y la Serpiente es solo

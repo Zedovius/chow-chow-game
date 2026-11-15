@@ -12,6 +12,7 @@ import { BirthPicker } from './BirthPicker.js';
 import { ZodiacWheel } from './ZodiacWheel.js';
 import { arrowKeys } from './arrowKeys.js';
 import { CONFIG } from '../config.js';
+import { onActivity } from '../core/activity.js';
 
 const ARROWS = new Set(['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown']);
 
@@ -84,7 +85,8 @@ export class TitleMenu {
         if (!titleScreen?.hidden && this.step !== 'language') this.reset();
       }, CONFIG.leaderboard.idleSeconds * 1000);
     };
-    for (const type of ['keydown', 'pointerdown']) window.addEventListener(type, idle, true);
+    // Cualquier tecla, toque o botón del control (también A, que no pasa por el teclado)
+    onActivity(idle);
     idle();
     document.addEventListener('keydown', (event) => {
       if (!ARROWS.has(event.key) || titleScreen?.hidden) return;

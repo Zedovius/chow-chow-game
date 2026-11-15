@@ -176,9 +176,12 @@ export class Boss {
     spawn(o);
   }
 
-  /** Le pegó una bola de fuego (damage: cuánta vida le quita). Devuelve true si le hizo daño. */
+  /**
+   * Le pegó una bola de fuego (damage: cuánta vida le quita). Devuelve true si le hizo daño. También
+   * mientras entra: las bolas de fuego solo lo alcanzan cuando ya se ve, y así ninguna se pierde.
+   */
   hit(damage = 1) {
-    if (this.state === 'enter' || this.defeated) return false;
+    if (this.defeated) return false;
     this.hp = Math.max(0, this.hp - damage);
     this.flash = 0.15;
     if (this.hp <= 0) {

@@ -43,6 +43,11 @@ Funciona con controles de Xbox, PlayStation, genéricos, el joystick del arcade 
 90° y se endereza solo) y el control remoto de las teles. Start mantenido 3 segundos en la pantalla
 de inicio abre el ajuste de la palanca.
 
+Si nadie toca nada en 3 minutos (`idleSeconds` en `js/config.js`) en la pausa, en Game Over, en el
+final o con el nivel esperando el primer salto, el juego regresa solo al menú principal, para que
+quien llegue después empiece desde el inicio (`js/core/activity.js`: teclas, toques y botones del
+control cuentan como actividad).
+
 ## Cómo funciona
 
 - **Tu animal** (`js/world/birth.js`, `js/ui/BirthPicker.js`, `js/ui/ZodiacWheel.js`): después del
@@ -116,18 +121,26 @@ de inicio abre el ajuste de la palanca.
   desde el suelo. Nunca hacen falta: los 12 niveles se pueden pasar
   sin disparar (lo comprueban las pruebas).
 - **12 niveles** (`js/world/levels.js`): cada uno más rápido; dentro de cada nivel la velocidad
-  sube un poco. Van seguidos; al terminar uno se cobran los corazones. Después de tu mundo (el 12)
+  sube un poco. Van seguidos; al terminar uno se cobran los corazones. El paso de uno al otro es
+  suave (`CONFIG.transition`, 1.6 s): el cielo y el suelo del anterior se desvanecen sobre los del
+  nuevo (el suelo se vuelve nubes, o al revés, poco a poco) y la velocidad pasa sin frenones de la
+  que se llevaba a la del nuevo nivel (también al llegar al jefe, que va más despacio). Después de tu mundo (el 12)
   viene el nivel 13.
 - **Nivel 13: tu rival** (`bossLevel` en `js/world/levels.js`, `js/entities/Boss.js`), en las dos
   dificultades: el animal de enfrente en la rueda (`rivalOf`: Rata–Caballo, Buey–Cabra,
   Tigre–Mono, Conejo–Gallo, Dragón–Perro, Serpiente–Cerdo), en su mundo. Todos vuelan, tengan o no
-  la estrella, y ahí un golpe no quita el vuelo. No hay obstáculos: solo el jefe, que se le gana con
-  bolas de fuego (10 en fácil, 16 en difícil).
-  - **Fácil:** el fuego es infinito (∞ en el HUD) y solo sale comida, muy de vez en cuando.
-  - **Difícil:** salen cócteles seguido, y con 3 o más bolas de fuego, **mantener FUEGO carga un
-    disparo especial** (`js/core/charge.js`): se suelta cargado y sale una bola grande que gasta
-    solo una, le quita 3 de vida al jefe y atraviesa sus disparos. Un toque sigue siendo un disparo
-    normal. Mientras se carga, el animal brilla del color de su fuego y el rombo del HUD crece.
+  la estrella, y ahí un golpe no quita el vuelo. Si el rival es el Dragón o el Gallo, la pelea es
+  en su cielo, sin suelo (tocar las nubes cuesta un corazón). No hay obstáculos: solo el jefe, que
+  se le gana con bolas de fuego (10 en fácil, 16 en difícil); se le puede pegar desde que se ve.
+  - **Mantener FUEGO carga un disparo especial** (`js/core/charge.js`): se suelta cargado y sale
+    una bola grande que le quita 3 de vida al jefe y atraviesa sus disparos. Un toque sigue siendo
+    un disparo normal. Mientras se carga, el animal brilla del color de su fuego y el rombo del HUD
+    crece.
+  - **Fácil:** el fuego es infinito (∞ en el HUD), y el especial también: se carga cuantas veces se
+    quiera. El disparo normal sale al presionar (sin esperar a soltar). Solo sale comida, muy de vez
+    en cuando.
+  - **Difícil:** salen cócteles seguido; el especial se carga con 3 o más bolas de fuego y gasta
+    solo una.
 
   Los 12 jefes tienen los mismos ataques, siempre avisados antes (se ve tenue dónde van a pegar):
   - **Ráfaga:** tres disparos a tres alturas, con huecos para pasar.
@@ -156,7 +169,7 @@ de inicio abre el ajuste de la palanca.
   cualquier pantalla.
 
 Todo lo que se ajusta (física, vuelo, velocidades, obstáculos, fuego, cócteles, puntos) está en
-`js/config.js`. Para probar un nivel: `?nivel=5` empieza en el 5 (el Dragón, sin suelo).
+`js/config.js`. Para probar un nivel: `?nivel=5` empieza en el 5 (solo en localhost; en el juego publicado no hace nada, para que nadie se salte niveles y entre a HI RECORDS).
 
 - **Avisos** (`js/core/events.js`): Game cuenta lo que pasa (`jump`, `flap`, `land`, `fire`,
   `burn`, `cocktail`, `food`, `hit`, `levelStart`, `gameOver`...; la lista completa está en ese archivo) y quien

@@ -22,12 +22,14 @@ export class Pickup {
     this.prevX = x;
     this.baseY = y;
     this.y = y;
+    this.prevY = y; // el del paso anterior (para dibujar entre dos pasos, Game.render)
     this.t = Math.random() * Math.PI * 2;
     this.r = RADIUS[type]();
   }
 
   update(dt, speed) {
     this.prevX = this.x;
+    this.prevY = this.y;
     this.x -= speed * dt;
     this.t += dt;
     this.y = this.baseY + Math.sin(this.t * 2.4) * CONFIG.pickups.bob;

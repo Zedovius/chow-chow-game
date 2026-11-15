@@ -15,6 +15,10 @@
 import { CONFIG } from '../config.js';
 import { KINDS } from '../world/obstacles.js';
 
+const SKY_BOB = 2; // cuánto se mece lo del aire (arriba y abajo)
+// El rayo nunca baja hasta donde llega un salto normal: se queda esto arriba del borde de su fila
+const BOLT_CLEARANCE = 10;
+
 export class Obstacle {
   /**
    * kind: un tipo de KINDS; x: borde izquierdo. Para lo del aire: height ('low', 'mid', 'high' o
@@ -33,8 +37,9 @@ export class Obstacle {
     this.prevX = x;
     this.baseY = spec.ground ? CONFIG.groundY - spec.h : CONFIG.groundY - center - spec.h / 2;
     this.y = this.baseY; // borde de arriba
+    this.prevY = this.y; // el del paso anterior (para dibujar entre dos pasos, Game.render)
     this.offset = 0; // lo que se movió hacia abajo (negativo: hacia arriba) por su motion
-    this.bob = spec.ground ? 0 : 2;
+    this.bob = spec.ground ? 0 : SKY_BOB;
     this.t = Math.random() * Math.PI * 2;
     // Las criaturas y lo que rueda van más rápido que el suelo
     this.speedBonus = kind === 'flyer' ? CONFIG.obstacles.flyerSpeedBonus : motion === 'roll' ? CONFIG.obstacles.motion.roll.speed : 0;
@@ -62,12 +67,21 @@ export class Obstacle {
     this.lightning = null;
     if (kind === 'cloud') {
       const { length, period, warn, strike } = CONFIG.obstacles.lightning;
-      const floor = limits ? limits.low - 10 : 0;
+      const floor = limits ? limits.low - BOLT_CLEARANCE : 0;
       const reach = Math.min(length, bottom - this.bob - floor);
       // Empieza en algún momento de la pausa: así ningún rayo cae sin su aviso
       if (reach >= 18) this.lightning = { length: reach, clock: Math.random() * (period - warn - strike) };
     }
     this.struck = false; // el rayo empezó en este paso
+  }
+
+  /**
+   * Lo más bajo que puede ir el centro de una nube de tormenta en una fila (limits) para que su rayo
+   * quepa entero debajo: una nube sin rayo no debe salir (world/Spawner.js la sube hasta aquí).
+   */
+  static lowestCloud(limits) {
+    const floor = limits ? limits.low - BOLT_CLEARANCE : 0;
+    return floor + CONFIG.obstacles.lightning.length + SKY_BOB + KINDS.cloud.h / 2;
   }
 
   /** El tamaño de un tipo: { w, h } (ver world/obstacles.js). */
@@ -77,6 +91,7 @@ export class Obstacle {
 
   update(dt, speed) {
     this.prevX = this.x;
+    this.prevY = this.y;
     this.x -= (speed + this.speedBonus) * dt;
     this.t += dt;
     const { wave, dive, rise, hop } = CONFIG.obstacles.motion;

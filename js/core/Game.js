@@ -21,6 +21,7 @@ import { CloseCalls } from './closeCalls.js';
 import { FireButton } from './charge.js';
 import { Combo } from './combo.js';
 import { Events } from './events.js';
+import { touch, idleSeconds } from './activity.js';
 import { addScore, loadBoards, placeIn } from './scores.js';
 import { DIFFICULTIES, levelsFor, journeyFor, signById } from '../world/levels.js';
 import { Boss } from '../entities/Boss.js';
@@ -53,6 +54,8 @@ function saveRecord(value) {
 }
 
 const blend = (from, to, alpha) => from + (to - from) * alpha;
+// Suave al empezar y al terminar (0 a 1)
+const smooth = (k) => k * k * (3 - 2 * k);
 
 const STATES = {
   title: {
@@ -75,6 +78,8 @@ const STATES = {
   dying: {
     update(dt, time) {
       this.speed *= Math.exp(-CONFIG.deathSlowdown * dt);
+      // Si cayó a media transición entre niveles, el fundido termina igual (no se queda a medias)
+      if (this.transition) this.transition.time += dt;
       this.advanceWorld(dt);
       this.player.prevY = this.player.y;
       this.player.fall(dt, this.scroll);
@@ -199,6 +204,7 @@ export class Game {
     this.player.canFly = false;
     this.player.forceFlight = false;
     this.boss = null;
+    this.transition = null;
     this.hud.hideBoss();
     this.player.reset(true);
     this.camera.snap(this.player.y);
@@ -272,6 +278,8 @@ export class Game {
       this.player.canFly = true;
       this.hud.setFlight(true);
     }
+    // El paso suave del nivel anterior a este (colores y velocidad), si viene de él sin detenerse
+    this.transition = continued && this.level ? { from: this.level, speed: this.speed, time: 0 } : null;
     this.levelIndex = index;
     this.level = this.levels[index];
     this.levelStartScore = this.score;
@@ -303,7 +311,10 @@ export class Game {
     this.showLives();
     // Si el dragón espera el primer salto, el cartel se queda con el aviso hasta que empiece
     const lines = [this.levelLabel(), ...this.levelHints()];
-    if (this.player.waiting) lines.push(t(this.level.ground ? 'level.start' : 'level.startSky'));
+    if (this.player.waiting) {
+      lines.push(t(this.level.ground ? 'level.start' : 'level.startSky'));
+      touch(); // si nadie salta en un rato, regresa al menú (ver checkIdle)
+    }
     this.showBanner(lines.join('\n'), !this.player.waiting);
     this.fsm.set('playing');
     this.events.emit('levelStart', { index, id: this.level.id, continued, ground: this.level.ground, boss: Boolean(this.boss) });
@@ -342,6 +353,13 @@ export class Game {
     // Cada nivel acelera un poco hasta su final (ramp, según la dificultad)
     const progress = Math.min(1, this.distance / this.level.length);
     this.speed = this.level.speed * (1 + this.level.ramp * progress);
+    // Recién llegado de otro nivel: la velocidad pasa poco a poco de la que llevaba a la de este
+    if (this.transition) {
+      this.transition.time += dt;
+      const k = this.transitionBlend;
+      this.speed = this.transition.speed + (this.speed - this.transition.speed) * smooth(k);
+      if (k >= 1) this.transition = null;
+    }
     this.spawner.progress = progress;
     this.updateSection();
     const dx = this.advanceWorld(dt);
@@ -387,6 +405,11 @@ export class Game {
     if (state === 'telegraph' && boss.state !== 'telegraph') this.events.emit('bossAttack', { attack: boss.attack });
   }
 
+  /** Qué tanto se ha pasado del nivel anterior a este (0 a 1; 1 sin transición). */
+  get transitionBlend() {
+    return this.transition ? Math.min(1, this.transition.time / CONFIG.transition.seconds) : 1;
+  }
+
   /** Avisa cuando el nivel pasa a otro tramo (para la música, por ejemplo). */
   updateSection() {
     const { name } = this.spawner.section;
@@ -418,15 +441,18 @@ export class Game {
 
   // --- Fuego ----------------------------------------------------------------------
 
-  /** La acción 'fire': una bola de fuego desde la boca, si hay y ya pasó el tiempo entre disparos. */
   /** Contra el rival en fácil, el fuego no se acaba. */
   get infiniteFire() {
     return Boolean(this.boss) && CONFIG.boss.infiniteFire[this.difficulty];
   }
 
-  /** Contra el rival en difícil, con suficientes bolas de fuego, mantener el botón carga el especial. */
+  /**
+   * Contra el rival, mantener el botón carga el especial: en fácil, siempre (fuego infinito); en
+   * difícil, con suficientes bolas de fuego.
+   */
   get canCharge() {
-    return Boolean(this.boss) && !this.boss.defeated && CONFIG.boss.chargeShot[this.difficulty] && this.ammo >= CONFIG.charge.needs;
+    const enough = this.infiniteFire || this.ammo >= CONFIG.charge.needs;
+    return Boolean(this.boss) && !this.boss.defeated && CONFIG.boss.chargeShot[this.difficulty] && enough;
   }
 
   /**
@@ -439,6 +465,7 @@ export class Game {
       pressed: this.input.wasPressed('fire'),
       down: this.input.isDown('fire'),
       canCharge: this.canCharge,
+      instant: this.infiniteFire, // en fácil el disparo normal sale al presionar
     });
     if (this.fireButton.charged) this.events.emit('chargeReady');
     this.hud.setCharge(this.canCharge, this.fireButton.progress);
@@ -592,6 +619,10 @@ export class Game {
     const flow = this.flow;
     this.fsm.set('paused');
     this.events.emit('pause');
+    touch(); // la cuenta para regresar solo al menú empieza aquí (ver checkIdle)
+    // Si estaba cargando el especial, se cancela (al continuar no sale un disparo solo)
+    this.fireButton.reset();
+    this.hud.setCharge(this.canCharge, 0);
     const choice = await this.dialogs.show({
       title: t('menu.pause'),
       actions: [
@@ -615,6 +646,7 @@ export class Game {
     this.fsm.set('gameOver');
     saveRecord(this.record);
     this.events.emit('gameOver');
+    touch();
     const hard = this.mode.restartFromHome;
     const choice = await this.dialogs.show({
       title: t('menu.gameOver'),
@@ -661,6 +693,7 @@ export class Game {
   async showEnding() {
     const flow = ++this.flow;
     this.fsm.set('ending');
+    touch();
     this.hideBanner();
     saveRecord(this.record);
     this.events.emit('ending', { score: this.score });
@@ -754,10 +787,22 @@ export class Game {
   update(dt) {
     if (this.input.wasPressed('mute')) this.events.emit('toggleMute');
     this.fsm.update(dt);
+    this.checkIdle();
     if (this.stage.dataset.state !== this.fsm.name) this.stage.dataset.state = this.fsm.name;
     this.stage.dataset.ground = String(this.fsm.is('title') || this.level.ground);
     this.stage.dataset.high = String(this.camera.y < -CONFIG.jumpHeight); // volando alto
     this.input.endStep();
+  }
+
+  /**
+   * En el bar la máquina no se queda esperando a quien ya se fue: en la pausa, en Game Over, en el
+   * final (después de escribir el nombre, que tiene su propio tiempo) o con el nivel esperando el
+   * primer salto, sin que nadie toque nada en CONFIG.idleSeconds, regresa al menú principal.
+   */
+  checkIdle() {
+    const waiting = this.fsm.is('playing') && this.player.waiting;
+    if (!waiting && !this.fsm.is('paused', 'gameOver', 'ending')) return;
+    if (idleSeconds() >= CONFIG.idleSeconds) this.showTitle();
   }
 
   /**
@@ -788,6 +833,9 @@ export class Game {
     const lerp = (from, to) => (moving ? blend(from, to, alpha) : to);
     this.scene.draw({
       level: this.level,
+      // Recién llegado de otro nivel: el anterior, que se desvanece (previousAlpha: 1 a 0)
+      previous: this.transition?.from ?? null,
+      previousAlpha: 1 - smooth(this.transitionBlend),
       progress: this.fsm.is('title') ? 0 : Math.min(1, this.distance / this.level.length),
       state: this.fsm.name,
       scroll: lerp(this.prevScroll, this.scroll),
@@ -813,7 +861,7 @@ export class Game {
         motion: o.motion,
         burnable: o.burnable,
         x: lerp(o.prevX, o.x),
-        y: o.y,
+        y: lerp(o.prevY, o.y),
         w: o.w,
         h: o.h,
         t: o.t,
@@ -821,7 +869,7 @@ export class Game {
         bolt: o.striking ? o.lightning.length : 0, // el rayo, si está cayendo (su largo)
         boltLength: o.lightning?.length ?? 0, // el largo de sus rayos (para dibujar el aviso)
       })),
-      pickups: this.pickups.map((p) => ({ type: p.type, variety: p.variety, x: lerp(p.prevX, p.x), y: p.y, r: p.r, t: p.t })),
+      pickups: this.pickups.map((p) => ({ type: p.type, variety: p.variety, x: lerp(p.prevX, p.x), y: lerp(p.prevY, p.y), r: p.r, t: p.t })),
       fireballs: this.fireballs.map((f) => ({ x: lerp(f.prevX, f.x), y: f.y, r: f.r, age: f.age, special: f.special })),
       charge: this.fireButton.progress, // el disparo especial cargándose (0 a 1)
       fireColor: signById(this.sign ?? 'dragon').fire, // el fuego es del color del animal

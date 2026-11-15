@@ -1,15 +1,18 @@
 // El botón de fuego, con o sin carga. Sin carga, cada vez que se presiona sale una bola de fuego.
-// Con carga (en difícil, contra el rival, con al menos CONFIG.charge.needs bolas de fuego), al
-// presionar empieza a cargar; al soltar sale:
+// Con carga (contra el rival: en fácil siempre; en difícil, con al menos CONFIG.charge.needs bolas
+// de fuego), al presionar empieza a cargar; al soltar sale:
 //   'normal'   si se soltó antes de CONFIG.charge.seconds (un toque rápido)
-//   'special'  si se mantuvo hasta cargarse: grande, pega más y gasta solo una bola de fuego
+//   'special'  si se mantuvo hasta cargarse: grande y pega más (en difícil gasta una bola de fuego)
 // Así un toque sigue siendo un disparo, y mantener el botón es el ataque especial.
+// instant (con fuego infinito, en fácil): el disparo normal sale al presionar, sin esperar a que se
+// suelte, y mantener el botón carga el especial de todos modos (al soltar sale solo si se cargó).
 
 import { CONFIG } from '../config.js';
 
 export class FireButton {
   constructor() {
     this.charging = null; // segundos que lleva cargando, o null si no carga
+    this.instant = false; // esta carga ya disparó uno normal al presionar (ver update)
   }
 
   /** Qué tan cargado va (0 a 1), para el dibujo. */
@@ -23,22 +26,26 @@ export class FireButton {
 
   /**
    * Un paso. pressed: se presionó en este paso; down: está presionado; canCharge: se puede cargar
-   * ahora. Devuelve qué disparo sale en este paso: 'normal' | 'special' | null. Al cargarse por
-   * completo, ready pasa a true (charged: true en ese paso, para avisar).
+   * ahora; instant: el disparo normal sale al presionar (ver arriba). Devuelve qué disparo sale en
+   * este paso: 'normal' | 'special' | null. Al cargarse por completo, ready pasa a true (charged:
+   * true en ese paso, para avisar).
    */
-  update(dt, { pressed, down, canCharge }) {
+  update(dt, { pressed, down, canCharge, instant = false }) {
     this.charged = false;
     if (!canCharge) {
       // Si deja de poder cargar a media carga (por ejemplo, el jefe cayó), sale un disparo normal
       if (this.charging !== null) {
+        const wasInstant = this.instant;
         this.charging = null;
-        return 'normal';
+        if (!wasInstant) return 'normal';
       }
       return pressed ? 'normal' : null;
     }
     if (this.charging === null) {
-      if (pressed) this.charging = 0;
-      return null;
+      if (!pressed) return null;
+      this.charging = 0;
+      this.instant = instant;
+      return instant ? 'normal' : null;
     }
     if (down) {
       const wasReady = this.ready;
@@ -46,7 +53,7 @@ export class FireButton {
       if (!wasReady && this.ready) this.charged = true;
       return null;
     }
-    const shot = this.ready ? 'special' : 'normal';
+    const shot = this.ready ? 'special' : this.instant ? null : 'normal';
     this.charging = null;
     return shot;
   }

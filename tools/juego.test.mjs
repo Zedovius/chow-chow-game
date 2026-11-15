@@ -347,6 +347,11 @@ test('los obstáculos de los 24 niveles siguen sus reglas, en el suelo y en el c
           else assert.equal(ground.length, 0, `${where}: obstáculos de suelo sin suelo`);
           for (const { obstacle, speed } of sky) {
             kinds.add(`${obstacle.kind}:${obstacle.motion}${obstacle.lightning ? ':rayo' : ''}`);
+            // Ninguna nube de tormenta sin rayo, y su rayo siempre entero
+            if (obstacle.kind === 'cloud') {
+              assert.ok(obstacle.lightning, `${where}: una nube sin rayo`);
+              assert.equal(obstacle.lightning.length, CONFIG.obstacles.lightning.length, `${where}: rayo recortado`);
+            }
             // En toda su vida (moviéndose, y con sus rayos) no sale de su fila ni del cielo. Con
             // suelo, lo del cielo nunca estorba un salto normal: solo a quien vuela.
             const { low, high } = reachOf(obstacle, speed);
@@ -783,11 +788,11 @@ test('el jefe siempre avisa antes de atacar, y su copia hace exactamente lo mism
   assert.ok(spread - h > CONFIG.player.head.h + 10);
 });
 
-test('el jefe cae con tantas bolas de fuego como su vida (y no antes de entrar)', () => {
+test('el jefe cae con tantas bolas de fuego como su vida (también mientras entra)', () => {
   const boss = new Boss('dog', 'easy', 7);
-  assert.equal(boss.hit(), false); // entrando no se le puede pegar
+  assert.ok(boss.hit()); // entrando ya se le puede pegar: ninguna bola de fuego se pierde
   while (boss.state === 'enter') boss.update(DT, { playerY: 150, spawn: () => {} });
-  for (let i = 0; i < CONFIG.boss.hp.easy - 1; i++) assert.ok(boss.hit());
+  for (let i = 0; i < CONFIG.boss.hp.easy - 2; i++) assert.ok(boss.hit());
   assert.ok(!boss.defeated);
   boss.hit();
   assert.ok(boss.defeated && boss.hitboxes().length === 0);
@@ -800,12 +805,12 @@ test('el jefe cae con tantas bolas de fuego como su vida (y no antes de entrar)'
  * junta cócteles cuando le faltan bolas de fuego y, con fuego, se pone a la altura del jefe y le
  * dispara.
  */
-function bossRun(difficulty, seed) {
+function bossRun(difficulty, seed, sign = 'pig') {
   return withSeed(seed, () => {
-    const level = bossLevel(difficulty, 'pig');
+    const level = bossLevel(difficulty, sign);
     const fireMax = DIFFICULTIES[difficulty].fireMax;
     const dragon = new Player();
-    dragon.reset(true);
+    dragon.reset(level.ground);
     dragon.forceFlight = true;
     dragon.waiting = false;
     const boss = new Boss(level.id, difficulty, seed);
@@ -880,7 +885,7 @@ function bossRun(difficulty, seed) {
       if (boss.defeated) obstacles = obstacles.filter((o) => o.kind !== 'shot');
       const body = dragon.hitboxes();
       const struck = obstacles.find((o) => anyOverlap(body, o.hitboxes())) ?? (anyOverlap(body, boss.hitboxes()) ? boss : null);
-      if (dragon.canBeHit && struck) {
+      if (dragon.canBeHit && (struck || dragon.bumped)) {
         hits++;
         if (process.env.BOT_DEBUG) console.log('jefe', difficulty, struck === boss ? 'cuerpo' : 'disparo', boss.state, boss.attack, current.plan.name, { y: Math.round(dragon.y), boss: Math.round(boss.y) });
         dragon.hurt();
@@ -896,10 +901,12 @@ function bossRun(difficulty, seed) {
   });
 }
 
-test('al jefe se le puede vencer sin un golpe, en fácil y en difícil', () => {
+test('al jefe se le puede vencer sin un golpe, en fácil y en difícil (también en el cielo, sin suelo)', () => {
+  // Con el Cerdo, el rival es la Serpiente (con suelo); con el Perro, el Dragón (sin suelo)
+  assert.equal(bossLevel('easy', 'dog').ground, false);
   for (const difficulty of ['easy', 'hard']) {
-    for (const seed of [11, 22, 33]) {
-      const result = bossRun(difficulty, seed);
+    for (const [seed, sign] of [[11, 'pig'], [22, 'pig'], [33, 'pig'], [44, 'dog'], [55, 'rabbit']]) {
+      const result = bossRun(difficulty, seed, sign);
       if (process.env.BOT_DEBUG) console.log('jefe', difficulty, seed, result);
       assert.ok(result.done, `${difficulty} semilla ${seed}: no lo venció en ${result.seconds.toFixed(0)} s`);
       assert.equal(result.hits, 0, `${difficulty} semilla ${seed}: ${result.hits} golpes`);
@@ -951,6 +958,15 @@ test('el botón de fuego: un toque es un disparo; mantenido se carga el especial
   // Si a media carga ya no se puede (el jefe cayó), sale un disparo normal
   step(true, true);
   assert.equal(step(false, true, false), 'normal');
+
+  // Con fuego infinito (fácil): el normal sale al presionar; mantenido, además, el especial
+  const easy = new FireButton();
+  const tap = (pressed, down) => easy.update(DT, { pressed, down, canCharge: true, instant: true });
+  assert.equal(tap(true, true), 'normal');
+  assert.equal(tap(false, false), null); // al soltar un toque no sale otro
+  assert.equal(tap(true, true), 'normal');
+  for (let t = 0; t < CONFIG.charge.seconds + 0.1; t += DT) assert.equal(tap(false, true), null);
+  assert.equal(tap(false, false), 'special');
 });
 
 test('el disparo especial le quita más vida al jefe', () => {

@@ -127,12 +127,23 @@ export class Spawner {
     });
   }
 
-  /** Un obstáculo del cielo en su franja: a una altura al azar dentro de ella. */
+  /**
+   * Un obstáculo del cielo en su franja: a una altura al azar dentro de ella. Una nube de tormenta
+   * va siempre lo bastante alta para que su rayo quepa entero debajo (nunca sale una nube sin rayo);
+   * si en esa franja no cabe, en su lugar sale una criatura.
+   */
   skyObstacle(lane, { band, kind, motion, dx }) {
+    const limits = { low: lane.from, high: lane.to };
     const size = (lane.to - lane.from) / lane.bands;
     const half = Obstacle.size(kind).h / 2;
-    const center = between(lane.from + band * size + half, lane.from + (band + 1) * size - half);
-    const obstacle = new Obstacle(kind, CONFIG.width + 40 + dx, { height: 'sky', center, motion, limits: { low: lane.from, high: lane.to } });
+    let lowest = lane.from + band * size + half;
+    const highest = lane.from + (band + 1) * size - half;
+    if (kind === 'cloud') {
+      lowest = Math.max(lowest, Obstacle.lowestCloud(limits));
+      if (lowest > highest) return this.skyObstacle(lane, { band, kind: 'flyer', motion: 'bob', dx });
+    }
+    const center = between(lowest, highest);
+    const obstacle = new Obstacle(kind, CONFIG.width + 40 + dx, { height: 'sky', center, motion, limits });
     obstacle.band = band;
     obstacle.speedBonus += band * CONFIG.obstacles.altitudeSpeed; // más arriba, más rápido
     return obstacle;

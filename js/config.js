@@ -1,9 +1,12 @@
 // Ajustes globales del juego. Las medidas van en unidades del mundo: el mundo mide 800 × 300 y
 // el canvas lo dibuja a la mitad de resolución (pixel), ampliado sin suavizar.
 
-// Para probar: ?nivel=5 empieza en el nivel 5; ?nivel=13, en la pelea contra el rival. En las pruebas de Node no
-// hay location.
-const params = new URLSearchParams(globalThis.location?.search ?? '');
+// Para probar: ?nivel=5 empieza en el nivel 5; ?nivel=13, en la pelea contra el rival. Solo en la
+// computadora de desarrollo (localhost o el archivo abierto directo): en el juego publicado no hace
+// nada, para que nadie se salte niveles y entre a HI RECORDS. En las pruebas de Node no hay location.
+const DEV_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '']);
+const dev = Boolean(globalThis.location) && DEV_HOSTS.has(globalThis.location.hostname);
+const params = new URLSearchParams(dev ? globalThis.location.search : '');
 const requestedLevel = Number.parseInt(params.get('nivel') ?? '', 10);
 
 // El salto completo: 700² / (2 · 2400) ≈ 102 de alto. Se puede volar hasta SKY_JUMPS saltos de alto.
@@ -111,8 +114,8 @@ export const CONFIG = {
   // Bolas de fuego: queman lo que sea burnable (world/obstacles.js). Se recargan con cócteles. El
   // máximo que se puede cargar depende de la dificultad (fireMax en world/levels.js)
   fire: { speed: 560, radius: 6, start: 3, cooldown: 0.25 },
-  // El disparo especial (en difícil, contra el rival, core/charge.js): con al menos needs bolas de
-  // fuego, mantener el botón seconds segundos lo carga; al soltarlo sale uno grande (radius) que
+  // El disparo especial (contra el rival, core/charge.js): en fácil siempre (el fuego es infinito);
+  // en difícil, con al menos needs bolas de fuego, mantener el botón seconds segundos lo carga; al soltarlo sale uno grande (radius) que
   // gasta solo una, le quita damage de vida al jefe y atraviesa sus disparos.
   charge: { needs: 3, seconds: 0.8, damage: 3, radius: 12 },
   // Lo que se recoge (world/Spawner.js), como los huesitos de Chispas: sale en momentos y alturas al
@@ -165,10 +168,16 @@ export const CONFIG = {
       hard: { cocktail: [3, 4.5], food: [14, 20] },
     },
     infiniteFire: { easy: true, hard: false },
-    chargeShot: { easy: false, hard: true },
+    chargeShot: { easy: true, hard: true },
     speed: 260, // el mundo sigue corriendo, más despacio
   },
 
+  // Entre un nivel y el siguiente (sin detenerse): en seconds segundos el mundo pasa del color del
+  // anterior al del nuevo, y la velocidad, de la que llevaba a la del nuevo (sin frenones)
+  transition: { seconds: 1.6 },
+  // Sin que nadie toque nada este tiempo en una pantalla de espera (la pausa, Game Over, el final o
+  // el nivel esperando el primer salto), el juego regresa solo al menú principal (core/activity.js)
+  idleSeconds: 180,
   deathDelay: 1.4, // segundos cayendo antes del Game Over
   deathSlowdown: 2.5, // al caer, el mundo sigue avanzando y frena así (más alto, frena antes)
 

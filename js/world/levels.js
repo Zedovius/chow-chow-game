@@ -145,7 +145,7 @@ export function bossLevel(difficulty = 'easy', sign = 'pig') {
     id: rival.id,
     nameKey: `zodiac.${rival.id}`,
     boss: true,
-    ground: true,
+    ground: !rival.noGround, // contra el Dragón o el Gallo, en su cielo: sin suelo, como su mundo
     colors: rival,
     length: Infinity,
     speed: CONFIG.boss.speed * rules.speed,
