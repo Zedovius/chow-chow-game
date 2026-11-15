@@ -1,4 +1,4 @@
-// Marcador en HTML (encima del canvas): nivel, vidas, bolas de fuego, puntos y récord.
+// Marcador en HTML (encima del canvas): nivel, vidas, bolas de fuego, racha, puntos y récord.
 
 import { t, getLanguage } from '../i18n/i18n.js';
 import { sparkle } from './record.js';
@@ -30,8 +30,12 @@ function heart(fill) {
 const fillsFor = (lives, slots) => Array.from({ length: slots }, (_, i) => Math.min(1, Math.max(0, lives - i)));
 
 export class HUD {
-  constructor({ level, lives, ammo, score, high }) {
+  constructor({ level, lives, ammo, combo, flight, boss, score, high }) {
     this.levelEl = level;
+    this.bossEl = boss;
+    this.comboEl = combo;
+    this.flightEl = flight;
+    this.lastCombo = 1;
     this.ammoEl = ammo;
     this.ammoCountEl = ammo?.querySelector('.hud__ammo-count') ?? null;
     this.lastAmmo = null;
@@ -112,7 +116,8 @@ export class HUD {
 
   /** Vuelve a escribir los textos traducibles (al cambiar de idioma). */
   refresh() {
-    if (this.lastAmmo) this.setAmmo(this.lastAmmo.count, this.lastAmmo.max);
+    if (this.lastAmmo) this.setAmmo(this.lastAmmo.count, this.lastAmmo.max, { infinite: this.lastAmmo.infinite });
+    this.setCombo(this.lastCombo);
     if (this.lastLives < 0) return;
     this.fills = null;
     this.setLives(this.lastLives, this.maxLives);
@@ -127,16 +132,88 @@ export class HUD {
    * Las bolas de fuego: count de max. gained (un cóctel) y spent (un disparo) animan el contador
    * con .is-gained y .is-spent; el CSS decide cómo se ven.
    */
-  setAmmo(count, max, { gained = false, spent = false } = {}) {
+  setAmmo(count, max, { gained = false, spent = false, infinite = false } = {}) {
     if (!this.ammoEl) return;
-    this.lastAmmo = { count, max };
-    this.ammoCountEl.textContent = String(count);
-    this.ammoEl.dataset.count = String(count);
-    this.ammoEl.classList.toggle('is-full', count >= max);
-    this.ammoEl.classList.toggle('is-empty', count <= 0);
-    this.ammoEl.setAttribute('aria-label', t('hud.fire', { count, max }));
+    this.lastAmmo = { count, max, infinite };
+    this.ammoCountEl.textContent = infinite ? '∞' : String(count);
+    this.ammoEl.dataset.count = infinite ? 'infinite' : String(count);
+    this.ammoEl.classList.toggle('is-full', infinite || count >= max);
+    this.ammoEl.classList.toggle('is-empty', !infinite && count <= 0);
+    this.ammoEl.setAttribute('aria-label', infinite ? t('hud.fireInfinite') : t('hud.fire', { count, max }));
     if (gained) restart(this.ammoEl, 'is-gained');
     if (spent) restart(this.ammoEl, 'is-spent');
+  }
+
+  /**
+   * El multiplicador de la racha (core/combo.js). Con ×1 se oculta. up: subió (.is-up); lost: se
+   * perdió por un golpe (.is-lost, se ve un momento antes de ocultarse).
+   */
+  setCombo(multiplier, { up = false, lost = false } = {}) {
+    if (!this.comboEl) return;
+    this.lastCombo = multiplier;
+    const text = new Intl.NumberFormat(getLanguage(), { maximumFractionDigits: 1 }).format(multiplier);
+    this.comboEl.dataset.multiplier = String(multiplier);
+    if (multiplier > 1) this.comboEl.querySelector('.hud__combo-value').textContent = `×${text}`;
+    this.comboEl.setAttribute('aria-label', t('hud.combo', { value: text }));
+    this.comboEl.hidden = multiplier <= 1 && !lost;
+    if (up) restart(this.comboEl, 'is-up');
+    if (lost) {
+      restart(this.comboEl, 'is-lost');
+      this.comboEl.addEventListener('animationend', () => {
+        if (this.lastCombo <= 1) this.comboEl.hidden = true;
+      }, { once: true });
+    }
+  }
+
+  /**
+   * El poder de volar (la estrella): on, si se tiene. gained: se acaba de tomar (.is-gained); lost:
+   * un golpe lo quitó (.is-lost, se ve un momento antes de ocultarse).
+   */
+  setFlight(on, { gained = false, lost = false } = {}) {
+    if (!this.flightEl) return;
+    this.flightOn = on;
+    this.flightEl.setAttribute('aria-label', t('hud.flight'));
+    this.flightEl.hidden = !on && !lost;
+    if (gained) restart(this.flightEl, 'is-gained');
+    if (lost) {
+      restart(this.flightEl, 'is-lost');
+      this.flightEl.addEventListener('animationend', () => {
+        if (!this.flightOn) this.flightEl.hidden = true;
+      }, { once: true });
+    }
+  }
+
+  /** La barra de vida del jefe del nivel 13, del color del rival. */
+  showBoss(hp, max, color) {
+    if (!this.bossEl) return;
+    this.bossEl.style.setProperty('--boss-color', color);
+    this.bossEl.hidden = false;
+    this.setBoss(hp, max);
+  }
+
+  /** La vida que le queda al jefe; hit: le acaban de pegar (.is-hit). */
+  setBoss(hp, max, { hit = false } = {}) {
+    if (!this.bossEl) return;
+    this.bossEl.style.setProperty('--boss-life', String(Math.max(0, hp) / max));
+    this.bossEl.setAttribute('aria-valuenow', String(Math.max(0, hp)));
+    this.bossEl.setAttribute('aria-valuemax', String(max));
+    this.bossEl.setAttribute('aria-label', t('hud.boss', { hp: Math.max(0, hp), max }));
+    if (hit) restart(this.bossEl, 'is-hit');
+  }
+
+  hideBoss() {
+    if (this.bossEl) this.bossEl.hidden = true;
+  }
+
+  /**
+   * El disparo especial: can, si ahora se puede cargar (el rombo brilla, .can-charge); progress, qué
+   * tan cargado va (0 a 1: --charge; 1 = listo, .is-charged).
+   */
+  setCharge(can, progress) {
+    if (!this.ammoEl) return;
+    this.ammoEl.classList.toggle('can-charge', can);
+    this.ammoEl.classList.toggle('is-charged', can && progress >= 1);
+    this.ammoEl.style.setProperty('--charge', String(can ? progress : 0));
   }
 
   /** Se intentó disparar sin bolas de fuego. */
@@ -147,7 +224,7 @@ export class HUD {
 
 /** Vuelve a poner una clase para reiniciar su animación CSS. */
 function restart(el, className) {
-  el.classList.remove('is-gained', 'is-spent', 'is-denied', className);
+  el.classList.remove('is-gained', 'is-spent', 'is-denied', 'is-up', 'is-lost', 'is-hit', className);
   void el.offsetWidth;
   el.classList.add(className);
 }

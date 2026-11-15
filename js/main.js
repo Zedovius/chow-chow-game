@@ -12,6 +12,7 @@ import { HUD } from './ui/HUD.js';
 import { Dialogs } from './ui/Dialogs.js';
 import { TitleMenu } from './ui/TitleMenu.js';
 import { TitleBoards } from './ui/TitleBoards.js';
+import { Legend } from './ui/Legend.js';
 import { boardsNode } from './ui/leaderboard.js';
 import { setUpStick } from './ui/stickSetup.js';
 import { applyLanguage, onLanguageChange, t } from './i18n/i18n.js';
@@ -56,18 +57,26 @@ const hud = new HUD({
   level: document.getElementById('hud-level'),
   lives: document.getElementById('hud-lives'),
   ammo: document.getElementById('hud-ammo'),
+  combo: document.getElementById('hud-combo'),
+  flight: document.getElementById('hud-flight'),
+  boss: document.getElementById('boss-bar'),
   score: document.getElementById('hud-score'),
   high: document.getElementById('hud-high'),
 });
 
-// Pantalla de inicio: primero el idioma, luego la dificultad, que empieza el juego
+// Pantalla de inicio: el idioma, la fecha de nacimiento, la rueda que da el animal y la dificultad,
+// que empieza el juego
 const titleMenu = new TitleMenu({
   languageStep: document.getElementById('lang-step'),
   languageChoice: document.getElementById('lang-choice'),
+  birthStep: document.getElementById('birth-step'),
+  birthPicker: document.getElementById('birth-picker'),
+  signStep: document.getElementById('sign-step'),
+  wheel: document.getElementById('zodiac-wheel'),
   difficultyStep: document.getElementById('difficulty-step'),
   difficultyChoice: document.getElementById('difficulty-choice'),
   back: document.querySelector('#difficulty-step .title-screen__back'),
-  onStart: (difficulty) => game.newGame(difficulty),
+  onStart: (difficulty, sign) => game.newGame(difficulty, sign),
 });
 
 // Las tablas completas, desde el botón HI RECORDS de cada paso del menú
@@ -87,6 +96,7 @@ const game = new Game({
   dialogs,
   events,
   images,
+  legend: new Legend(document.getElementById('legend')),
   banner: document.getElementById('level-banner'),
   titleScreen: {
     root: document.getElementById('title-screen'),

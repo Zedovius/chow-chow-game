@@ -6,7 +6,8 @@
 //
 // Un corredor sin fin, como Chispas: el dragón corre, salta y se agacha entre obstáculos, y en el
 // aire puede aletear y volar (hasta CONFIG.skyJumps saltos de alto; la cámara lo sigue). El Dragón y
-// el Gallo son niveles sin suelo. Dispara bolas de fuego que se recargan con cócteles.
+// el Gallo son niveles sin suelo. Dispara bolas de fuego que se recargan con cócteles; la comida
+// china da corazones. Esquivar de cerca alarga la racha, que multiplica los puntos.
 // Los 12 niveles van seguidos, sin escenas: al terminar uno se cobran los corazones y el siguiente
 // empieza sin detenerse, con su cartel.
 //
@@ -17,11 +18,14 @@ import { Loop } from './Loop.js';
 import { StateMachine } from './StateMachine.js';
 import { anyOverlap } from './collision.js';
 import { CloseCalls } from './closeCalls.js';
+import { FireButton } from './charge.js';
+import { Combo } from './combo.js';
 import { Events } from './events.js';
 import { addScore, loadBoards, placeIn } from './scores.js';
-import { DIFFICULTIES, levelsFor } from '../world/levels.js';
+import { DIFFICULTIES, levelsFor, journeyFor, signById } from '../world/levels.js';
+import { Boss } from '../entities/Boss.js';
 import { Spawner } from '../world/Spawner.js';
-import { Dragon } from '../entities/Dragon.js';
+import { Player } from '../entities/Player.js';
 import { Fireball } from '../entities/Fireball.js';
 import { Scene } from '../graphics/Scene.js';
 import { Camera } from '../graphics/Camera.js';
@@ -55,9 +59,9 @@ const STATES = {
     update(dt, time) {
       this.prevScroll = this.scroll;
       this.scroll += CONFIG.speed.title * dt;
-      this.dragon.prevY = this.dragon.y;
-      this.dragon.hover(time, this.scroll);
-      this.camera.update(dt, this.dragon.y);
+      this.player.prevY = this.player.y;
+      this.player.hover(time, this.scroll);
+      this.camera.update(dt, this.player.y);
       if (this.input.wasPressed('confirm')) this.titleScreen.confirm();
     },
   },
@@ -72,9 +76,9 @@ const STATES = {
     update(dt, time) {
       this.speed *= Math.exp(-CONFIG.deathSlowdown * dt);
       this.advanceWorld(dt);
-      this.dragon.prevY = this.dragon.y;
-      this.dragon.fall(dt, this.scroll);
-      this.camera.update(dt, this.dragon.y);
+      this.player.prevY = this.player.y;
+      this.player.fall(dt, this.scroll);
+      this.camera.update(dt, this.player.y);
       if (time >= CONFIG.deathDelay) this.gameOver();
     },
   },
@@ -88,11 +92,13 @@ export class Game {
    *           hud: import('../ui/HUD.js').HUD, dialogs: import('../ui/Dialogs.js').Dialogs,
    *           banner: HTMLElement, titleScreen: { root: HTMLElement, record: HTMLOutputElement,
    *           reset: () => void, remember: (difficulty: string) => void, confirm: () => void },
-   *           events?: Events, images?: object }} parts
-   *   events: por donde se avisa lo que pasa; images: el arte cargado (graphics/assets.js)
+   *           events?: Events, images?: object, legend?: { show: (options) => void, hide: () => void } }} parts
+   *   events: por donde se avisa lo que pasa; images: el arte cargado (graphics/assets.js); legend:
+   *   lo que vale cada cosa que se recoge, al empezar una partida (ui/Legend.js)
    */
-  constructor({ canvas, stage, input, hud, dialogs, banner, titleScreen, events = new Events(), images = null }) {
+  constructor({ canvas, stage, input, hud, dialogs, banner, titleScreen, events = new Events(), images = null, legend = null }) {
     this.scene = new Scene(canvas, images);
+    this.legend = legend;
     this.events = events;
     this.stage = stage;
     this.input = input;
@@ -102,16 +108,21 @@ export class Game {
     this.titleScreen = titleScreen;
 
     this.difficulty = 'easy';
+    this.sign = null; // el animal de quien juega ('rat', 'ox'...), elegido con su fecha de nacimiento
     this.levels = levelsFor(this.difficulty);
     this.levelIndex = 0;
     this.level = this.levels[0];
-    this.dragon = new Dragon();
+    this.player = new Player();
     this.camera = new Camera();
     this.obstacles = [];
-    this.pickups = []; // la perla y los cócteles
+    this.pickups = []; // los cócteles y la comida
     this.fireballs = [];
     this.spawner = null;
     this.closeCalls = new CloseCalls();
+    this.fireButton = new FireButton(); // el botón de fuego, con o sin carga (core/charge.js)
+    this.boss = null; // el jefe del nivel 13 (entities/Boss.js)
+    this.combo = new Combo();
+    this.section = null; // el tramo del nivel en que va (ver PACING en world/obstacles.js)
 
     this.score = 0;
     this.levelStartScore = 0;
@@ -122,6 +133,7 @@ export class Game {
     this.lives = DIFFICULTIES.easy.lives;
     this.ammo = CONFIG.fire.start; // bolas de fuego
     this.levelStartAmmo = this.ammo;
+    this.levelStartFlight = false;
     this.fireCooldown = 0;
     this.distance = 0;
     this.speed = 0;
@@ -157,9 +169,14 @@ export class Game {
     return CONFIG.heartBonus[this.difficulty] * this.mode.score;
   }
 
-  /** Difícil: los corazones van por partes (cada perla llena 1/pearlsPerLife) y se conservan. */
-  get halfHearts() {
-    return Boolean(this.mode.pearlsPerLife);
+  /** Lo más que se puede cargar de bolas de fuego en esta dificultad. */
+  get fireMax() {
+    return this.mode.fireMax;
+  }
+
+  /** Difícil: los corazones se conservan de un nivel al otro. */
+  get keepLives() {
+    return Boolean(this.mode.keepLives);
   }
 
   get otherDifficulty() {
@@ -172,13 +189,19 @@ export class Game {
     this.flow++;
     this.dialogs.close('title');
     this.hideBanner();
+    this.legend?.hide();
     saveRecord(this.record);
-    this.levels = levelsFor(this.difficulty);
+    this.levels = levelsFor(this.difficulty, this.sign ?? undefined);
     this.level = this.levels[0];
     this.levelIndex = 0;
     this.clearWorld();
-    this.dragon.reset(true);
-    this.camera.snap(this.dragon.y);
+    this.player.sign = null;
+    this.player.canFly = false;
+    this.player.forceFlight = false;
+    this.boss = null;
+    this.hud.hideBoss();
+    this.player.reset(true);
+    this.camera.snap(this.player.y);
     this.score = 0;
     this.hud.setScore(0);
     this.hud.setHigh(this.record);
@@ -190,27 +213,48 @@ export class Game {
     this.events.emit('title');
   }
 
-  /** Lo pide el menú de inicio: difficulty es 'easy' o 'hard'. */
-  newGame(difficulty = 'easy') {
+  /** Lo pide el menú de inicio: difficulty es 'easy' o 'hard'; sign, el animal que le dio la rueda. */
+  newGame(difficulty = 'easy', sign = 'dragon') {
     if (!this.fsm.is('title')) return;
-    this.startNewGame(difficulty);
+    this.startNewGame(difficulty, sign);
   }
 
-  startNewGame(difficulty) {
+  /** Una partida nueva con un animal (el mismo de antes si no se dice: reintentar, cambiar dificultad). */
+  startNewGame(difficulty, sign = this.sign) {
     this.flow++;
     this.difficulty = DIFFICULTIES[difficulty] ? difficulty : 'easy';
-    this.levels = levelsFor(this.difficulty);
+    this.sign = signById(sign) ? sign : 'dragon';
+    // Los mundos van en el orden del animal: empieza en el que sigue al suyo y termina en el suyo
+    // Los 12 mundos (en el orden del animal) y el nivel 13: la pelea contra su rival
+    this.levels = journeyFor(this.difficulty, this.sign);
     this.score = 0;
     this.lives = this.mode.lives;
-    this.ammo = CONFIG.fire.start;
+    this.ammo = Math.min(CONFIG.fire.start, this.fireMax);
+    this.combo.reset();
+    this.hud.setCombo(1);
     this.recordToBeat = this.record;
     this.newRecord = false;
     this.hud.setNewRecord(false);
     this.hud.setHigh(this.record);
     this.titleScreen.root.hidden = true;
-    this.dragon.reset();
-    this.events.emit('start', { difficulty: this.difficulty });
+    this.player.sign = this.sign;
+    this.player.canFly = false;
+    this.player.reset();
+    this.hud.setFlight(false);
+    this.events.emit('start', { difficulty: this.difficulty, sign: this.sign });
     this.startLevel(CONFIG.startLevel); // 0, salvo al probar con ?nivel=N
+    // Lo que vale cada cosa que se recoge, hasta el primer salto. Mientras, el cartel solo dice el
+    // nivel; el aviso para empezar va debajo de la leyenda, y las pistas salen después del salto.
+    if (this.legend) {
+      this.showBanner(this.levelLabel(), false);
+      this.legend.show({
+        score: this.mode.score,
+        fire: CONFIG.cocktails.perCocktail,
+        hearts: CONFIG.food.hearts,
+        sign: this.sign,
+        prompt: t(this.level.ground ? 'level.start' : 'level.startSky'),
+      });
+    }
   }
 
   clearWorld() {
@@ -221,36 +265,55 @@ export class Game {
 
   /** Empieza un nivel. continued: viene del anterior sin detenerse (el dragón sigue donde iba). */
   startLevel(index, { continued = false } = {}) {
+    // Si viene volando de un mundo sin suelo, sigue volando: no se le quita la nubecita (o las alas)
+    // al llegar a un mundo con suelo, ni le sale una estrella que ya no necesita
+    const fromSky = continued && this.level && !this.level.ground;
+    if (fromSky && this.levels[index].ground && this.player.alive && !this.player.canFly) {
+      this.player.canFly = true;
+      this.hud.setFlight(true);
+    }
     this.levelIndex = index;
     this.level = this.levels[index];
     this.levelStartScore = this.score;
     this.levelStartAmmo = this.ammo;
+    this.levelStartFlight = this.player.canFly;
     this.nextMilestone = (Math.floor(this.score / CONFIG.milestone) + 1) * CONFIG.milestone;
     this.distance = 0;
     this.speed = this.level.speed;
-    this.spawner = new Spawner(this.level);
-    if (continued) this.dragon.setGround(this.level.ground);
+    // La cuenta de cócteles y comida sigue del nivel anterior si se viene de él sin detenerse
+    // La estrella del vuelo sale una vez en cada nivel con suelo, si aún no tiene el poder
+    this.spawner = new Spawner(this.level, continued ? this.spawner?.carry() : null, { star: this.level.ground && !this.level.boss && !this.player.canFly });
+    this.section = null;
+    // El nivel 13: el rival, y todos vuelan
+    this.boss = this.level.boss ? new Boss(this.level.id, this.difficulty, Math.floor(Math.random() * 2 ** 32)) : null;
+    this.player.forceFlight = Boolean(this.level.boss);
+    if (this.boss) this.hud.showBoss(this.boss.hp, this.boss.maxHp, signById(this.level.id).body);
+    else this.hud.hideBoss();
+    if (continued) this.player.setGround(this.level.ground);
     else {
       this.clearWorld();
-      this.dragon.reset(this.level.ground);
-      this.camera.snap(this.dragon.y);
+      this.player.reset(this.level.ground);
+      this.camera.snap(this.player.y);
     }
     this.hud.setScore(this.score);
     this.hud.setLevel(this.levelLabel());
-    this.hud.setAmmo(this.ammo, CONFIG.fire.max);
+    this.fireButton.reset();
+    this.hud.setAmmo(this.ammo, this.fireMax, { infinite: this.infiniteFire });
+    this.hud.setCharge(false, 0);
     this.showLives();
     // Si el dragón espera el primer salto, el cartel se queda con el aviso hasta que empiece
     const lines = [this.levelLabel(), ...this.levelHints()];
-    if (this.dragon.waiting) lines.push(t(this.level.ground ? 'level.start' : 'level.startSky'));
-    this.showBanner(lines.join('\n'), !this.dragon.waiting);
+    if (this.player.waiting) lines.push(t(this.level.ground ? 'level.start' : 'level.startSky'));
+    this.showBanner(lines.join('\n'), !this.player.waiting);
     this.fsm.set('playing');
-    this.events.emit('levelStart', { index, id: this.level.id, continued, ground: this.level.ground });
+    this.events.emit('levelStart', { index, id: this.level.id, continued, ground: this.level.ground, boss: Boolean(this.boss) });
+    if (this.boss) this.events.emit('bossStart', { sign: this.level.id });
   }
 
-  /** Lo que el cartel de un nivel avisa debajo del nombre. */
+  /** Lo que el cartel de un nivel avisa debajo del nombre (el vuelo lo explica la leyenda). */
   levelHints() {
-    if (!this.level.ground) return [t('level.sky')];
-    return this.levelIndex === 0 ? [t('level.flyHint')] : [];
+    if (this.level.boss) return CONFIG.boss.chargeShot[this.difficulty] ? [t('level.rival'), t('level.charge')] : [t('level.rival')];
+    return this.level.ground ? [] : [t('level.sky')];
   }
 
   levelLabel() {
@@ -265,43 +328,78 @@ export class Game {
     }
     // Antes del primer salto, el mundo espera: el dragón está de pie (o flotando, sin suelo). El
     // paso del primer salto ya es de juego (Dragon.update lo hizo): el mundo arranca en el siguiente.
-    if (this.dragon.waiting) {
+    if (this.player.waiting) {
       this.prevScroll = this.scroll;
-      this.dragon.prevY = this.dragon.y;
-      this.dragon.update(dt, this.input, this.scroll);
-      if (this.dragon.waiting) return;
+      this.player.prevY = this.player.y;
+      this.player.update(dt, this.input, this.scroll);
+      if (this.player.waiting) return;
+      this.legend?.hide();
       this.showBanner([this.levelLabel(), ...this.levelHints()].join('\n'));
-      this.events.emit(this.dragon.flapped ? 'flap' : 'jump');
+      this.events.emit(this.player.flapped ? 'flap' : 'jump');
       return;
     }
     this.updateBanner(dt);
-    // Cada nivel acelera un poco hasta su final (CONFIG.speed.ramp)
+    // Cada nivel acelera un poco hasta su final (ramp, según la dificultad)
     const progress = Math.min(1, this.distance / this.level.length);
-    this.speed = this.level.speed * (1 + CONFIG.speed.ramp * progress);
+    this.speed = this.level.speed * (1 + this.level.ramp * progress);
     this.spawner.progress = progress;
+    this.updateSection();
     const dx = this.advanceWorld(dt);
     this.distance += dx;
     this.addScore(dx * CONFIG.scorePerPx * this.mode.score);
+    // Un rayo que empieza en pantalla: para el trueno
+    if (this.obstacles.some((o) => o.struck && o.x < CONFIG.width && o.x + o.w > 0)) this.events.emit('thunder');
 
-    this.dragon.prevY = this.dragon.y;
-    this.dragon.update(dt, this.input, this.scroll);
-    if (this.dragon.jumped) this.events.emit('jump');
-    if (this.dragon.flapped) this.events.emit('flap');
-    if (this.dragon.landed) this.events.emit('land');
-    this.camera.update(dt, this.dragon.y);
+    this.player.prevY = this.player.y;
+    this.player.update(dt, this.input, this.scroll);
+    if (this.player.jumped) this.events.emit('jump');
+    if (this.player.flapped) this.events.emit('flap');
+    if (this.player.landed) this.events.emit('land');
+    this.camera.update(dt, this.player.y);
     this.spawner.update(dt, this.speed, this.distance, this.obstacles, this.pickups);
+    this.updateBoss(dt);
 
     this.fireControl(dt);
     this.updateFireballs();
     this.checkCollisions();
     if (!this.fsm.is('playing')) return;
-    const risk = this.closeCalls.update(this.dragon, this.obstacles);
-    if (risk) {
-      this.addScore(risk * this.mode.score);
+    const { points, cleared } = this.closeCalls.update(this.player, this.obstacles);
+    if (points) {
+      this.addScore(points * this.mode.score);
       this.events.emit('closeCall');
     }
+    this.extendCombo(cleared);
 
-    if (this.distance >= this.level.length && !this.obstacles.length) this.completeLevel();
+    if (this.boss ? this.boss.done : this.distance >= this.level.length && !this.obstacles.length) this.completeLevel();
+  }
+
+  /** El jefe del nivel 13: se mueve, avisa y ataca (sus disparos son obstáculos del mundo). */
+  updateBoss(dt) {
+    const boss = this.boss;
+    if (!boss) return;
+    const warning = boss.warning;
+    const state = boss.state;
+    boss.update(dt, {
+      playerY: this.player.y - CONFIG.player.head.h / 2,
+      spawn: (shot) => this.obstacles.push(shot),
+    });
+    if (boss.warning && boss.warning !== warning) this.events.emit('bossWarn', { attack: boss.warning });
+    if (state === 'telegraph' && boss.state !== 'telegraph') this.events.emit('bossAttack', { attack: boss.attack });
+  }
+
+  /** Avisa cuando el nivel pasa a otro tramo (para la música, por ejemplo). */
+  updateSection() {
+    const { name } = this.spawner.section;
+    if (name === this.section) return;
+    this.section = name;
+    this.events.emit('section', { name });
+  }
+
+  /** La racha: count obstáculos más esquivados de cerca (o quemados). */
+  extendCombo(count) {
+    if (!this.combo.add(count)) return;
+    this.hud.setCombo(this.combo.multiplier, { up: true });
+    this.events.emit('comboUp', { multiplier: this.combo.multiplier });
   }
 
   /** Avanza el mundo a la velocidad actual: el recorrido, los obstáculos, lo que se recoge y el fuego. */
@@ -321,32 +419,64 @@ export class Game {
   // --- Fuego ----------------------------------------------------------------------
 
   /** La acción 'fire': una bola de fuego desde la boca, si hay y ya pasó el tiempo entre disparos. */
+  /** Contra el rival en fácil, el fuego no se acaba. */
+  get infiniteFire() {
+    return Boolean(this.boss) && CONFIG.boss.infiniteFire[this.difficulty];
+  }
+
+  /** Contra el rival en difícil, con suficientes bolas de fuego, mantener el botón carga el especial. */
+  get canCharge() {
+    return Boolean(this.boss) && !this.boss.defeated && CONFIG.boss.chargeShot[this.difficulty] && this.ammo >= CONFIG.charge.needs;
+  }
+
+  /**
+   * La acción 'fire': una bola de fuego desde la boca, si hay y ya pasó el tiempo entre disparos. Con
+   * carga (ver canCharge), al soltar el botón: normal si fue un toque, especial si se cargó.
+   */
   fireControl(dt) {
     this.fireCooldown = Math.max(0, this.fireCooldown - dt);
-    if (!this.input.wasPressed('fire') || this.fireCooldown > 0) return;
-    if (this.ammo <= 0) {
+    const shot = this.fireButton.update(dt, {
+      pressed: this.input.wasPressed('fire'),
+      down: this.input.isDown('fire'),
+      canCharge: this.canCharge,
+    });
+    if (this.fireButton.charged) this.events.emit('chargeReady');
+    this.hud.setCharge(this.canCharge, this.fireButton.progress);
+    if (!shot || (shot === 'normal' && this.fireCooldown > 0)) return;
+    if (this.ammo <= 0 && !this.infiniteFire) {
       this.events.emit('fireEmpty');
       this.hud.ammoEmpty();
       return;
     }
-    const [head] = this.dragon.parts();
-    this.fireballs.push(new Fireball(head.x + head.w / 2, head.y));
-    this.ammo -= 1;
+    const [head] = this.player.parts();
+    const special = shot === 'special';
+    this.fireballs.push(new Fireball(head.x + head.w / 2, head.y, { special }));
+    if (!this.infiniteFire) this.ammo -= 1;
     this.fireCooldown = CONFIG.fire.cooldown;
-    this.hud.setAmmo(this.ammo, CONFIG.fire.max, { spent: true });
-    this.events.emit('fire', { ammo: this.ammo });
+    this.hud.setAmmo(this.ammo, this.fireMax, { spent: true, infinite: this.infiniteFire });
+    this.events.emit(special ? 'fireSpecial' : 'fire', { ammo: this.ammo });
   }
 
-  /** Cada bola de fuego quema lo primero que toca (si es burnable) o se apaga contra ello. */
+  /**
+   * Cada bola de fuego quema lo primero que toca (si es burnable) o se apaga contra ello. En el nivel
+   * 13, si le da al jefe, le quita vida.
+   */
   updateFireballs() {
     for (const fireball of this.fireballs) {
       const box = fireball.hitboxes();
+      if (this.boss && anyOverlap(box, this.boss.hitboxes())) {
+        fireball.spent = true;
+        this.hitBoss(fireball.power);
+        continue;
+      }
       const target = this.obstacles.find((o) => anyOverlap(box, o.hitboxes()));
       if (!target) continue;
-      fireball.spent = true;
+      // La especial atraviesa los disparos del jefe (los quema y sigue)
+      fireball.spent = !(fireball.special && target.kind === 'shot');
       if (target.burnable) {
         this.obstacles = this.obstacles.filter((o) => o !== target);
         this.addScore(CONFIG.burnBonus * this.mode.score);
+        this.extendCombo(1);
         this.events.emit('burn', { kind: target.kind, x: target.x + target.w / 2, y: target.y + target.h / 2 });
       } else {
         this.events.emit('fizzle', { kind: target.kind, x: fireball.x, y: fireball.y });
@@ -355,13 +485,29 @@ export class Game {
     this.fireballs = this.fireballs.filter((f) => !f.spent);
   }
 
+  /** Una bola de fuego le pegó al jefe: puntos, racha y, si era la última, la victoria. */
+  hitBoss(damage = 1) {
+    const boss = this.boss;
+    if (!boss.hit(damage)) return;
+    this.addScore(CONFIG.boss.points * this.mode.score);
+    this.extendCombo(1);
+    this.hud.setBoss(boss.hp, boss.maxHp, { hit: true });
+    this.events.emit('bossHit', { hp: boss.hp, max: boss.maxHp });
+    if (!boss.defeated) return;
+    // Vencido: sus disparos desaparecen y el bono no se multiplica por la racha
+    this.obstacles = this.obstacles.filter((o) => o.kind !== 'shot');
+    this.addScore(CONFIG.boss.bonus * this.mode.score, { combo: false });
+    this.events.emit('bossDefeated', { sign: boss.sign });
+  }
+
   // --- Choques y lo que se recoge -------------------------------------------------
 
   checkCollisions() {
-    const body = this.dragon.hitboxes();
+    const body = this.player.hitboxes();
     // Sin suelo, tocar las nubes de abajo también cuesta un corazón (el dragón ya rebotó)
-    if (this.dragon.bumped) this.events.emit('bump');
-    if (this.dragon.canBeHit && (this.dragon.bumped || this.obstacles.some((o) => anyOverlap(body, o.hitboxes())))) {
+    if (this.player.bumped) this.events.emit('bump');
+    const touchesBoss = this.boss && anyOverlap(body, this.boss.hitboxes());
+    if (this.player.canBeHit && (this.player.bumped || touchesBoss || this.obstacles.some((o) => anyOverlap(body, o.hitboxes())))) {
       this.hit();
       return;
     }
@@ -370,7 +516,8 @@ export class Game {
     if (!taken.length) return;
     this.pickups = this.pickups.filter((p) => !taken.includes(p));
     for (const pickup of taken) {
-      if (pickup.type === 'pearl') this.collectPearl();
+      if (pickup.type === 'food') this.collectFood(pickup);
+      else if (pickup.type === 'star') this.collectStar();
       else this.collectCocktail(pickup);
     }
   }
@@ -379,37 +526,56 @@ export class Game {
     this.lives = Math.max(0, this.lives - 1);
     this.showLives({ hurt: true });
     this.events.emit('hit', { lives: this.lives });
+    if (this.combo.break()) {
+      this.hud.setCombo(1, { lost: true });
+      this.events.emit('comboLost');
+    }
     if (this.lives <= 0) {
-      this.dragon.die();
+      this.player.die();
       saveRecord(this.record);
       this.fsm.set('dying');
       this.events.emit('dying');
       return;
     }
-    this.dragon.hurt();
-  }
-
-  collectPearl() {
-    this.addScore(CONFIG.pearlBonus * this.mode.score);
-    if (this.halfHearts) {
-      const every = this.mode.pearlsPerLife;
-      const before = this.lives;
-      this.lives = Math.round((this.lives + 1 / every) * every) / every; // sin errores de redondeo
-      const gained = Math.floor(this.lives) > Math.floor(before);
-      this.showLives(gained ? { gained: true } : { progressed: true });
-      if (gained) this.events.emit('heartGained', { lives: this.lives });
+    this.player.hurt();
+    // Si tenía el poder de volar, lo pierde y cae al suelo
+    if (this.player.lostFlight) {
+      this.hud.setFlight(false, { lost: true });
+      this.events.emit('flightLost');
     }
-    this.events.emit('pearl', { lives: this.lives });
   }
 
+  /** La estrella: el poder de volar, hasta el próximo golpe (y pasa de un nivel al otro). */
+  collectStar() {
+    // Si ya tenía el poder, otra estrella no cambia nada
+    if (this.player.canFly || this.player.forceFlight) return;
+    this.player.takeOff();
+    this.hud.setFlight(true, { gained: true });
+    this.events.emit('flightGained');
+  }
+
+  /** Comida china: puntos y un corazón (sin pasar del máximo de la dificultad). */
+  collectFood(pickup) {
+    this.addScore(CONFIG.food.points * this.mode.score);
+    const max = this.mode.maxLives;
+    const healed = this.lives < max;
+    if (healed) {
+      this.lives = Math.min(max, this.lives + CONFIG.food.hearts);
+      this.showLives({ gained: true });
+    }
+    this.events.emit('food', { variety: pickup.variety, healed, lives: this.lives });
+  }
+
+  /** Cóctel: puntos y bolas de fuego (sin pasar del máximo de la dificultad). */
   collectCocktail(pickup) {
-    this.ammo = Math.min(CONFIG.fire.max, this.ammo + CONFIG.cocktails.perCocktail);
-    this.hud.setAmmo(this.ammo, CONFIG.fire.max, { gained: true });
+    this.addScore(CONFIG.cocktails.points * this.mode.score);
+    this.ammo = Math.min(this.fireMax, this.ammo + CONFIG.cocktails.perCocktail);
+    this.hud.setAmmo(this.ammo, this.fireMax, { gained: true });
     this.events.emit('cocktail', { variety: pickup.variety, ammo: this.ammo });
   }
 
   completeLevel() {
-    this.addScore(this.lives * this.heartPoints);
+    this.addScore(this.lives * this.heartPoints, { combo: false });
     saveRecord(this.record);
     this.events.emit('levelComplete', { index: this.levelIndex, id: this.level.id, hearts: this.lives });
     if (this.levelIndex === this.levels.length - 1) {
@@ -417,7 +583,7 @@ export class Game {
       return;
     }
     // En fácil, cada nivel empieza con los corazones completos; en difícil se conservan
-    if (!this.halfHearts) this.lives = this.mode.lives;
+    if (!this.keepLives) this.lives = this.mode.lives;
     this.startLevel(this.levelIndex + 1, { continued: true });
   }
 
@@ -478,6 +644,10 @@ export class Game {
     }
     this.score = this.levelStartScore;
     this.ammo = this.levelStartAmmo;
+    this.player.canFly = this.levelStartFlight;
+    this.hud.setFlight(this.player.canFly);
+    this.combo.reset();
+    this.hud.setCombo(1);
     this.lives = this.mode.lives;
     this.startLevel(this.levelIndex);
   }
@@ -524,8 +694,9 @@ export class Game {
 
   // --- Puntos, récord y corazones -------------------------------------------------
 
-  addScore(points) {
-    this.score += points;
+  /** Suma puntos, multiplicados por la racha (salvo combo: false, como los corazones al final). */
+  addScore(points, { combo = true } = {}) {
+    this.score += combo ? points * this.combo.multiplier : points;
     this.hud.setScore(this.score);
     if (this.score >= this.nextMilestone) {
       this.nextMilestone += CONFIG.milestone;
@@ -548,7 +719,7 @@ export class Game {
   }
 
   showLives(options = {}) {
-    const slots = this.halfHearts ? Math.max(this.mode.lives, Math.ceil(this.lives)) : this.mode.lives;
+    const slots = Math.max(this.mode.lives, Math.ceil(this.lives));
     this.hud.setLives(this.lives, slots, options);
   }
 
@@ -621,12 +792,40 @@ export class Game {
       state: this.fsm.name,
       scroll: lerp(this.prevScroll, this.scroll),
       cameraY: lerp(this.camera.prevY, this.camera.y),
-      dragon: this.dragon,
-      headY: lerp(this.dragon.prevY, this.dragon.y),
-      obstacles: this.obstacles.map((o) => ({ kind: o.kind, height: o.height, burnable: o.burnable, x: lerp(o.prevX, o.x), y: o.y, w: o.w, h: o.h, t: o.t })),
-      pickups: this.pickups.map((p) => ({ type: p.type, variety: p.variety, x: lerp(p.prevX, p.x), y: p.y, r: p.r })),
-      fireballs: this.fireballs.map((f) => ({ x: lerp(f.prevX, f.x), y: f.y, r: f.r, age: f.age })),
-      blink: this.dragon.alive && this.dragon.invulnerable > 0 && Math.floor(this.dragon.invulnerable * 12) % 2 === 1,
+      dragon: this.player,
+      boss: this.boss && {
+        x: lerp(this.boss.prevX, this.boss.x),
+        y: lerp(this.boss.prevY, this.boss.y),
+        w: this.boss.w,
+        h: this.boss.h,
+        t: this.boss.t,
+        state: this.boss.state,
+        warning: this.boss.warning, // el ataque que avisa: 'volley' | 'aimed' | 'charge' | null
+        aimY: this.player.y - CONFIG.player.head.h / 2, // a dónde apuntaría ('aimed')
+        flash: this.boss.flash > 0,
+        color: signById(this.boss.sign).body,
+        fire: signById(this.boss.sign).fire,
+      },
+      headY: lerp(this.player.prevY, this.player.y),
+      obstacles: this.obstacles.map((o) => ({
+        kind: o.kind,
+        height: o.height,
+        motion: o.motion,
+        burnable: o.burnable,
+        x: lerp(o.prevX, o.x),
+        y: o.y,
+        w: o.w,
+        h: o.h,
+        t: o.t,
+        warning: o.warning, // la nube de tormenta avisa que viene un rayo
+        bolt: o.striking ? o.lightning.length : 0, // el rayo, si está cayendo (su largo)
+        boltLength: o.lightning?.length ?? 0, // el largo de sus rayos (para dibujar el aviso)
+      })),
+      pickups: this.pickups.map((p) => ({ type: p.type, variety: p.variety, x: lerp(p.prevX, p.x), y: p.y, r: p.r, t: p.t })),
+      fireballs: this.fireballs.map((f) => ({ x: lerp(f.prevX, f.x), y: f.y, r: f.r, age: f.age, special: f.special })),
+      charge: this.fireButton.progress, // el disparo especial cargándose (0 a 1)
+      fireColor: signById(this.sign ?? 'dragon').fire, // el fuego es del color del animal
+      blink: this.player.alive && this.player.invulnerable > 0 && Math.floor(this.player.invulnerable * 12) % 2 === 1,
     });
   }
 }

@@ -205,9 +205,57 @@ body {
   background: var(--c-muted);
 }
 
+/* El disparo especial: el rombo brilla cuando se puede cargar y crece mientras se carga */
+.hud__ammo.can-charge .hud__ammo-icon {
+  background: var(--c-moon);
+  transform: scale(calc(1 + var(--charge, 0) * 0.6));
+}
+
+.hud__ammo.is-charged .hud__ammo-icon {
+  animation: legend-blink 0.2s steps(1) infinite;
+}
+
 .hud__ammo.is-gained { animation: ammo-pop 0.5s steps(5) both; }
 .hud__ammo.is-spent { animation: ammo-spend 0.25s steps(3) both; }
 .hud__ammo.is-denied { animation: heart-drain 0.4s steps(4) both; }
+
+/* El poder de volar (la estrella). PROVISIONAL: una estrella dorada */
+.hud__flight {
+  margin: 0;
+}
+
+.hud__flight[hidden] {
+  display: none;
+}
+
+.hud__flight-icon {
+  display: block;
+  width: 1.3em;
+  height: 1.3em;
+  background: var(--c-gold-soft);
+  clip-path: polygon(50% 0, 62% 36%, 100% 38%, 70% 60%, 80% 100%, 50% 76%, 20% 100%, 30% 60%, 0 38%, 38% 36%);
+}
+
+.hud__flight.is-gained { animation: ammo-pop 0.5s steps(5) both; }
+.hud__flight.is-lost { animation: combo-lost 0.6s steps(6) both; }
+
+/* El multiplicador de la racha. PROVISIONAL. .is-up: subió; .is-lost: se perdió con un golpe */
+.hud__combo {
+  margin: 0;
+  color: var(--c-gold);
+}
+
+.hud__combo[hidden] {
+  display: none;
+}
+
+.hud__combo.is-up { animation: ammo-pop 0.5s steps(5) both; }
+.hud__combo.is-lost { animation: combo-lost 0.6s steps(6) both; color: var(--c-muted); }
+
+@keyframes combo-lost {
+  0% { transform: none; opacity: 1; }
+  100% { transform: translateY(0.6em); opacity: 0; }
+}
 
 @keyframes ammo-pop {
   0% { transform: scale(1); }
@@ -325,7 +373,121 @@ body {
   display: none;
 }
 
+/* La vida del jefe del nivel 13: una barra del color del rival, arriba al centro. PROVISIONAL */
+.boss-bar {
+  --boss-life: 1;
+  --boss-color: var(--c-heart);
+  position: absolute;
+  top: 13%;
+  left: 50%;
+  width: 34%;
+  height: clamp(5px, 1cqw, 16px);
+  transform: translateX(-50%);
+  background: var(--c-night-800);
+  box-shadow: 0 0 0 var(--px) var(--c-black), 0 0 0 calc(var(--px) * 2) var(--c-moon-dim);
+  pointer-events: none;
+}
+
+.boss-bar[hidden] {
+  display: none;
+}
+
+.boss-bar__fill {
+  display: block;
+  width: calc(var(--boss-life) * 100%);
+  height: 100%;
+  background: var(--boss-color);
+  transition: width 0.2s steps(4);
+}
+
+.boss-bar.is-hit { animation: heart-drain 0.3s steps(3) both; }
+
+/* Lo que vale cada cosa que se recoge (js/ui/Legend.js), como en las máquinas de arcade: iconos,
+   un triángulo, lo que da (los mismos símbolos del HUD) y los puntos. PROVISIONAL. */
+.legend {
+  position: absolute;
+  top: 36%;
+  left: 50%;
+  display: grid;
+  gap: 1.2em;
+  transform: translateX(-50%);
+  font-family: var(--font-pixel);
+  font-size: clamp(8px, 1.8cqw, 30px);
+  line-height: 1;
+  color: var(--c-moon);
+  text-shadow: var(--shadow) var(--shadow) 0 var(--c-black);
+  pointer-events: none;
+}
+
+.legend[hidden] {
+  display: none;
+}
+
+.legend__row {
+  display: grid;
+  grid-template-columns: auto auto auto auto;
+  align-items: center;
+  gap: 1em;
+}
+
+.legend__items {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6em;
+}
+
+.legend__item {
+  display: block;
+  height: auto;
+  image-rendering: pixelated;
+  animation: legend-blink 0.25s steps(1) infinite;
+}
+
+.legend__arrow {
+  width: 0.6em;
+  height: 0.8em;
+  background: var(--c-gold-soft);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+.legend__gain {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.legend__points {
+  color: var(--c-gold);
+}
+
+/* El vuelo, en la leyenda: una nubecita */
+.legend__cloud {
+  display: block;
+  width: 1.8em;
+  height: 1em;
+  background: var(--c-moon);
+  clip-path: polygon(0 60%, 15% 35%, 35% 35%, 45% 0, 70% 0, 80% 35%, 100% 45%, 100% 100%, 0 100%);
+}
+
+.legend__prompt {
+  margin: 0.4em 0 0;
+  color: var(--c-gold-soft);
+  text-align: center;
+  animation: legend-blink 0.8s steps(1) infinite;
+}
+
+@keyframes legend-blink {
+  50% { opacity: 0.6; }
+}
+
 /* ---------- Pantalla de inicio ---------- */
+
+/* La rueda del zodiaco gira con una propiedad propia (--spin), para que los animales no se volteen */
+@property --spin {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 0deg;
+}
 
 .title-screen {
   position: absolute;
@@ -373,6 +535,246 @@ body {
   font-size: clamp(7px, 1.15cqw, 22px);
   line-height: 1.6;
   color: var(--c-moon-dim);
+}
+
+/* La fecha de nacimiento (js/ui/BirthPicker.js): números grandes con ▲ ▼, y ▶ para seguir.
+   PROVISIONAL */
+.birth {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 2cqw, 36px);
+  font-family: var(--font-pixel);
+}
+
+.birth__fields {
+  display: flex;
+  gap: clamp(6px, 1.4cqw, 26px);
+}
+
+.birth__field {
+  display: grid;
+  justify-items: center;
+  gap: 0.3em;
+}
+
+.birth__field[hidden] {
+  display: none;
+}
+
+.birth__step {
+  padding: 0.1em 0.6em;
+  border: 0;
+  background: none;
+  color: var(--c-moon-dim);
+  font: inherit;
+  font-size: clamp(7px, 1.1cqw, 18px);
+  cursor: pointer;
+}
+
+.birth__value {
+  min-width: 2.4em;
+  padding: 0.35em 0.4em;
+  border: 0;
+  background: var(--c-night-700);
+  color: var(--c-moon);
+  font: inherit;
+  font-size: clamp(10px, 2.2cqw, 36px);
+  box-shadow: 0 0 0 var(--px) var(--c-night-600);
+  cursor: pointer;
+}
+
+.birth__field--year .birth__value {
+  min-width: 3.6em;
+}
+
+.birth__value:focus {
+  background: var(--c-gold);
+  color: #2a1400;
+  outline: var(--px) solid var(--c-moon);
+  outline-offset: calc(var(--px) * 2);
+}
+
+.birth__label {
+  font-size: clamp(6px, 0.9cqw, 14px);
+  color: var(--c-muted);
+  text-transform: uppercase;
+}
+
+.birth__ok,
+.wheel__ok {
+  font-size: clamp(9px, 1.6cqw, 26px);
+  padding: 0.5em 0.9em;
+}
+
+/* La rueda del zodiaco (js/ui/ZodiacWheel.js): los 12 animales en círculo; gira y se detiene con
+   el que le toca arriba, bajo la flecha. Cada animal, por ahora, es un disco de su color con su
+   inicial. PROVISIONAL */
+.wheel {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-items: center;
+  gap: clamp(8px, 3cqw, 48px);
+  font-family: var(--font-pixel);
+}
+
+/* La tarjeta del animal, al lado de la rueda: el animal, su símbolo, su nombre en chino y sus
+   virtudes. PROVISIONAL */
+.wheel__card {
+  display: grid;
+  justify-items: center;
+  gap: clamp(3px, 1.2cqh, 12px);
+  min-width: 40cqh;
+  animation: ammo-pop 0.5s steps(5) both;
+}
+
+.wheel__card[hidden] {
+  display: none;
+}
+
+.wheel__top {
+  display: flex;
+  align-items: center;
+  gap: clamp(6px, 2cqh, 20px);
+}
+
+.wheel__portrait {
+  display: grid;
+  place-items: center;
+  width: 18cqh;
+  height: 18cqh;
+  border-radius: 50%;
+  background: var(--color);
+  color: var(--c-black);
+  font-size: 8cqh;
+  text-shadow: none;
+  box-shadow: 0 0 0 var(--px) var(--c-gold), 0 0 0 calc(var(--px) * 2) var(--c-black);
+}
+
+.wheel__portrait img {
+  width: 100%;
+  image-rendering: pixelated;
+}
+
+/* Los caracteres chinos: la fuente pixel no los tiene; van con una fuente china del sistema */
+.wheel__hanzi,
+.wheel__chinese [lang] {
+  font-family: "Noto Sans SC", "Noto Sans TC", "Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Heiti SC", sans-serif;
+  font-weight: 700;
+}
+
+.wheel__hanzi {
+  font-size: 20cqh;
+  line-height: 1;
+  color: var(--c-gold-soft);
+}
+
+.wheel__chinese {
+  margin: 0;
+  font-size: clamp(9px, 2cqw, 32px);
+  color: var(--c-moon);
+}
+
+.wheel__pinyin {
+  font-family: var(--font-text);
+  color: var(--c-moon-dim);
+}
+
+.wheel__virtues {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0.4em 1.2em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-text);
+  font-size: clamp(8px, 1.5cqw, 24px);
+  color: var(--c-moon-dim);
+}
+
+.wheel__virtues li::before {
+  content: "✦ ";
+  color: var(--c-gold);
+}
+
+.wheel__dial {
+  position: relative;
+  width: 52cqh;
+  height: 52cqh;
+  margin-top: 3cqh;
+}
+
+.wheel__ring {
+  --spin: 0deg;
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 var(--px) var(--c-night-600);
+  transform: rotate(var(--spin));
+}
+
+.wheel__token {
+  --r: 21cqh;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 9cqh;
+  height: 9cqh;
+  margin: -4.5cqh 0 0 -4.5cqh;
+  border-radius: 50%;
+  background: var(--color);
+  color: var(--c-black);
+  font-size: 3.6cqh;
+  text-shadow: none;
+  transform: rotate(calc(var(--i) * 30deg)) translateY(calc(-1 * var(--r))) rotate(calc(var(--i) * -30deg - var(--spin)));
+}
+
+.wheel__token img {
+  width: 100%;
+  image-rendering: pixelated;
+}
+
+.wheel__token.is-chosen {
+  box-shadow: 0 0 0 var(--px) var(--c-gold), 0 0 0 calc(var(--px) * 2) var(--c-black);
+  animation: wheel-chosen 0.5s steps(5) both;
+}
+
+/* Con scale (y no transform), para no mover al animal de su lugar en la rueda */
+@keyframes wheel-chosen {
+  0% { scale: 1; }
+  40% { scale: 1.45; }
+  100% { scale: 1.2; }
+}
+
+.wheel__pointer {
+  position: absolute;
+  top: -1cqh;
+  left: 50%;
+  width: 4cqh;
+  height: 3cqh;
+  margin-left: -2cqh;
+  background: var(--c-gold);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.wheel__name {
+  min-height: 1em;
+  margin: 0;
+  font-size: clamp(10px, 2.4cqw, 40px);
+  color: var(--c-gold-soft);
+  text-transform: uppercase;
+}
+
+.wheel__ok[hidden] {
+  display: none;
+}
+
+/* Con la rueda, no caben el título ni el récord */
+.title-screen:has(#sign-step:not([hidden])) .title-screen__heading,
+.title-screen:has(#sign-step:not([hidden])) .title-screen__record {
+  display: none;
 }
 
 .lang-choice {
@@ -824,6 +1226,8 @@ body {
   .hud__life--leaving,
   .hud__life--new,
   .hud__score dd.is-milestone,
+  .legend__item,
+  .legend__prompt,
   .hud__score--high.is-record,
   .new-record__score,
   .name-entry__slot--active .name-entry__letter,

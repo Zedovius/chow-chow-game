@@ -190,7 +190,7 @@ export class GamepadInput {
     requestAnimationFrame(this.poll);
   }
 
-  /** Al escribir el nombre, mantener arriba o abajo recorre los caracteres, cada vez más rápido. */
+  /** Al escribir el nombre (o la fecha), mantener arriba o abajo recorre los caracteres, cada vez más rápido. */
   repeatLetter(held) {
     const dir = ['up', 'down'].find((name) => held.has(name));
     if (!dir || !this.writingName) {
@@ -241,7 +241,9 @@ export class GamepadInput {
    * los demás menús se deja como llega (ver CABINET_TURN).
    */
   get writingName() {
-    return Boolean(this.dialog?.querySelector('.name-entry'));
+    // También al elegir el mes y el año de nacimiento (ui/BirthPicker.js): ahí arriba y abajo
+    // cambian el número, y mantenerlos lo recorre cada vez más rápido
+    return Boolean(this.dialog?.querySelector('.name-entry')) || Boolean(document.activeElement?.closest('[data-hold-repeat]'));
   }
 
   get inMenu() {

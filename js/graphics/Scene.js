@@ -11,21 +11,24 @@
 
 import { CONFIG } from '../config.js';
 import { ready } from './assets.js';
+import { signById } from '../world/levels.js';
 
 const { width: W, height: H, groundY, ceilingY, pixel: P } = CONFIG;
 
 // Colores provisionales de lo que no depende del nivel
 const COLORS = {
-  head: '#e8452c',
-  body: ['#f2b630', '#d9842a'],
   eye: '#1a0b08',
   wall: 'rgba(0, 0, 0, 0.35)', // sombra encima del color del nivel: lo que no se quema
   flyer: '#f4f0ff',
   lantern: ['#e8452c', '#ffd166'],
-  storm: ['#3a3a52', '#ffe066'],
+  storm: ['#3a3a52', '#ffe066', '#6a6a8e'], // nube, rayo, nube avisando
+  food: { box: '#f4efe6', lid: '#c8102e', rice: '#fff8e7', plate: '#3b6fb6' },
   ceiling: 'rgba(255, 255, 255, 0.08)',
+  sparkle: '#fff4c2',
+  warning: 'rgba(255, 240, 160, 0.3)', // dónde va a pegar el jefe (claro: se lee sobre cualquier cielo)
+  star: '#ffd23f',
+  cloud: '#f4f6ff',
   marker: '#ffe9a8',
-  pearl: '#ffe9a8',
   cocktail: { glass: '#bfe7ff', drink: ['#ff6f91', '#7ee081', '#ffd166', '#c084fc'] },
   fire: ['#fff3b0', '#ff9f1c', '#e8452c'],
 };
@@ -42,9 +45,9 @@ export class Scene {
 
   /**
    * @param {{ level: object, progress: number, state: string, scroll: number, cameraY: number,
-   *           dragon: import('../entities/Dragon.js').Dragon, headY: number,
+   *           dragon: import('../entities/Player.js').Dragon, headY: number,
    *           obstacles: {kind: string, height: string, burnable: boolean, x: number, y: number, w: number, h: number, t: number}[],
-   *           pickups: {type: 'pearl' | 'cocktail', variety: string | null, x: number, y: number, r: number}[],
+   *           pickups: {type: 'cocktail' | 'food', variety: string | null, x: number, y: number, r: number}[],
    *           fireballs: {x: number, y: number, r: number, age: number}[], blink: boolean }} view
    *   scroll, headY y las x ya vienen interpoladas (ver Game.render). x, y de obstáculos: esquina de
    *   arriba a la izquierda; de lo demás: el centro. progress: cuánto del nivel se lleva (0 a 1),
@@ -61,7 +64,8 @@ export class Scene {
     this.drawGround(view, art);
     this.drawObstacles(view, art);
     this.drawPickups(view);
-    if (!view.blink) this.drawDragon(view);
+    if (view.boss) this.drawBoss(view.boss);
+    if (!view.blink) this.drawPlayer(view);
     this.drawFireballs(view);
     ctx.setTransform(1 / P, 0, 0, 1 / P, 0, 0);
     this.drawMarkers(view);
@@ -158,14 +162,45 @@ export class Scene {
         continue;
       }
       if (o.kind === 'cloud') {
-        // Una nube de tormenta (no se quema) con su rayo
-        ctx.fillStyle = COLORS.storm[0];
+        // Una nube de tormenta (no se quema). Antes de cada rayo parpadea y se ve tenue el zigzag
+        // donde va a caer: así se lee el espacio a esquivar. Luego cae el rayo, con la misma forma.
+        const flash = o.warning && Math.floor(o.t * 12) % 2 === 0;
+        ctx.fillStyle = flash ? COLORS.storm[2] : COLORS.storm[0];
         ctx.fillRect(x, y + 8, o.w, o.h - 8);
         ctx.fillRect(x + 8, y, o.w - 24, o.h);
-        if (Math.sin(o.t * 9) > 0.6) {
-          ctx.fillStyle = COLORS.storm[1];
-          ctx.fillRect(x + o.w / 2 - 2, y + o.h - 6, 4, 6);
-        }
+        if (o.bolt) this.drawBolt(x + o.w / 2, y + o.h, o.bolt, 1);
+        else if (o.warning && o.boltLength) this.drawBolt(x + o.w / 2, y + o.h, o.boltLength, 0.3);
+        continue;
+      }
+      if (o.kind === 'shot') {
+        // Un disparo del jefe: como una bola de fuego, del color de su fuego
+        const flicker = Math.floor(o.t * 20) % 2;
+        ctx.fillStyle = level.colors.fire ?? COLORS.fire[1];
+        ctx.fillRect(x, y + 1, o.w, o.h - 2);
+        ctx.fillStyle = COLORS.fire[0];
+        ctx.fillRect(x + 2 + flicker, y + 3, 6, o.h - 6);
+        continue;
+      }
+      if (o.kind === 'barrel') {
+        // Un barril que rueda: la franja da vueltas
+        ctx.fillStyle = level.colors.obstacle;
+        ctx.fillRect(x + 2, y, o.w - 4, o.h);
+        ctx.fillRect(x, y + 2, o.w, o.h - 4);
+        ctx.fillStyle = COLORS.wall;
+        const turn = Math.floor(o.t * 10) % 4;
+        if (turn % 2) ctx.fillRect(x + 2, y + o.h / 2 - 1, o.w - 4, 2);
+        else ctx.fillRect(x + o.w / 2 - 1, y + 2, 2, o.h - 4);
+        continue;
+      }
+      if (o.kind === 'hopper') {
+        // Un bicho que brinca: en el aire estira las patas
+        const up = o.y < CONFIG.groundY - o.h - 4;
+        ctx.fillStyle = level.colors.obstacle;
+        ctx.fillRect(x + 1, y, o.w - 2, o.h - 4);
+        ctx.fillRect(x + 2, y + o.h - 4, 3, up ? 6 : 4);
+        ctx.fillRect(x + o.w - 5, y + o.h - 4, 3, up ? 6 : 4);
+        ctx.fillStyle = COLORS.eye;
+        ctx.fillRect(x + 2, y + 3, 2, 2);
         continue;
       }
       ctx.fillStyle = level.colors.obstacle;
@@ -177,42 +212,124 @@ export class Scene {
     }
   }
 
-  /** La perla y los cócteles. */
+  /** Los cócteles y la comida: parpadean y destellan, para que se vean como algo que se recoge. */
   drawPickups({ pickups }) {
     const ctx = this.ctx;
     for (const p of pickups) {
-      const image = ready(p.type === 'pearl' ? this.images?.pearl : this.images?.cocktails?.[p.variety]);
-      if (image) {
-        ctx.drawImage(image, Math.round(p.x - p.r), Math.round(p.y - p.r), p.r * 2, p.r * 2);
-      } else if (p.type === 'pearl') {
-        ctx.fillStyle = COLORS.pearl;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        // Una copa: el vidrio y la bebida, de un color por cóctel
-        const x = Math.round(p.x - p.r);
-        const y = Math.round(p.y - p.r);
-        const index = Math.abs(hash(p.variety ?? '')) % COLORS.cocktail.drink.length;
-        ctx.fillStyle = COLORS.cocktail.glass;
-        ctx.fillRect(x, y, p.r * 2, p.r * 2 - 4);
-        ctx.fillRect(x + p.r - 1, y + p.r * 2 - 4, 2, 4);
-        ctx.fillStyle = COLORS.cocktail.drink[index];
-        ctx.fillRect(x + 2, y + 4, p.r * 2 - 4, p.r * 2 - 10);
-      }
+      this.drawSparkles(p);
+      ctx.globalAlpha = Math.floor(p.t * 8) % 2 ? 0.6 : 1;
+      this.drawPickup(p);
+      ctx.globalAlpha = 1;
     }
   }
 
-  drawFireballs({ fireballs }) {
+  /** Un cóctel o una comida: su imagen a su tamaño de pixel, o una figura provisional si no cargó. */
+  drawPickup(p) {
+    const ctx = this.ctx;
+    const art = { food: () => this.images?.foods?.[p.variety], cocktail: () => this.images?.cocktails?.[p.variety], star: () => this.images?.star };
+    const image = ready(art[p.type]());
+    if (image) {
+      // Un pixel de la imagen = un pixel del canvas, centrada
+      const w = image.width * P;
+      const h = image.height * P;
+      ctx.drawImage(image, Math.round((p.x - w / 2) / P) * P, Math.round((p.y - h / 2) / P) * P, w, h);
+      return;
+    }
+    const x = Math.round(p.x - p.r);
+    const y = Math.round(p.y - p.r);
+    const size = p.r * 2;
+    if (p.type === 'star') {
+      ctx.fillStyle = COLORS.star;
+      ctx.fillRect(x + p.r - 2, y, 4, size);
+      ctx.fillRect(x, y + p.r - 2, size, 4);
+      return;
+    }
+    if (p.type === 'food') {
+      // Una caja de comida china o un tazón de arroz, según cuál sea
+      if (p.variety === 'tazon-de-arroz') {
+        ctx.fillStyle = COLORS.food.plate;
+        ctx.fillRect(x, y + size - 5, size, 4);
+        ctx.fillStyle = COLORS.food.rice;
+        ctx.fillRect(x + 2, y + 3, size - 4, size - 8);
+      } else {
+        ctx.fillStyle = COLORS.food.box;
+        ctx.fillRect(x + 1, y + 3, size - 2, size - 3);
+        ctx.fillStyle = COLORS.food.lid;
+        ctx.fillRect(x + 4, y + 6, size - 8, 3);
+        ctx.fillRect(x + size / 2 - 1, y, 2, 4);
+      }
+      return;
+    }
+    // Una copa: el vidrio y la bebida, de un color por cóctel
+    const index = Math.abs(hash(p.variety ?? '')) % COLORS.cocktail.drink.length;
+    ctx.fillStyle = COLORS.cocktail.glass;
+    ctx.fillRect(x, y, size, size - 4);
+    ctx.fillRect(x + p.r - 1, y + size - 4, 2, 4);
+    ctx.fillStyle = COLORS.cocktail.drink[index];
+    ctx.fillRect(x + 2, y + 4, size - 4, size - 10);
+  }
+
+  /**
+   * Destellos alrededor de lo que se recoge: tres crucecitas que nacen, crecen y se apagan, cada vez
+   * en otro lugar.
+   */
+  drawSparkles({ x, y, r, t }) {
+    const ctx = this.ctx;
+    ctx.fillStyle = COLORS.sparkle;
+    for (let i = 0; i < 3; i++) {
+      const cycle = t * 1.4 + i / 3;
+      const phase = cycle % 1;
+      if (phase > 0.7) continue;
+      const size = phase < 0.25 || phase > 0.55 ? 1 : 2; // brazos de la cruz, en pixeles
+      const angle = i * 2.1 + Math.floor(cycle) * 2.4;
+      const sx = Math.round((x + Math.cos(angle) * (r + 8)) / P) * P;
+      const sy = Math.round((y + Math.sin(angle) * (r + 6)) / P) * P;
+      ctx.fillRect(sx, sy - size * P, P, (size * 2 + 1) * P);
+      ctx.fillRect(sx - size * P, sy, (size * 2 + 1) * P, P);
+    }
+  }
+
+  /**
+   * Un rayo en zigzag de largo length, desde (mid, top) hacia abajo. alpha < 1: el aviso tenue de
+   * dónde va a caer. La forma coincide con su caja de choque (CONFIG.obstacles.lightning.width).
+   */
+  drawBolt(mid, top, length, alpha) {
+    const ctx = this.ctx;
+    const { width } = CONFIG.obstacles.lightning;
+    const swing = width - 2 * P; // cuánto va de un lado al otro
+    const turn = 4 * P; // cada cuánto cambia de dirección
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = COLORS.storm[1];
+    for (let dy = 0; dy < length; dy += P) {
+      const leg = Math.floor(dy / turn);
+      const along = (dy % turn) / turn;
+      const offset = (leg % 2 ? 1 - along : along) * swing - swing / 2;
+      ctx.fillRect(Math.round((mid + offset) / P) * P - P, Math.round(top / P) * P + dy, 2 * P, P);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /** Las bolas de fuego, del color del animal (fireColor). */
+  drawFireballs({ fireballs, fireColor = COLORS.fire[1] }) {
     const ctx = this.ctx;
     const image = ready(this.images?.fireball);
+    const colors = [COLORS.fire[0], fireColor, shade(fireColor, 0.65)];
     for (const f of fireballs) {
       if (image) {
         ctx.drawImage(image, Math.round(f.x - f.r), Math.round(f.y - f.r), f.r * 2, f.r * 2);
         continue;
       }
       const flicker = Math.floor(f.age * 20) % 2;
-      COLORS.fire.forEach((color, i) => {
+      if (f.special) {
+        // El especial: un halo grande alrededor, que late
+        const halo = f.r + 4 + flicker * 2;
+        ctx.globalAlpha = 0.45;
+        ctx.fillStyle = fireColor;
+        ctx.fillRect(Math.round(f.x - halo), Math.round(f.y - halo / 2), halo * 2, halo);
+        ctx.fillRect(Math.round(f.x - halo / 2), Math.round(f.y - halo), halo, halo * 2);
+        ctx.globalAlpha = 1;
+      }
+      colors.forEach((color, i) => {
         ctx.fillStyle = color;
         const r = f.r - i * 2 + (i === 0 ? 0 : flicker);
         ctx.fillRect(Math.round(f.x - r - i * 3), Math.round(f.y - r / 2), r * 2, r);
@@ -221,17 +338,31 @@ export class Scene {
   }
 
   /**
-   * El dragón, de la cola a la cabeza para que la cabeza quede encima. Cada parte trae su centro,
-   * tamaño e inclinación (ver Dragon.parts). Para animar: dragon.pose ('run', 'duck', 'jump',
-   * 'fall', 'fly', 'hurt', 'dead', 'idle'), dragon.runTime (patas) y dragon.flapTime (alas).
+   * Quien juega: su animal (dragon.sign; null en la pantalla de inicio: el dragón). Los de cuerpo
+   * largo (el Dragón y la Serpiente) van de la cola a la cabeza, para que la cabeza quede encima.
+   * Cada parte trae su centro, tamaño e inclinación (ver Player.parts). Para animar: dragon.pose
+   * ('run', 'duck', 'jump', 'fall', 'fly', 'hurt', 'dead', 'idle'), runTime (patas), flapTime (alas)
+   * y riding (va en su nubecita). Todo esto es PROVISIONAL hasta que llegue el arte de cada animal
+   * (IMAGES.animals[id] en assets.js).
    */
-  drawDragon({ dragon, headY, scroll }) {
+  drawPlayer({ dragon: player, headY, scroll, charge = 0, fireColor }) {
+    const sign = signById(player.sign ?? 'dragon');
+    const parts = player.parts(headY, scroll);
+    const head = parts[0];
+    if (charge > 0) this.drawCharge(head, charge, fireColor ?? sign.fire);
+    if (player.riding) this.drawCloud(head.x, head.y + head.h / 2 + 2, player.flapTime);
+    if (sign.long) this.drawLong(player, parts, sign);
+    else this.drawAnimal(player, head, sign);
+    if (player.winged && player.airborne) this.drawWings(head, player.flapTime, sign);
+  }
+
+  /** El Dragón y la Serpiente: cuerpo largo que sigue el camino de la cabeza. */
+  drawLong(player, parts, sign) {
     const ctx = this.ctx;
     const art = this.images?.dragon;
-    const parts = dragon.parts(headY, scroll);
     for (let i = parts.length - 1; i >= 0; i--) {
       const part = parts[i];
-      const image = ready(part.kind === 'head' ? art?.head : art?.body?.[part.index - 1]);
+      const image = sign.id === 'dragon' ? ready(part.kind === 'head' ? art?.head : art?.body?.[part.index - 1]) : null;
       if (image) {
         ctx.save();
         ctx.translate(part.x, part.y);
@@ -241,7 +372,7 @@ export class Scene {
         continue;
       }
       const { x, y, w, h } = part;
-      ctx.fillStyle = i === 0 ? COLORS.head : COLORS.body[i % 2];
+      ctx.fillStyle = i === 0 ? sign.body : i % 2 ? shade(sign.body, 1.25) : shade(sign.body, 0.85);
       ctx.fillRect(Math.round(x - w / 2), Math.round(y - h / 2), w, Math.round(h));
       if (i === 0) {
         ctx.fillStyle = COLORS.eye;
@@ -249,6 +380,106 @@ export class Scene {
       }
     }
   }
+
+  /** Los demás animales: un cuerpo con orejas, cola y patas que corren. PROVISIONAL. */
+  drawAnimal(player, head, sign) {
+    const ctx = this.ctx;
+    const { x, y, w, h } = head;
+    const left = Math.round(x - w / 2);
+    const top = Math.round(y - h / 2);
+    const legs = player.onGround && !player.ducking ? Math.floor(player.runTime * 12) % 2 : 0;
+    ctx.fillStyle = shade(sign.body, 0.75);
+    // Patas (se alternan al correr) y cola
+    ctx.fillRect(left + 4 + legs * 2, top + h - 4, 4, 4);
+    ctx.fillRect(left + w - 10 - legs * 2, top + h - 4, 4, 4);
+    ctx.fillRect(left - 4, top + 4, 4, 4);
+    // Cuerpo y cabeza
+    ctx.fillStyle = sign.body;
+    ctx.fillRect(left, top + 2, w - 6, Math.round(h) - 6);
+    ctx.fillRect(left + w - 12, top - 2, 12, Math.max(6, Math.round(h) - 6));
+    // Orejas, ojo
+    ctx.fillStyle = shade(sign.body, 0.75);
+    ctx.fillRect(left + w - 10, top - 6, 4, 4);
+    ctx.fillStyle = COLORS.eye;
+    ctx.fillRect(left + w - 6, top, 2, 2);
+  }
+
+  /**
+   * El jefe del nivel 13 (PROVISIONAL: un cuerpo grande del color del rival). Antes de cada ataque
+   * se ve tenue dónde va a pegar, y parpadea: las tres alturas de la ráfaga, la línea de la
+   * puntería o la franja de la embestida. Así se esquiva con pericia.
+   */
+  drawBoss(boss) {
+    const ctx = this.ctx;
+    const { x, y, w, h, warning, t } = boss;
+    const blink = Math.floor(t * 10) % 2 === 0;
+    if (warning && blink) {
+      ctx.fillStyle = COLORS.warning;
+      const { spread, h: shotH } = CONFIG.boss.shot;
+      if (warning === 'charge') ctx.fillRect(0, Math.round(y - h / 2), W, h);
+      else if (warning === 'aimed') ctx.fillRect(0, Math.round(boss.aimY - shotH / 2), x - w / 2, shotH);
+      else for (const dy of [-spread, 0, spread]) ctx.fillRect(0, Math.round(y + dy - shotH / 2), x - w / 2, shotH);
+    }
+    if (boss.state === 'defeated' && blink) return;
+    const left = Math.round(x - w / 2);
+    const top = Math.round(y - h / 2);
+    ctx.fillStyle = boss.flash ? '#ffffff' : boss.color;
+    ctx.fillRect(left + 4, top + 6, w - 4, h - 12);
+    ctx.fillRect(left, top + 14, 16, h - 26); // la cabeza, mirando a la izquierda
+    ctx.fillStyle = shade(boss.color, 0.7);
+    ctx.fillRect(left + 6, top, 6, 8); // orejas
+    ctx.fillRect(left + 18, top + 2, 6, 6);
+    ctx.fillRect(left + 10, top + h - 8, 8, 8); // patas
+    ctx.fillRect(left + w - 16, top + h - 8, 8, 8);
+    ctx.fillStyle = COLORS.eye;
+    ctx.fillRect(left + 4, top + 18, 4, 4);
+    // La boca se enciende al avisar un disparo
+    if (warning && warning !== 'charge') {
+      ctx.fillStyle = blink ? boss.fire : COLORS.fire[0];
+      ctx.fillRect(left - 4, Math.round(y - 3), 6, 6);
+    }
+  }
+
+  /**
+   * El disparo especial cargándose: un brillo del color del fuego que crece alrededor de la cabeza;
+   * cargado, parpadea.
+   */
+  drawCharge(head, progress, color) {
+    const ctx = this.ctx;
+    if (progress >= 1 && Math.floor(performance.now() / 80) % 2) return;
+    const r = Math.round((6 + progress * 12) / P) * P;
+    ctx.globalAlpha = 0.25 + progress * 0.35;
+    ctx.fillStyle = color;
+    ctx.fillRect(Math.round(head.x - r), Math.round(head.y - r / 2), r * 2, r);
+    ctx.fillRect(Math.round(head.x - r / 2), Math.round(head.y - r), r, r * 2);
+    ctx.globalAlpha = 1;
+  }
+
+  /** La nubecita en la que vuelan los animales sin alas. PROVISIONAL. */
+  drawCloud(x, y, flapTime) {
+    const ctx = this.ctx;
+    const puff = flapTime < 0.15 ? 2 : 0; // se infla un poco con cada aleteo
+    ctx.fillStyle = COLORS.cloud;
+    ctx.fillRect(Math.round(x - 16 - puff), Math.round(y), 32 + puff * 2, 6);
+    ctx.fillRect(Math.round(x - 10), Math.round(y - 4 - puff), 20, 4 + puff);
+  }
+
+  /** Las alas del Dragón y el Gallo: se cierran y se abren con cada aleteo. PROVISIONAL. */
+  drawWings(head, flapTime, sign) {
+    const ctx = this.ctx;
+    const up = flapTime < 0.12;
+    ctx.fillStyle = shade(sign.body, 1.3);
+    const x = Math.round(head.x - head.w / 2 - 4);
+    const y = Math.round(head.y - head.h / 2);
+    if (up) ctx.fillRect(x, y - 10, 10, 10);
+    else ctx.fillRect(x - 4, y + 4, 14, 6);
+  }
+}
+
+/** Un color más claro (factor > 1) o más oscuro (< 1). */
+function shade(hex, factor) {
+  const channel = (i) => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * factor)));
+  return `rgb(${channel(1)}, ${channel(3)}, ${channel(5)})`;
 }
 
 /** Repite una imagen a lo ancho de la pantalla, corrida offset, en la franja de y a y + height. */

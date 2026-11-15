@@ -8,25 +8,33 @@ const levelArt = () => ({
   sky: null, // el fondo, pegado a la pantalla (se repite a lo ancho, con parallax)
   ground: null, // el suelo, o las nubes de abajo en los niveles sin suelo (se repite)
   // Un dibujo por tipo de obstáculo (world/obstacles.js), del tamaño de su caja de choque
-  obstacles: { post: null, crate: null, group: null, wall: null, flyer: null, lantern: null, cloud: null },
+  obstacles: { post: null, crate: null, group: null, wall: null, barrel: null, hopper: null, flyer: null, lantern: null, cloud: null },
 });
 
 export const IMAGES = {
   // El dragón: la cabeza y cada una de las cinco partes del cuerpo (de la más cercana a la cola).
   // Se dibujan centradas en su parte y giradas según part.angle (ver Dragon.parts). Para animarlo
-  // (patas, alas, agacharse), Scene.drawDragon tiene dragon.pose, runTime y flapTime.
+  // (patas, alas, agacharse), Scene.drawPlayer tiene dragon.pose, runTime y flapTime.
   dragon: {
     head: null, // p. ej. 'assets/images/dragon/head.png'
     body: [null, null, null, null, null],
   },
   fireball: null,
-  pearl: null,
+  // La estrella del vuelo (la genera tools/sprites/pickups.mjs)
+  star: 'assets/images/pickups/estrella.png',
+  // Cada animal: como jugador, como jefe del nivel 13 y en el fondo de su mundo, y su icono para la
+  // rueda del zodiaco (ver docs/arte-pixel.md). Mientras no haya, se dibujan figuras provisionales.
+  animals: {},
   // Un dibujo por cóctel (sus nombres están en entities/Pickup.js)
+  // (los cócteles y la comida los genera tools/sprites/pickups.mjs: se dibujan a su tamaño de pixel)
   cocktails: {
-    'margarita-lichi': null,
-    'mezcal-jengibre': null,
-    'horchata-te-verde': null,
-    'michelada-ciruela': null,
+    'margarita-lichi': 'assets/images/pickups/margarita-lichi.png',
+    'mezcal-jengibre': 'assets/images/pickups/mezcal-jengibre.png',
+  },
+  // Un dibujo por comida (sus nombres también están en entities/Pickup.js)
+  foods: {
+    'caja-china': 'assets/images/pickups/caja-china.png',
+    'tazon-de-arroz': 'assets/images/pickups/tazon-de-arroz.png',
   },
 
   // Un juego de imágenes por animal (por su id en world/levels.js)

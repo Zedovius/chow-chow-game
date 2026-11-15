@@ -125,6 +125,10 @@
           <span class="hud__ammo-icon" aria-hidden="true"></span>
           <span class="hud__ammo-count" aria-hidden="true">3</span>
         </p>
+        <!-- El poder de volar (la estrella, HUD.setFlight): se ve mientras se tiene; .is-gained / .is-lost -->
+        <p class="hud__flight" id="hud-flight" role="img" hidden><span class="hud__flight-icon" aria-hidden="true"></span></p>
+        <!-- El multiplicador de la racha (HUD.setCombo): oculto con ×1; .is-up / .is-lost -->
+        <p class="hud__combo" id="hud-combo" role="img" hidden><span class="hud__combo-value" aria-hidden="true">×1</span></p>
         <dl class="hud__scores">
           <div class="hud__score hud__score--high">
             <dt><abbr title="Récord" data-i18n-attr="title:hud.record">HI</abbr></dt>
@@ -138,8 +142,14 @@
         <button id="pause-button" class="hud__pause" type="button" aria-label="Pausar" data-i18n-attr="aria-label:hud.pause"></button>
       </aside>
 
+      <!-- La vida del jefe del nivel 13 (HUD.showBoss / setBoss): una barra del color del rival -->
+      <div class="boss-bar" id="boss-bar" role="meter" aria-valuemin="0" hidden><span class="boss-bar__fill"></span></div>
+
       <!-- El nombre de cada nivel al empezarlo (Game.showBanner) -->
       <p class="level-banner" id="level-banner" aria-live="polite" hidden></p>
+
+      <!-- Lo que vale cada cosa que se recoge, sin texto (js/ui/Legend.js): al elegir la dificultad -->
+      <div class="legend" id="legend" role="img" hidden></div>
 
       <!-- Pantalla de inicio en dos pasos: primero el idioma, luego la dificultad (que empieza el juego). -->
       <section id="title-screen" class="title-screen" aria-labelledby="title-screen-heading">
@@ -154,6 +164,14 @@
               <button class="button lang-choice__option" type="button" data-lang="es" lang="es">Español</button>
             </div>
             <button class="title-screen__board" type="button" data-open-boards>HI RECORDS</button>
+          </div>
+          <!-- La fecha de nacimiento (js/ui/BirthPicker.js) y la rueda que da el animal (js/ui/ZodiacWheel.js) -->
+          <div class="title-screen__step" id="birth-step" hidden>
+            <p class="title-screen__prompt" id="birth-prompt" data-i18n="birth.prompt">Selecciona tu fecha de nacimiento para saber tu suerte</p>
+            <div class="birth" id="birth-picker" role="group" aria-labelledby="birth-prompt"></div>
+          </div>
+          <div class="title-screen__step" id="sign-step" hidden>
+            <div class="wheel" id="zodiac-wheel" role="group"></div>
           </div>
           <div class="title-screen__step" id="difficulty-step" data-native-keys hidden>
             <p class="title-screen__prompt" id="difficulty-prompt" data-i18n="difficulty.prompt">Elige la dificultad</p>

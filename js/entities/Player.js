@@ -1,39 +1,83 @@
-// El dragón: una cabeza y cinco partes de cuerpo. Corre por el suelo como Chispas:
+// Quien juega: el animal de su año (sign: 'rat', 'ox'... ver world/levels.js). Todos se mueven igual
+// y tienen la misma caja de choque, para que HI RECORDS sea justo; solo cambia el dibujo. Corre por
+// el suelo como Chispas:
 //   · salta (la acción 'jump'): mientras se mantiene el botón sube más; al soltarlo antes, el salto
 //     se corta (salto variable);
 //   · se agacha ('duck') en el suelo, y en el aire 'duck' lo hace caer más rápido;
-//   · vuela: en el aire, cada 'jump' es un aleteo suave. Puede quedarse volando (hasta el techo del
-//     cielo, CONFIG.ceilingY) o bajar y seguir corriendo. Sin aletear, el salto es el de Chispas.
-//   · en los niveles sin suelo (ground = false) no hay dónde correr: tocar las nubes de abajo lo
-//     hace rebotar (bumped) y Game le quita un corazón.
+//   · vuela, si tiene el poder (canFly, la estrella): en el aire, cada 'jump' es un aleteo suave.
+//     Puede quedarse volando (hasta el techo del cielo, CONFIG.ceilingY) o bajar y seguir
+//     corriendo. Un golpe le quita el poder y cae al suelo. El Dragón y el Gallo vuelan con sus
+//     alas; los demás, en una nubecita (solo el dibujo).
+//   · en los niveles sin suelo (ground = false) siempre puede volar, tenga o no el poder: tocar las
+//     nubes de abajo lo hace rebotar (bumped) y Game le quita un corazón.
 //
-// El cuerpo sigue el camino exacto de la cabeza, como una serpiente (o un dragón de la danza): se
-// guarda la altura de los pies de la cabeza según lo recorrido (la estela) y cada parte va sobre
-// ese camino, a spacing de la anterior. Así, si la cabeza pasó sobre un obstáculo, el cuerpo pasa
-// por el mismo lugar.
+// Los animales de cuerpo largo (el Dragón y la Serpiente) dibujan un cuerpo que sigue el camino
+// exacto de la cabeza: se guarda la altura de los pies según lo recorrido (la estela) y cada parte
+// va sobre ese camino, a spacing de la anterior. Solo choca la cabeza (como en todos los animales).
 //
 // y es la altura de los PIES (el borde de abajo) de la cabeza: en el suelo, y = groundY.
 // Al empezar o reintentar un nivel espera (waiting) hasta el primer salto: de pie o, sin suelo,
 // flotando.
 //
 // Para el arte: parts() da de cada parte su centro, tamaño, inclinación (angle, en radianes;
-// positivo = mirando hacia abajo) y tipo. pose dice qué hace ('run', 'duck', 'jump', 'fall',
-// 'fly', 'hurt', 'dead', 'idle'); flapTime, cuánto hace del último aleteo, y runTime, cuánto lleva
-// corriendo (para las patas).
+// positivo = mirando hacia abajo) y tipo (para los animales cortos basta la cabeza, parts()[0]).
+// pose dice qué hace ('run', 'duck', 'jump', 'fall', 'fly', 'hurt', 'dead', 'idle'); flapTime,
+// cuánto hace del último aleteo; runTime, cuánto lleva corriendo (para las patas), y riding si va en
+// su nubecita.
 
 import { CONFIG } from '../config.js';
 
-export class Dragon {
+export class Player {
   constructor() {
+    this.sign = null; // el animal ('rat', 'ox'...); null: el dragón de la pantalla de inicio
     this.ground = true; // ¿el nivel tiene suelo?
+    this.canFly = false; // el poder de volar (la estrella): se conserva de un nivel al otro
+    this.forceFlight = false; // en la pelea final (nivel 13) todos vuelan, y un golpe no lo quita
     this.reset();
+  }
+
+  /** ¿Puede aletear? Con el poder, siempre en un nivel sin suelo y siempre en la pelea final. */
+  get flightAllowed() {
+    return this.canFly || !this.ground || this.forceFlight;
+  }
+
+  /** Está volando (o flotando, sin suelo): en el aire con el poder de volar. */
+  get airborne() {
+    return this.alive && !this.onGround && (this.flying || !this.ground || this.forceFlight);
+  }
+
+  /** Vuela con alas: el Dragón y el Gallo. Los demás, en su nubecita. */
+  get winged() {
+    return ['dragon', 'rooster'].includes(this.sign ?? 'dragon');
+  }
+
+  /** Va en su nubecita (volando, si no es de los que tienen alas). */
+  get riding() {
+    return this.airborne && !this.winged;
+  }
+
+  /**
+   * Tomó la estrella: tiene el poder de volar y despega en ese momento (la nubecita aparece de
+   * inmediato; el Dragón y el Gallo abren las alas).
+   */
+  takeOff() {
+    // Si ya vuela (con el poder, sin suelo o en la pelea final), otra estrella no cambia nada
+    const already = this.flightAllowed && !this.onGround;
+    this.canFly = true;
+    if (!this.alive || already) return;
+    this.onGround = false;
+    this.ducking = false;
+    this.jumpHeld = false;
+    this.flying = true;
+    this.vy = Math.min(this.vy, -CONFIG.player.flight.flap);
+    this.flapTime = 0;
   }
 
   /** Al empezar un nivel; ground: si tiene suelo (si no, empieza flotando). */
   reset(ground = this.ground) {
     this.ground = ground;
-    this.x = CONFIG.dragon.x;
-    this.baseY = ground ? CONFIG.groundY : CONFIG.groundY - CONFIG.dragon.hoverHeight;
+    this.x = CONFIG.player.x;
+    this.baseY = ground ? CONFIG.groundY : CONFIG.groundY - CONFIG.player.hoverHeight;
     this.y = this.baseY;
     this.prevY = this.y;
     this.vy = 0;
@@ -54,17 +98,19 @@ export class Dragon {
     this.flapped = false;
     this.landed = false;
     this.bumped = false; // tocó las nubes de un nivel sin suelo
+    this.lostFlight = false; // un golpe le quitó el poder de volar
     this.flapTime = Infinity; // segundos desde el último aleteo
     this.runTime = 0; // segundos corriendo en el suelo
   }
 
   /** Un paso; scroll: lo recorrido hasta ahora (para el camino del cuerpo). */
   update(dt, input, scroll) {
-    const { jumpVelocity, jumpCutVelocity, flight } = CONFIG.dragon;
+    const { jumpVelocity, jumpCutVelocity, flight } = CONFIG.player;
     this.jumped = false;
     this.flapped = false;
     this.landed = false;
     this.bumped = false;
+    this.lostFlight = false;
     this.flapTime += dt;
     const jump = input.wasPressed('jump');
     if (this.waiting) {
@@ -95,7 +141,7 @@ export class Dragon {
         this.jumpHeld = false;
         this.vy = Math.max(this.vy, -jumpCutVelocity);
       }
-      if (jump) {
+      if (jump && this.flightAllowed) {
         this.vy = Math.min(this.vy, -flight.flap);
         this.jumpHeld = false;
         this.flying = true;
@@ -117,7 +163,7 @@ export class Dragon {
    */
   physics(dt) {
     if (this.onGround) return;
-    const { gravity, fastFallMultiplier, flight, head } = CONFIG.dragon;
+    const { gravity, fastFallMultiplier, flight, head } = CONFIG.player;
     const gliding = this.flying || !this.ground;
     const pull = gliding ? flight.gravity * (this.fastFall ? flight.diveMultiplier : 1) : gravity * (this.fastFall ? fastFallMultiplier : 1);
     this.vy += pull * dt;
@@ -135,7 +181,7 @@ export class Dragon {
     this.fastFall = false;
     if (!this.ground) {
       // Sin suelo: rebota en las nubes
-      this.vy = -CONFIG.dragon.cloudBounce;
+      this.vy = -CONFIG.player.cloudBounce;
       this.flying = true;
       this.bumped = true;
       return;
@@ -153,7 +199,7 @@ export class Dragon {
     this.onGround = false;
     this.ducking = false;
     this.flying = true;
-    this.vy = -CONFIG.dragon.jumpVelocity;
+    this.vy = -CONFIG.player.jumpVelocity;
   }
 
   /** En la pantalla de inicio: corre solo, con un saltito de vez en cuando. */
@@ -174,9 +220,9 @@ export class Dragon {
   fall(dt, scroll) {
     this.ducking = false;
     this.flapTime += dt;
-    if (this.onGround) this.slide += CONFIG.dragon.deathSlide * dt;
+    if (this.onGround) this.slide += CONFIG.player.deathSlide * dt;
     else {
-      this.vy += CONFIG.dragon.gravity * dt;
+      this.vy += CONFIG.player.gravity * dt;
       this.y += this.vy * dt;
       if (this.y >= CONFIG.groundY) {
         this.y = CONFIG.groundY;
@@ -187,12 +233,18 @@ export class Dragon {
     this.remember(scroll);
   }
 
+  /** Un golpe: parpadea invulnerable y, si tenía el poder de volar (y hay suelo), lo pierde y cae. */
   hurt() {
-    this.invulnerable = CONFIG.dragon.invulnerableSeconds;
+    this.invulnerable = CONFIG.player.invulnerableSeconds;
     this.ducking = false;
     this.jumpHeld = false;
+    if (this.canFly && this.ground && !this.forceFlight) {
+      this.canFly = false;
+      this.flying = false; // sin poder, cae con la gravedad de siempre
+      this.lostFlight = true;
+    }
     // Un saltito al recibir el golpe (si iba subiendo más rápido, sigue igual)
-    this.vy = Math.min(this.vy, -CONFIG.dragon.hurtBounce);
+    this.vy = Math.min(this.vy, -CONFIG.player.hurtBounce);
     this.onGround = false;
   }
 
@@ -201,7 +253,7 @@ export class Dragon {
     this.alive = false;
     this.ducking = false;
     this.flying = false;
-    this.vy = Math.min(this.vy, -CONFIG.dragon.hurtBounce);
+    this.vy = Math.min(this.vy, -CONFIG.player.hurtBounce);
     this.onGround = false;
   }
 
@@ -213,7 +265,7 @@ export class Dragon {
   get pose() {
     if (!this.alive) return 'dead';
     if (this.waiting) return 'idle';
-    if (this.invulnerable > CONFIG.dragon.invulnerableSeconds - 0.3) return 'hurt';
+    if (this.invulnerable > CONFIG.player.invulnerableSeconds - 0.3) return 'hurt';
     if (this.onGround) return this.ducking ? 'duck' : 'run';
     if (this.flying) return 'fly';
     return this.vy < 0 ? 'jump' : 'fall';
@@ -231,7 +283,7 @@ export class Dragon {
     const last = trail[trail.length - 1];
     if (last && last.at >= scroll) last.y = this.y;
     else trail.push({ at: scroll, y: this.y });
-    const reach = CONFIG.dragon.spacing * (CONFIG.dragon.body.length + 2);
+    const reach = CONFIG.player.spacing * (CONFIG.player.body.length + 2);
     while (trail.length > 2 && trail[1].at < scroll - reach) trail.shift();
   }
 
@@ -248,7 +300,7 @@ export class Dragon {
    * ducking: con o sin agacharse (para saber qué habría golpeado de pie).
    */
   parts(headY = this.y, scroll = this.scroll, { ducking = this.ducking } = {}) {
-    const { head, body, spacing, duckScale } = CONFIG.dragon;
+    const { head, body, spacing, duckScale } = CONFIG.player;
     const scale = ducking ? duckScale : 1;
     const trail = this.trail;
     scroll += this.slide; // el camino se mide con lo que se deslizó al morir
@@ -292,13 +344,20 @@ export class Dragon {
   }
 
   /** Cajas de colisión, un poco más chicas que cada parte para que los roces se sientan justos. */
-  hitboxes(options) {
-    return this.parts(this.y, this.scroll, options).map(({ x, y, w, h }) => ({ x: x - w / 2 + 2, y: y - h / 2 + 2, w: w - 4, h: h - 4 }));
+  /**
+   * La caja de choque: la cabeza, un poco más chica que su dibujo para que los roces se sientan
+   * justos. Es la misma para todos los animales (el cuerpo largo del Dragón y la Serpiente es solo
+   * dibujo).
+   */
+  hitboxes({ ducking = this.ducking } = {}) {
+    const { w, h } = CONFIG.player.head;
+    const height = h * (ducking ? CONFIG.player.duckScale : 1);
+    return [{ x: this.x - w / 2 + 2, y: this.y - height + 2, w: w - 4, h: height - 4 }];
   }
 
   /** Una copia independiente (para simular el futuro, como hace el bot de las pruebas). */
   clone() {
-    const copy = Object.assign(Object.create(Dragon.prototype), this);
+    const copy = Object.assign(Object.create(Player.prototype), this);
     copy.trail = this.trail.map((point) => ({ ...point }));
     return copy;
   }

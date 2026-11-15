@@ -42,9 +42,14 @@ export class TitleBoards {
     this.wait();
   }
 
+  /**
+   * Solo se alterna con el primer paso del menú (el idioma): si alguien ya va eligiendo su fecha o
+   * su dificultad, la tabla no le tapa el menú.
+   */
   get canShow() {
     const { easy, hard } = loadBoards();
-    return !this.titleScreen.hidden && !this.dialogs.isOpen && this.splash?.hidden !== false
+    const firstStep = !this.titleScreen.querySelector('#lang-step')?.hidden;
+    return !this.titleScreen.hidden && firstStep && !this.dialogs.isOpen && this.splash?.hidden !== false
       && !document.hidden && easy.length + hard.length > 0;
   }
 
