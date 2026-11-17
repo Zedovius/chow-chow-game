@@ -4,6 +4,9 @@
 //
 // Uso:   node tools/publicar.mjs [destino]
 //        sin destino → dist/chow-chow-game
+// Sitio: npm run parking  (= node tools/publicar.mjs ../../parkingPage/chow-chow, como Chispas en
+//        parkingPage/chispas): luego se sube parkingPage completa a Cloudflare Pages y el juego queda
+//        en firio.studio/chow-chow/
 //
 // Si el destino ya existe, solo se reemplaza cuando es una publicación anterior del juego
 // (lleva el archivo .chowchow-publicado); así nunca se borra por error otra carpeta.

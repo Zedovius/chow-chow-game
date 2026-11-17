@@ -264,7 +264,14 @@ dominio sin pisarse. La caché del modo sin internet también usa su propio pref
 ```bash
 node tools/publicar.mjs                 # crea dist/chow-chow-game/
 node tools/publicar.mjs otra/carpeta    # o donde le digas
+npm run parking                         # crea ../../parkingPage/chow-chow/ (junto a chispas/)
 ```
+
+`npm run parking` arma el juego dentro de la carpeta del sitio (`firio-studio-project/parkingPage/`),
+igual que Chispas está en `parkingPage/chispas/`. Después se sube `parkingPage` completa a Cloudflare
+Pages y el juego queda en `firio.studio/chow-chow/` (sin la diagonal final, `index.html` la agrega).
+Volver a correrlo reemplaza la carpeta: solo borra una publicación anterior del juego (la que lleva
+`.chowchow-publicado`), nunca otra cosa.
 
 Solo copia lo necesario para jugar (también `assets/images/` y `assets/audio/` si existen) y prepara el service worker para jugar sin internet. Si cambia
 cualquier archivo, los navegadores bajan la versión nueva y la usan al cerrar y volver a abrir el
