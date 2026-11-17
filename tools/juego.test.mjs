@@ -618,7 +618,7 @@ function tryPlan(world, plan, k) {
     for (const o of os) o.update(DT, speed);
     for (const p of ps) p.update(DT, speed);
     d.update(DT, inputOf(plan.at(k + i)), scroll);
-    b?.update(DT, { playerY: d.y - CONFIG.player.head.h / 2, spawn: (o) => os.push(o) });
+    b?.update(DT, { playerY: d.y - CONFIG.player.head.h / 2, playerX: d.x, worldSpeed: speed, spawn: (o) => os.push(o) });
     const body = d.hitboxes();
     if (d.bumped || os.some((o) => anyOverlap(body, o.hitboxes())) || (b && anyOverlap(body, b.hitboxes()))) return { lasts: i, got };
     if (!got && ps.some((p) => anyOverlap([body[0]], p.hitboxes()))) got = true;
@@ -803,11 +803,12 @@ test('el jefe siempre avisa antes de atacar, y su copia hace exactamente lo mism
       // Los disparos solo salen al atacar
       if (shots.length > before) assert.ok(['telegraph', 'aiming'].includes(state), `disparó en ${state}`);
     }
-    for (const attack of ['volley', 'aimed', 'charge']) assert.ok(seen.has(attack), `${difficulty}: nunca hizo ${attack}`);
+    for (const attack of ['volley', 'aimed', 'charge', 'rain', 'wall']) assert.ok(seen.has(attack), `${difficulty}: nunca hizo ${attack}`);
   }
-  // La ráfaga deja huecos por donde cabe la cabeza
+  // La ráfaga deja huecos por donde cabe la cabeza, y el muro también
   const { spread, h } = CONFIG.boss.shot;
   assert.ok(spread - h > CONFIG.player.head.h + 10);
+  assert.ok(CONFIG.boss.wall.gap > CONFIG.player.head.h + 30, 'el hueco del muro es holgado');
 });
 
 test('el jefe cae con tantas bolas de fuego como su vida (también mientras entra)', () => {
@@ -890,7 +891,7 @@ function bossRun(difficulty, seed, sign = 'pig') {
       fireballs = fireballs.filter((f) => !f.offscreen);
       dragon.update(DT, input, scroll);
       spawner.update(DT, speed, distance, obstacles, pickups);
-      boss.update(DT, { playerY: dragon.y - head / 2, spawn: (o) => obstacles.push(o) });
+      boss.update(DT, { playerY: dragon.y - head / 2, playerX: dragon.x, worldSpeed: speed, spawn: (o) => obstacles.push(o) });
       for (const f of fireballs) {
         if (anyOverlap(f.hitboxes(), boss.hitboxes())) {
           boss.hit();
@@ -1138,4 +1139,25 @@ test('contra el jefe se mueve adelante y atrás, sin salirse de su rango; en los
   for (let i = 0; i < 60 * 5; i++) player.update(DT, left, i);
   assert.equal(player.x, CONFIG.boss.move.min);
   assert.equal(player.parts(player.y, player.scroll)[0].x, player.x, 'la cabeza va donde está');
+});
+
+test('la lluvia de fuego del jefe: una bola cruza justo a la altura de quien juega, las demás en otros momentos', () => {
+  const boss = new Boss('dog', 'hard', 3);
+  const speed = CONFIG.boss.speed;
+  for (let k = 0; k < 40; k++) {
+    boss.state = 'rest';
+    boss.last = null;
+    const playerY = [230, 120, -150][k % 3]; // abajo, en medio y arriba
+    do boss.prepare(190, playerY, speed); while (boss.attack !== 'rain');
+    const { drops, top } = boss.plan;
+    assert.ok(drops.length >= CONFIG.boss.rain.drops.hard - 1, `solo ${drops.length} bolas`);
+    // Cuándo y a qué altura cruza cada una la columna de quien juega
+    const crossings = drops.map((x0) => {
+      const t = (x0 + CONFIG.boss.shot.w / 2 - 190) / speed;
+      return { t, y: top + CONFIG.boss.rain.fall * t };
+    });
+    assert.ok(crossings.some((c) => Math.abs(c.y - playerY) < 1), 'ninguna va a su altura');
+    const times = crossings.map((c) => c.t).sort((a, b) => a - b);
+    for (let i = 1; i < times.length; i++) assert.ok(times[i] - times[i - 1] > 0.2, 'dos cruzan casi juntas');
+  }
 });

@@ -170,7 +170,7 @@ control cuentan como actividad).
   Tigre–Mono, Conejo–Gallo, Dragón–Perro, Serpiente–Cerdo), en su mundo. Todos vuelan, tengan o no
   la estrella, y ahí un golpe no quita el vuelo. Si el rival es el Dragón o el Gallo, la pelea es
   en su cielo, sin suelo (tocar las nubes cuesta un corazón). No hay obstáculos: solo el jefe, que
-  se le gana con bolas de fuego (10 en fácil, 16 en difícil); se le puede pegar desde que se ve.
+  se le gana con bolas de fuego (10 en fácil, 21 en difícil: 30 % más); se le puede pegar desde que se ve.
   - **Ahí también se mueve adelante y atrás** (◀ ▶, A / D, la palanca o la cruceta; `CONFIG.boss.move`),
     dentro de un rango que no llega al jefe ni sale de la pantalla. El cartel lo dice y, al empezar,
     dos flechas parpadean a los lados del animal hasta que se mueve. En los mundos no: ahí el ritmo
@@ -189,6 +189,13 @@ control cuentan como actividad).
   - **Ráfaga:** tres disparos a tres alturas, con huecos para pasar.
   - **Puntería:** disparos a tu altura (uno en fácil, tres seguidos en difícil).
   - **Embestida:** marca una franja a su altura y la cruza a toda velocidad.
+  - **Lluvia de fuego** (`CONFIG.boss.rain`): bolas que caen en diagonal desde lo alto (4 en fácil, 6 en
+    difícil), apuntadas: una cruza justo a tu altura y las demás más arriba o más abajo, cada una en
+    otro momento. El aviso dibuja en puntos el camino de cada una. Se esquiva subiendo, bajando o
+    moviéndose de lado.
+  - **Muro de fuego** (`CONFIG.boss.wall`): una columna de disparos de arriba abajo con un solo hueco;
+    el aviso muestra la columna tenue y dónde estará el hueco (en fácil, cerca de tu altura). Hay que
+    volar hasta él.
 
   Con la mitad de la vida descansa menos y dispara más rápido. Vencerlo da 5000 puntos (× la
   dificultad) y termina el viaje. Para probar: `?nivel=12`.

@@ -176,12 +176,21 @@ export const CONFIG = {
     // hasta que se mueva (o hintSeconds)
     move: { min: 90, max: 420, speed: 240, hintSeconds: 8 },
     follow: 140, // qué tan rápido sigue la altura de quien juega (px/s)
-    hp: { easy: 10, hard: 16 },
+    hp: { easy: 10, hard: 21 }, // en difícil, 30 % más que los 16 de antes
     rest: { easy: [1.4, 2], hard: [0.85, 1.3] },
-    telegraph: { volley: 0.7, aimed: 0.6, charge: 0.9 },
+    telegraph: { volley: 0.7, aimed: 0.6, charge: 0.9, rain: 1, wall: 1 },
     shot: { w: 14, h: 10, speed: { easy: 210, hard: 290 }, spread: 64 },
     aimed: { easy: 1, hard: 3, every: 0.3 },
     charge: { speed: 720, back: 300 },
+    // Lluvia de fuego: drops bolas que caen en diagonal desde lo alto (fall px/s hacia abajo, y hacia
+    // la izquierda con el mundo). Están apuntadas: una cruza la columna de quien juega justo a su
+    // altura y las demás cada spacing más arriba o más abajo, cada una en otro momento. Se esquivan
+    // subiendo, bajando o moviéndose de lado. Se ve tenue el camino de cada una antes de caer
+    rain: { drops: { easy: 4, hard: 6 }, fall: 260, spacing: 90 },
+    // Muro de fuego: una columna de disparos de arriba abajo (uno cada step) con un hueco de gap; en
+    // fácil el hueco queda a lo más near de la altura de quien juega. Avanza más despacio que un
+    // disparo (speed: × shot.speed). Se ve tenue dónde estará el hueco
+    wall: { step: 22, gap: 84, near: 150, speed: 0.55 },
     enrage: { at: 0.5, rest: 0.7, speed: 1.15 },
     points: 100, // por cada bola de fuego que le pega
     bonus: 5000, // al vencerlo

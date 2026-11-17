@@ -428,6 +428,36 @@ export class Scene {
     }
   }
 
+  /** El aviso de la lluvia de fuego: el camino de cada bola, en puntos, de lo alto hasta abajo. */
+  drawRainWarning({ drops, top }, worldSpeed) {
+    const ctx = this.ctx;
+    const { fall } = CONFIG.boss.rain;
+    const { w: shotW, h: shotH } = CONFIG.boss.shot;
+    const dx = -worldSpeed / Math.hypot(worldSpeed, fall);
+    const dy = fall / Math.hypot(worldSpeed, fall);
+    for (const x0 of drops) {
+      for (let d = 0; ; d += 14) {
+        const px = x0 + shotW / 2 + dx * d;
+        const py = top + dy * d;
+        if (py > groundY || px < 0) break;
+        ctx.fillRect(Math.round(px / P) * P - P, Math.round(py / P) * P - P, 2 * P, 2 * P);
+      }
+      // Donde aparecerá: un cuadro del tamaño del disparo
+      ctx.fillRect(Math.round(x0), Math.round(top - shotH / 2), shotW, shotH);
+    }
+  }
+
+  /** El aviso del muro de fuego: la columna completa, menos el hueco. */
+  drawWallWarning({ x, gapY }) {
+    const ctx = this.ctx;
+    const { w: shotW } = CONFIG.boss.shot;
+    const { gap } = CONFIG.boss.wall;
+    const top = Math.round(gapY - gap / 2);
+    const bottom = Math.round(gapY + gap / 2);
+    ctx.fillRect(Math.round(x), ceilingY, shotW, top - ceilingY);
+    ctx.fillRect(Math.round(x), bottom, shotW, groundY - bottom);
+  }
+
   /**
    * El fuego verde jade (el trío completo, contra el rival). Se ve más poderoso que el normal: más
    * grande, con una estela que se desvanece detrás y destellos; su caja de choque es la misma
@@ -571,6 +601,8 @@ export class Scene {
       const { spread, h: shotH } = CONFIG.boss.shot;
       if (warning === 'charge') ctx.fillRect(0, Math.round(y - h / 2), W, h);
       else if (warning === 'aimed') ctx.fillRect(0, Math.round(boss.aimY - shotH / 2), x - w / 2, shotH);
+      else if (warning === 'rain' && boss.plan) this.drawRainWarning(boss.plan, boss.worldSpeed);
+      else if (warning === 'wall' && boss.plan) this.drawWallWarning(boss.plan);
       else for (const dy of [-spread, 0, spread]) ctx.fillRect(0, Math.round(y + dy - shotH / 2), x - w / 2, shotH);
     }
     if (boss.state === 'defeated' && blink) return;

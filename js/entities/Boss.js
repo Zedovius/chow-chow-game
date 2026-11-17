@@ -6,6 +6,9 @@
 //   telegraph  se queda quieto y avisa el ataque que viene (warning): así se esquiva con pericia
 //   aiming     dispara a la altura de quien juega (uno en fácil, varios en difícil)
 //   charging   cruza la pantalla por la franja que avisó, y regresa (returning)
+// Sus ataques: volley (tres disparos), aimed (a la altura de quien juega), charge (embiste), rain
+// (lluvia de fuego en diagonal desde lo alto) y wall (un muro de disparos con un hueco). El de la
+// lluvia y el muro se decide al avisar (plan), para que el aviso muestre justo por dónde vendrán.
 //   defeated   vencido: cae
 //
 // Los disparos son obstáculos ('shot', entities/Obstacle.js) que Game agrega al mundo (spawn).
@@ -15,7 +18,7 @@
 import { CONFIG } from '../config.js';
 import { Obstacle } from './Obstacle.js';
 
-const ATTACKS = ['volley', 'aimed', 'charge'];
+const ATTACKS = ['volley', 'aimed', 'charge', 'rain', 'wall'];
 
 export class Boss {
   /** sign: el animal ('horse'...); difficulty: 'easy' | 'hard'; seed: su azar. */
@@ -37,6 +40,7 @@ export class Boss {
     this.attack = null; // el ataque que viene o que está haciendo
     this.shots = 0; // disparos que le faltan (aiming)
     this.last = null; // el último ataque (no repite el mismo dos veces seguidas)
+    this.plan = null; // la lluvia ({ drops: [x], top }) o el muro ({ x, gapY }) que viene
     this.flash = 0; // le acaban de pegar (parpadea)
     this.t = 0;
     this.seed = seed >>> 0;
@@ -64,7 +68,7 @@ export class Boss {
     return this.defeated && this.timer >= CONFIG.boss.fallSeconds;
   }
 
-  /** El ataque que está avisando (para el dibujo): 'volley' | 'aimed' | 'charge' | null. */
+  /** El ataque que está avisando (para el dibujo): 'volley' | 'aimed' | 'charge' | 'rain' | 'wall' | null. */
   get warning() {
     return this.state === 'telegraph' ? this.attack : null;
   }
@@ -75,10 +79,10 @@ export class Boss {
   }
 
   /**
-   * Un paso. playerY: la altura del centro de la cabeza de quien juega; spawn(obstacle): agrega un
-   * disparo al mundo.
+   * Un paso. playerY: la altura del centro de la cabeza de quien juega; playerX: dónde está (contra el
+   * jefe se mueve de lado); spawn(obstacle): agrega un disparo al mundo.
    */
-  update(dt, { playerY, spawn }) {
+  update(dt, { playerY, playerX = CONFIG.player.x, worldSpeed = CONFIG.boss.speed, spawn }) {
     const { homeX, follow, telegraph, charge, enrage } = CONFIG.boss;
     this.prevX = this.x;
     this.prevY = this.y;
@@ -100,7 +104,7 @@ export class Boss {
         break;
       case 'rest':
         toward(playerY, follow);
-        if (this.timer >= this.restFor) this.prepare();
+        if (this.timer >= this.restFor) this.prepare(playerX, playerY, worldSpeed);
         break;
       case 'telegraph':
         if (this.timer >= telegraph[this.attack]) this.strike(playerY, spawn);
@@ -141,12 +145,43 @@ export class Boss {
   }
 
   /** Elige el siguiente ataque (nunca el mismo dos veces seguidas) y empieza a avisarlo. */
-  prepare() {
+  prepare(playerX = CONFIG.player.x, playerY = this.y, worldSpeed = CONFIG.boss.speed) {
     const options = ATTACKS.filter((a) => a !== this.last);
     this.attack = options[Math.floor(this.random() * options.length)];
     this.last = this.attack;
     this.state = 'telegraph';
     this.timer = 0;
+    this.plan = null;
+    const { rain, wall, shot } = CONFIG.boss;
+    if (this.attack === 'rain') {
+      // Apuntada: la bola aimed cruza la columna de quien juega a su altura; las demás, cada spacing
+      // más arriba o más abajo. Cae fall hacia abajo mientras el mundo la lleva a la izquierda: para
+      // cruzar esa columna a la altura y, sale de lo alto (top) (y - top) · worldSpeed / fall más allá
+      const count = rain.drops[this.difficulty];
+      const top = CONFIG.ceilingY + 4;
+      // Cuál va a su altura: al azar entre las que dejan caber más bolas (si está abajo, las demás
+      // van arriba; si está arriba, abajo)
+      const fits = (k) => [...Array(count).keys()].filter((i) => {
+        const y = playerY + (i - k) * rain.spacing;
+        return y >= top + 30 && y <= CONFIG.groundY - shot.h;
+      }).length;
+      const best = Math.max(...[...Array(count).keys()].map(fits));
+      const choices = [...Array(count).keys()].filter((k) => fits(k) === best);
+      const aimed = choices[Math.floor(this.random() * choices.length)];
+      const drops = [];
+      for (let i = 0; i < count; i++) {
+        const y = playerY + (i - aimed) * rain.spacing;
+        // Las que cruzarían fuera de donde se puede volar, no salen (quedarían apretadas en la orilla)
+        if (y < top + 30 || y > CONFIG.groundY - shot.h) continue;
+        drops.push(playerX - shot.w / 2 + ((y - top) * worldSpeed) / rain.fall);
+      }
+      this.plan = { drops, top };
+    } else if (this.attack === 'wall') {
+      // El hueco: en fácil, cerca de la altura de quien juega; en difícil, en cualquier lugar
+      const [top, bottom] = [CONFIG.ceilingY + wall.gap / 2 + 6, CONFIG.groundY - wall.gap / 2 - 6];
+      const [low, high] = this.difficulty === 'easy' ? [Math.max(top, playerY - wall.near), Math.min(bottom, playerY + wall.near)] : [top, bottom];
+      this.plan = { x: this.x - this.w / 2 - shot.w, gapY: low + this.random() * Math.max(0, high - low) };
+    }
   }
 
   strike(playerY, spawn) {
@@ -160,6 +195,12 @@ export class Boss {
       this.fire(playerY, spawn);
       if (--this.shots > 0) this.state = 'aiming';
       else this.rest();
+    } else if (this.attack === 'rain') {
+      this.rain(spawn);
+      this.rest();
+    } else if (this.attack === 'wall') {
+      this.wall(spawn);
+      this.rest();
     } else {
       this.state = 'charging';
     }
@@ -174,6 +215,32 @@ export class Boss {
     o.bob = 0;
     o.speedBonus = shot.speed[this.difficulty] * (this.enraged ? enrage.speed : 1);
     spawn(o);
+  }
+
+  /** La lluvia de fuego: una bola en lo alto por cada lugar avisado, que cae en diagonal. */
+  rain(spawn) {
+    const { shot, rain, enrage } = CONFIG.boss;
+    for (const x of this.plan.drops) {
+      const o = new Obstacle('shot', x, { height: 'boss', center: CONFIG.groundY - this.plan.top });
+      o.bob = 0;
+      o.fall = rain.fall * (this.enraged ? enrage.speed : 1);
+      spawn(o);
+    }
+    this.plan = null;
+  }
+
+  /** El muro de fuego: disparos de arriba abajo, menos en el hueco avisado. */
+  wall(spawn) {
+    const { shot, wall, enrage } = CONFIG.boss;
+    const { x, gapY } = this.plan;
+    for (let y = CONFIG.ceilingY + shot.h; y <= CONFIG.groundY - shot.h / 2 - 2; y += wall.step) {
+      if (Math.abs(y - gapY) < wall.gap / 2 + shot.h / 2) continue;
+      const o = new Obstacle('shot', x, { height: 'boss', center: CONFIG.groundY - y });
+      o.bob = 0;
+      o.speedBonus = shot.speed[this.difficulty] * wall.speed * (this.enraged ? enrage.speed : 1);
+      spawn(o);
+    }
+    this.plan = null;
   }
 
   /**

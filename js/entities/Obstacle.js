@@ -39,6 +39,7 @@ export class Obstacle {
     this.y = this.baseY; // borde de arriba
     this.prevY = this.y; // el del paso anterior (para dibujar entre dos pasos, Game.render)
     this.offset = 0; // lo que se movió hacia abajo (negativo: hacia arriba) por su motion
+    this.fall = 0; // px/s hacia abajo (la lluvia de fuego del jefe, entities/Boss.js)
     this.bob = spec.ground ? 0 : SKY_BOB;
     this.t = Math.random() * Math.PI * 2;
     // Las criaturas y lo que rueda van más rápido que el suelo
@@ -93,6 +94,7 @@ export class Obstacle {
     this.prevX = this.x;
     this.prevY = this.y;
     this.x -= (speed + this.speedBonus) * dt;
+    if (this.fall) this.baseY += this.fall * dt;
     this.t += dt;
     const { wave, dive, rise, hop } = CONFIG.obstacles.motion;
     if (this.motion === 'wave') this.offset = Math.sin(this.t * wave.speed) * this.amplitude;
@@ -133,7 +135,7 @@ export class Obstacle {
   }
 
   get offscreen() {
-    return this.x + this.w < -10;
+    return this.x + this.w < -10 || this.y > CONFIG.groundY + 20; // (lo que cae, al llegar abajo)
   }
 
   hitboxes() {

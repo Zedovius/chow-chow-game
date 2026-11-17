@@ -438,6 +438,8 @@ export class Game {
     const state = boss.state;
     boss.update(dt, {
       playerY: this.player.y - CONFIG.player.head.h / 2,
+      playerX: this.player.x,
+      worldSpeed: this.speed,
       spawn: (shot) => this.obstacles.push(shot),
     });
     if (boss.warning && boss.warning !== warning) this.events.emit('bossWarn', { attack: boss.warning });
@@ -922,7 +924,9 @@ export class Game {
         h: this.boss.h,
         t: this.boss.t,
         state: this.boss.state,
-        warning: this.boss.warning, // el ataque que avisa: 'volley' | 'aimed' | 'charge' | null
+        warning: this.boss.warning, // el ataque que avisa: 'volley' | 'aimed' | 'charge' | 'rain' | 'wall' | null
+        plan: this.boss.plan, // por dónde vendrá la lluvia o dónde estará el hueco del muro
+        worldSpeed: this.speed, // la lluvia baja en diagonal: hacia la izquierda con el mundo
         aimY: this.player.y - CONFIG.player.head.h / 2, // a dónde apuntaría ('aimed')
         flash: this.boss.flash > 0,
         color: signById(this.boss.sign).body,
