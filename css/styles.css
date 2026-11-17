@@ -480,7 +480,7 @@ textarea {
   left: 50%;
   width: 34%;
   height: clamp(5px, 1cqw, 16px);
-  transform: translateX(-50%);
+  translate: -50% 0; /* (no transform: la animación del golpe lo usa y la barra se corría a la derecha) */
   background: var(--c-night-800);
   box-shadow: 0 0 0 var(--px) var(--c-black), 0 0 0 calc(var(--px) * 2) var(--c-moon-dim);
   pointer-events: none;
@@ -608,9 +608,14 @@ textarea {
 .title-screen__heading {
   margin: 0;
   font-family: var(--font-pixel);
-  font-size: clamp(16px, 7cqw, 120px);
+  /* «CHOW-CHOW HOUSE» en una línea: 15 letras de la fuente pixel (cada una mide 1em) en ~80 % del ancho */
+  font-size: clamp(12px, 5.2cqw, 96px);
   font-weight: 400;
+  line-height: 1;
   color: var(--c-gold-soft);
+  white-space: nowrap;
+  /* Debajo de los botones de las esquinas (HI RECORDS, «< Cambiar idioma»): el nombre es ancho */
+  margin-top: max(0px, calc(clamp(8px, 1.6cqw, 30px) + clamp(6px, 1.1cqw, 20px) + 14px - clamp(10px, 4cqh, 36px)));
 }
 
 .title-screen__steps {
@@ -709,12 +714,20 @@ textarea {
    inicial. PROVISIONAL */
 .wheel {
   display: grid;
-  grid-template-columns: auto auto;
   align-items: center;
   justify-items: center;
   gap: clamp(8px, 3cqw, 48px);
   font-family: var(--font-pixel);
   --u: 1cqh; /* la medida de la rueda y la tarjeta: en el celular en vertical, más chica */
+  /* La tarjeta nunca más ancha que la pantalla: lo largo (el nombre del cóctel) baja de línea */
+  grid-template-columns: auto minmax(0, auto);
+  max-width: 100%;
+  padding-inline: 8px;
+}
+
+.wheel__card {
+  max-width: 100%;
+  text-align: center;
 }
 
 /* La tarjeta del animal, al lado de la rueda: el animal, su símbolo, su nombre en chino y sus
@@ -722,7 +735,7 @@ textarea {
 .wheel__card {
   display: grid;
   justify-items: center;
-  gap: clamp(3px, calc(1.2 * var(--u)), 12px);
+  gap: clamp(2px, calc(0.7 * var(--u)), 10px);
   min-width: calc(40 * var(--u));
   animation: ammo-pop 0.5s steps(5) both;
 }
@@ -740,12 +753,12 @@ textarea {
 .wheel__portrait {
   display: grid;
   place-items: center;
-  width: calc(14 * var(--u));
-  height: calc(14 * var(--u));
+  width: calc(11 * var(--u));
+  height: calc(11 * var(--u));
   border-radius: 50%;
   background: var(--color);
   color: var(--c-black);
-  font-size: calc(6.5 * var(--u));
+  font-size: calc(5 * var(--u));
   text-shadow: none;
   box-shadow: 0 0 0 var(--px) var(--c-gold), 0 0 0 calc(var(--px) * 2) var(--c-black);
 }
@@ -765,7 +778,7 @@ textarea {
 }
 
 .wheel__hanzi {
-  font-size: calc(15 * var(--u));
+  font-size: calc(12 * var(--u));
   line-height: 1;
   color: var(--c-gold-soft);
 }
@@ -796,6 +809,25 @@ textarea {
 .wheel__virtues li::before {
   content: "✦ ";
   color: var(--c-gold);
+}
+
+/* Sus tres defectos, debajo de las virtudes: en una fila, con su marca en rojo */
+.wheel__flaws {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25em 1em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-text);
+  font-size: clamp(8px, 1.5cqw, 24px);
+  color: var(--c-moon-dim);
+}
+
+.wheel__flaws li::before {
+  content: "✕ ";
+  color: var(--c-heart);
 }
 
 /* Su cóctel (world/cocktails.js): nombre, «Ejemplo» mientras sea provisional, y sus ingredientes */
@@ -1029,11 +1061,9 @@ textarea {
 }
 
 .title-screen__board {
+  left: auto;
+  right: var(--gutter); /* a la derecha: «< Cambiar idioma» va a la izquierda */
   color: var(--c-gold-soft);
-}
-
-#difficulty-step .title-screen__board {
-  top: calc(clamp(8px, 1.6cqw, 30px) + 2.6em);
 }
 
 .title-screen__back:hover,
@@ -1070,7 +1100,7 @@ textarea {
 @container (aspect-ratio < 1.1) {
   .title-screen__heading {
     margin-top: 8cqw;
-    font-size: 9cqw;
+    font-size: 5.8cqw;
   }
 
   .title-screen__step {
@@ -1140,6 +1170,7 @@ textarea {
   }
 
   .wheel__virtues,
+  .wheel__flaws,
   .wheel__rival,
   .wheel__cocktail {
     font-size: 3cqw;
@@ -1394,6 +1425,58 @@ textarea {
   justify-items: center;
 }
 
+/* El trago del signo (ui/drink.js): su icono y, al lado, «Tu trago», el nombre y los ingredientes */
+.drink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.drink__icon {
+  width: 56px; /* el vaso de 14 pixeles, ×4 */
+  height: auto;
+  image-rendering: pixelated;
+  flex: none;
+}
+
+.drink__text p {
+  margin: 0;
+}
+
+.drink__label {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--c-gold);
+  text-transform: uppercase;
+}
+
+.drink__name {
+  margin: 4px 0 !important;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--c-moon);
+}
+
+.drink__sample {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 5px;
+  background: var(--c-heart);
+  color: var(--c-black);
+  font-size: 8px;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.drink__parts {
+  font-size: 14px;
+  color: var(--c-moon-dim);
+}
+
 .name-entry__place {
   margin: 0;
   font-family: var(--font-pixel);
@@ -1485,7 +1568,7 @@ textarea {
 
   .name-entry .board {
     grid-column: 2;
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 3; /* el lugar, el trago y las casillas van a su izquierda */
     font-size: 9px;
   }
 }
@@ -1752,6 +1835,25 @@ textarea {
 [data-view="tall"] .story:has(> .is-floating) {
   margin-top: 12px;
   max-height: calc(var(--pad-top, 100dvh) - 24px);
+}
+
+/* El nombre de HI RECORDS, en el celular en vertical: más junto, para que se vea completo sin
+   desplazarse (con la cruceta y FIRE abajo queda poco alto) */
+[data-view="tall"] .story__form:has(.name-entry) {
+  gap: 10px;
+  padding: 14px 14px 12px;
+}
+
+[data-view="tall"] .name-entry {
+  gap: 6px;
+}
+
+[data-view="tall"] .name-entry .board {
+  --board-font: 9px;
+}
+
+[data-view="tall"] .name-entry .drink__icon {
+  width: 42px;
 }
 
 @media (prefers-reduced-motion: reduce) {

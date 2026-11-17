@@ -31,6 +31,8 @@ export const IMAGES = {
     'margarita-lichi': 'assets/images/pickups/margarita-lichi.png',
     'mezcal-jengibre': 'assets/images/pickups/mezcal-jengibre.png',
   },
+  // El trago del signo, al final (ui/drink.js): genérico hasta tener el de cada uno (world/cocktails.js)
+  drink: 'assets/images/pickups/trago.png',
   // Los ingredientes del trío (también los genera tools/sprites/pickups.mjs)
   ingredients: {
     hongo: 'assets/images/pickups/hongo.png',

@@ -42,11 +42,12 @@ function arrowButton(symbol, onHold) {
 /**
  * Pide el nombre en el diálogo del juego.
  * @param {{ dialogs: import('./Dialogs.js').Dialogs, entries: {name: string, score: number}[],
- *           difficulty: string, score: number, place: number }} options
- *   entries: la tabla de esa dificultad; place: el lugar que ganó (ver placeIn en core/scores.js)
+ *           difficulty: string, score: number, place: number, drink?: HTMLElement | null }} options
+ *   entries: la tabla de esa dificultad; place: el lugar que ganó (ver placeIn en core/scores.js);
+ *   drink: el trago de su signo (ui/drink.js), que se muestra arriba de las casillas
  * @returns {Promise<{ name: string, timedOut: boolean }>} name queda vacío si no escribió nada
  */
-export function enterName({ dialogs, entries, difficulty, score, place }) {
+export function enterName({ dialogs, entries, difficulty, score, place, drink = null }) {
   const letters = Array(nameLength).fill(0); // qué carácter hay en cada casilla
   let active = 0;
   let idle = 0;
@@ -167,7 +168,8 @@ export function enterName({ dialogs, entries, difficulty, score, place }) {
     idle = setTimeout(() => dialogs.close('timeout'), idleSeconds * 1000);
   };
 
-  root.append(rank, row, table);
+  // Su trago (ui/drink.js), entre el lugar y las casillas
+  root.append(...[rank, drink, row, table].filter(Boolean));
   paint();
 
   const finished = dialogs.show({

@@ -149,6 +149,10 @@ export const CONFIG = {
   trio: {
     radius: 10, points: 150, bonus: 500, hearts: 1, apart: 1.5, window: [0.15, 0.6],
     halo: { rate: 1.4, from: 26, to: 4 },
+    // Con el trío completo, contra el rival el fuego es verde jade (Scene.drawJadeFireball): los
+    // disparos normales se ven más grandes y con estela, pero hacen el mismo daño (y su caja de choque
+    // es la misma); el especial es distinto y le quita specialDamage al jefe (en vez de charge.damage)
+    jade: { specialDamage: 4 },
   },
   // Comida china (la caja para llevar, el tazón de arroz): un corazón (sin pasar del máximo de la
   // dificultad) y points puntos

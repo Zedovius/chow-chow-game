@@ -32,10 +32,11 @@ import { Fireball } from '../entities/Fireball.js';
 import { INGREDIENTS } from '../entities/Pickup.js';
 import { cocktailOf } from '../world/cocktails.js';
 import { planTrio } from '../world/trio.js';
-import { Scene } from '../graphics/Scene.js';
+import { Scene, JADE } from '../graphics/Scene.js';
 import { Camera } from '../graphics/Camera.js';
 import { enterName } from '../ui/NameEntry.js';
 import { recordNode } from '../ui/record.js';
+import { drinkNode } from '../ui/drink.js';
 import { pad } from '../ui/HUD.js';
 import { t } from '../i18n/i18n.js';
 
@@ -342,7 +343,12 @@ export class Game {
 
   /** Lo que el cartel de un nivel avisa debajo del nombre (el vuelo lo explica la leyenda). */
   levelHints() {
-    if (this.level.boss) return CONFIG.boss.chargeShot[this.difficulty] ? [t('level.rival'), t('level.charge')] : [t('level.rival')];
+    if (this.level.boss) {
+      const hints = [t('level.rival')];
+      if (CONFIG.boss.chargeShot[this.difficulty]) hints.push(t('level.charge'));
+      if (this.jadeFire) hints.push(t('level.jade')); // trae el trío: fuego verde
+      return hints;
+    }
     return this.level.ground ? [] : [t('level.sky')];
   }
 
@@ -460,6 +466,11 @@ export class Game {
 
   // --- Fuego ----------------------------------------------------------------------
 
+  /** Con el trío completo, contra el rival el fuego es verde jade (más fuerte el especial). */
+  get jadeFire() {
+    return Boolean(this.boss) && this.trio.size === INGREDIENTS.length;
+  }
+
   /** Contra el rival en fácil, el fuego no se acaba. */
   get infiniteFire() {
     return Boolean(this.boss) && CONFIG.boss.infiniteFire[this.difficulty];
@@ -496,7 +507,7 @@ export class Game {
     }
     const [head] = this.player.parts();
     const special = shot === 'special';
-    this.fireballs.push(new Fireball(head.x + head.w / 2, head.y, { special }));
+    this.fireballs.push(new Fireball(head.x + head.w / 2, head.y, { special, jade: this.jadeFire }));
     if (!this.infiniteFire) this.ammo -= 1;
     this.fireCooldown = CONFIG.fire.cooldown;
     this.hud.setAmmo(this.ammo, this.fireMax, { spent: true, infinite: this.infiniteFire });
@@ -742,7 +753,7 @@ export class Game {
     this.hideBanner();
     saveRecord(this.record);
     this.events.emit('ending', { score: this.score });
-    const { timedOut } = await this.askForName();
+    const { timedOut, asked } = await this.askForName();
     if (flow !== this.flow) return;
     // Nadie enfrente de la máquina: de regreso al inicio, sin quedarse esperando
     if (timedOut) {
@@ -752,7 +763,8 @@ export class Game {
     await this.dialogs.show({
       title: t('menu.end'),
       lines: [{ text: t('menu.finalScore', { score: pad(this.score) }) }],
-      extra: this.recordExtra(),
+      // Si no entró a HI RECORDS (no vio la pantalla del nombre), su trago va aquí
+      extra: [...(asked ? [] : [drinkNode(this.sign)].filter(Boolean)), ...this.recordExtra()],
       actions: [{ label: t('menu.playAgain'), value: 'again', primary: true }],
     });
     if (flow !== this.flow) return;
@@ -764,10 +776,11 @@ export class Game {
     const { difficulty, score } = this;
     const entries = loadBoards()[difficulty];
     const place = placeIn(entries, score);
-    if (!place) return { timedOut: false };
-    const { name, timedOut } = await enterName({ dialogs: this.dialogs, entries, difficulty, score, place });
+    if (!place) return { timedOut: false, asked: false };
+    // Al escribir su nombre, también su trago (el del bar para su signo)
+    const { name, timedOut } = await enterName({ dialogs: this.dialogs, entries, difficulty, score, place, drink: drinkNode(this.sign) });
     if (name) addScore(difficulty, name, score); // si no escribió nada, no se guarda ninguna fila
-    return { timedOut };
+    return { timedOut, asked: true };
   }
 
   // --- Puntos, récord y corazones -------------------------------------------------
@@ -915,9 +928,10 @@ export class Game {
         boltLength: o.lightning?.length ?? 0, // el largo de sus rayos (para dibujar el aviso)
       })),
       pickups: this.pickups.map((p) => ({ type: p.type, variety: p.variety, x: lerp(p.prevX, p.x), y: lerp(p.prevY, p.y), r: p.r, t: p.t })),
-      fireballs: this.fireballs.map((f) => ({ x: lerp(f.prevX, f.x), y: f.y, r: f.r, age: f.age, special: f.special })),
+      fireballs: this.fireballs.map((f) => ({ x: lerp(f.prevX, f.x), y: f.y, r: f.r, age: f.age, special: f.special, jade: f.jade })),
       charge: this.fireButton.progress, // el disparo especial cargándose (0 a 1)
-      fireColor: signById(this.sign ?? 'dragon').fire, // el fuego es del color del animal
+      // El fuego es del color del animal; con el trío completo, contra el rival, verde jade
+      fireColor: this.jadeFire ? JADE : signById(this.sign ?? 'dragon').fire,
       blink: this.player.alive && this.player.invulnerable > 0 && Math.floor(this.player.invulnerable * 12) % 2 === 1,
     });
   }

@@ -1009,6 +1009,7 @@ test('cada animal tiene su símbolo, su nombre en chino simplificado, su pinyin 
     assert.match(sign.simplified, /^\p{Script=Han}$/u, `${sign.id}: simplificado`);
     assert.ok(sign.pinyin.length > 0);
     for (const dict of [es, en]) assert.equal(dict[`virtues.${sign.id}`].split(' · ').length, 4, `${sign.id}: virtudes`);
+    for (const dict of [es, en]) assert.equal(dict[`flaws.${sign.id}`]?.split(' · ').length, 3, `${sign.id}: defectos`);
     // Y por qué choca con su rival: lo suyo contra lo del rival (y el rival dice lo mismo al revés)
     const rival = rivalOf(sign.id);
     for (const dict of [es, en]) {
@@ -1085,4 +1086,18 @@ test('el trío: un hongo, un agave y un chile en tres mundos distintos al azar; 
   const world = new Spawner(levelsFor('easy')[0], null, { ingredient: 'agave' });
   assert.deepEqual(world.ingredients.map((i) => i.variety), ['agave']);
   assert.equal(new Spawner(levelsFor('easy')[0]).ingredients.length, 0);
+});
+
+test('con el trío completo, contra el rival: el fuego verde se ve más fuerte, pero solo el especial hace más daño', async () => {
+  const { Fireball } = await import('../js/entities/Fireball.js');
+  const normal = new Fireball(0, 0);
+  const jade = new Fireball(0, 0, { jade: true });
+  assert.equal(jade.power, normal.power, 'el disparo normal verde hace el mismo daño');
+  assert.equal(jade.r, normal.r, 'y su caja de choque es la misma');
+  const special = new Fireball(0, 0, { special: true });
+  const jadeSpecial = new Fireball(0, 0, { special: true, jade: true });
+  assert.equal(special.power, CONFIG.charge.damage);
+  assert.equal(jadeSpecial.power, CONFIG.trio.jade.specialDamage);
+  assert.ok(jadeSpecial.power > special.power, 'el especial verde hace un poco más');
+  assert.equal(jadeSpecial.r, special.r);
 });

@@ -1,7 +1,7 @@
 // La rueda del zodiaco: los 12 animales en círculo. Al elegir la fecha, gira unas vueltas y se
 // detiene con el animal que le toca arriba, bajo la flecha. Entonces, a su lado, su tarjeta: el
 // animal en grande, su símbolo (el carácter tradicional), su nombre en chino simplificado con su
-// pinyin, su nombre en el idioma del juego, sus cuatro virtudes y su cóctel (world/cocktails.js; por
+// pinyin, su nombre en el idioma del juego, sus cuatro virtudes, sus tres defectos y su cóctel (world/cocktails.js; por
 // ahora, ejemplos marcados como tales); abajo, su rival (el animal de
 // enfrente en la rueda, contra quien pelea en el nivel 12) y por qué chocan; y ▶. En la rueda, una
 // línea une al animal con su rival, que queda abajo, enfrente.
@@ -78,6 +78,8 @@ export class ZodiacWheel {
     this.chinese = make('p', 'wheel__chinese', this.card);
     this.name = make('p', 'wheel__name', this.card);
     this.virtues = make('ul', 'wheel__virtues', this.card);
+    // Sus tres defectos (flaws.<id> en js/i18n/)
+    this.flaws = make('ul', 'wheel__flaws', this.card);
     // Su cóctel: nombre y sus tres ingredientes (fermento, mexicano y chino)
     this.drink = make('div', 'wheel__cocktail', this.card);
     const drinkTop = make('p', 'wheel__cocktail-top', this.drink);
@@ -181,6 +183,11 @@ export class ZodiacWheel {
       this.virtues.replaceChildren(...t(`virtues.${sign.id}`).split(' · ').map((virtue) => {
         const li = document.createElement('li');
         li.textContent = virtue;
+        return li;
+      }));
+      this.flaws.replaceChildren(...t(`flaws.${sign.id}`).split(' · ').map((flaw) => {
+        const li = document.createElement('li');
+        li.textContent = flaw;
         return li;
       }));
       // Su cóctel (provisional: SAMPLE lo marca como ejemplo)

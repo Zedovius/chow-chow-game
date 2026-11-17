@@ -189,6 +189,27 @@ Object.assign(SPRITES, {
   ],
 });
 
+// El trago del signo (al final, junto al nombre en HI RECORDS): un vaso con su bebida, hielo y un
+// chile en el borde. Genérico mientras el bar no tenga el arte de cada uno (ver world/cocktails.js)
+Object.assign(SPRITES, {
+  trago: [
+    '...........nk.',
+    '..........knk.',
+    '.........krrk.',
+    '........krRrk.',
+    'kkkkkkkkkrrkkk',
+    'khaaaaaaarkaHk',
+    'khaiiaaaakaaHk',
+    'khaiiaaaaaaaHk',
+    'khaaaaiiaaaaHk',
+    'khaaaaiiaaaAHk',
+    'khaaaaaaaaaAHk',
+    'khAAAAAAAAAAHk',
+    'khhhhhhhhhhhHk',
+    'kkkkkkkkkkkkkk',
+  ],
+});
+
 // --- PNG sin dependencias -----------------------------------------------------------------
 
 const CRC = Array.from({ length: 256 }, (_, n) => {

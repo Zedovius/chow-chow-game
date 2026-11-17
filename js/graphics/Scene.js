@@ -17,6 +17,10 @@ import { VIEW } from '../core/view.js';
 
 const { width: W, height: H, groundY, ceilingY, pixel: P } = CONFIG;
 
+// El fuego verde jade (con el trío completo, contra el rival): el centro, el color y la orilla
+export const JADE = '#3ee66f';
+const JADE_FIRE = ['#eaffdc', JADE, '#138a3e'];
+
 // Colores provisionales de lo que no depende del nivel
 const COLORS = {
   eye: '#1a0b08',
@@ -347,19 +351,7 @@ export class Scene {
       ctx.fillStyle = k > 0.55 ? COLORS.haloNear : COLORS.halo;
       ctx.globalAlpha = 0.55 + 0.45 * k;
       // Ya cerca, el aro es de dos pixeles
-      for (const r of k > 0.55 ? [radius, radius + P] : [radius]) {
-        const steps = Math.max(24, Math.round((4 * Math.PI * r) / P)); // de sobra: sin huecos en el aro
-        const seen = new Set();
-        for (let i = 0; i < steps; i++) {
-          const angle = (i / steps) * Math.PI * 2;
-          const px = Math.round((cx + Math.cos(angle) * r) / P);
-          const py = Math.round((cy + Math.sin(angle) * r) / P);
-          const key = px * 4096 + py;
-          if (seen.has(key)) continue; // sin pintar dos veces el mismo pixel (se vería más claro)
-          seen.add(key);
-          ctx.fillRect(px * P, py * P, P, P);
-        }
-      }
+      for (const r of k > 0.55 ? [radius, radius + P] : [radius]) this.pixelRing(cx, cy, r);
     }
     ctx.globalAlpha = 1;
   }
@@ -410,6 +402,10 @@ export class Scene {
     const image = ready(this.images?.fireball);
     const colors = [COLORS.fire[0], fireColor, shade(fireColor, 0.65)];
     for (const f of fireballs) {
+      if (f.jade) {
+        this.drawJadeFireball(f);
+        continue;
+      }
       if (image) {
         ctx.drawImage(image, Math.round(f.x - f.r), Math.round(f.y - f.r), f.r * 2, f.r * 2);
         continue;
@@ -429,6 +425,67 @@ export class Scene {
         const r = f.r - i * 2 + (i === 0 ? 0 : flicker);
         ctx.fillRect(Math.round(f.x - r - i * 3), Math.round(f.y - r / 2), r * 2, r);
       });
+    }
+  }
+
+  /**
+   * El fuego verde jade (el trío completo, contra el rival). Se ve más poderoso que el normal: más
+   * grande, con una estela que se desvanece detrás y destellos; su caja de choque es la misma
+   * (Fireball). El especial es distinto: un núcleo enorme, una cruz de luz y un aro que late
+   * alrededor, con una estela larga.
+   */
+  drawJadeFireball(f) {
+    const ctx = this.ctx;
+    const flicker = Math.floor(f.age * 20) % 2;
+    const size = f.r + (f.special ? 8 : 3); // el radio que se ve
+    const gap = f.special ? 10 : 7;
+    // La estela: cuadros cada vez más chicos y tenues
+    ctx.fillStyle = JADE_FIRE[1];
+    for (let i = 4; i >= 1; i--) {
+      const s = Math.max(P, Math.round((size * (1 - i * 0.18)) / P) * P);
+      ctx.globalAlpha = 0.55 - i * 0.11;
+      ctx.fillRect(Math.round((f.x - size - i * gap) / P) * P, Math.round((f.y - s / 2) / P) * P, s, s);
+    }
+    ctx.globalAlpha = 1;
+    if (f.special) {
+      // Una cruz de luz y un aro que late alrededor
+      const ring = size + 6 + flicker * 2;
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = JADE_FIRE[0];
+      ctx.fillRect(Math.round(f.x - ring - 6), Math.round(f.y - P / 2), (ring + 6) * 2, P);
+      ctx.fillRect(Math.round(f.x - P / 2), Math.round(f.y - ring - 6), P, (ring + 6) * 2);
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = JADE;
+      this.pixelRing(f.x, f.y, ring);
+      ctx.globalAlpha = 1;
+    }
+    // El cuerpo: tres capas, de la orilla oscura al centro claro
+    [JADE_FIRE[2], JADE_FIRE[1], JADE_FIRE[0]].forEach((color, i) => {
+      const r = size - i * (f.special ? 5 : 3) + (i === 0 ? flicker : 0);
+      ctx.fillStyle = color;
+      ctx.fillRect(Math.round(f.x - r), Math.round(f.y - r * 0.6), r * 2, Math.round(r * 1.2));
+    });
+    // Destellos alrededor
+    ctx.fillStyle = JADE_FIRE[0];
+    for (let i = 0; i < 2; i++) {
+      const angle = f.age * 9 + i * Math.PI;
+      ctx.fillRect(Math.round((f.x + Math.cos(angle) * (size + 4)) / P) * P, Math.round((f.y + Math.sin(angle) * (size + 4)) / P) * P, P, P);
+    }
+  }
+
+  /** Un aro de pixeles (sin huecos ni pixeles repetidos) de radio r alrededor de (x, y). */
+  pixelRing(x, y, r) {
+    const ctx = this.ctx;
+    const steps = Math.max(24, Math.round((4 * Math.PI * r) / P));
+    const seen = new Set();
+    for (let i = 0; i < steps; i++) {
+      const angle = (i / steps) * Math.PI * 2;
+      const px = Math.round((x + Math.cos(angle) * r) / P);
+      const py = Math.round((y + Math.sin(angle) * r) / P);
+      const key = px * 4096 + py;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      ctx.fillRect(px * P, py * P, P, P);
     }
   }
 

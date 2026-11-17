@@ -1,11 +1,12 @@
 // El cóctel de cada signo, como en la carta de Chow Chow House: un fermento, un ingrediente mexicano
-// y uno chino. Sale en la tarjeta del animal (ui/ZodiacWheel.js) y al juntar el trío en un nivel
-// (core/Game.js, completeTrio).
+// y uno chino. Sale en la tarjeta del animal (ui/ZodiacWheel.js), al juntar el trío en el viaje
+// (core/Game.js, completeTrio) y al final, junto al nombre en HI RECORDS (ui/drink.js).
 //
 // PROVISIONAL: son ejemplos inventados mientras el bar define los suyos; el juego los marca como
 // «Ejemplo» (SAMPLE). Para poner los de verdad: cambia name y los tres ingredientes de cada signo
 // (cada ingrediente es una clave de ingredient.<id> en js/i18n/es.js y en.js; si falta, agrégala)
-// y pon SAMPLE en false.
+// y pon SAMPLE en false. Cada uno puede llevar su icono (icon: 'assets/images/...', pixel art o foto
+// chica); sin icon, al final sale el vaso genérico (IMAGES.drink en graphics/assets.js).
 
 export const SAMPLE = true;
 

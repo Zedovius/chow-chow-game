@@ -69,7 +69,7 @@ control cuentan como actividad).
   gira y se detiene en el animal que le toca (▶ o FIRE mientras gira la detienen de una vez);
   «< Volver» regresa a la fecha, que conserva lo elegido, por si se equivocó. Junto a la rueda sale su tarjeta: el animal, su símbolo (el carácter tradicional, como
   龍), su nombre en chino simplificado con su pinyin (龙 · lóng), su nombre en el idioma del juego y
-  sus cuatro virtudes (`virtues.<animal>` en `js/i18n/`), su cóctel (`js/world/cocktails.js`: nombre
+  sus cuatro virtudes (`virtues.<animal>` en `js/i18n/`), sus tres defectos (`flaws.<animal>`), su cóctel (`js/world/cocktails.js`: nombre
   y sus tres ingredientes, un fermento, uno mexicano y uno chino; **por ahora son ejemplos** y el juego
   los marca con «Ejemplo» mientras `SAMPLE` sea `true`), y abajo su rival (el de enfrente en la
   rueda, 六冲, contra quien pelea en el nivel 12, el último) con el porqué del choque (`rivalry.<animal>`, lo
@@ -145,6 +145,14 @@ control cuentan como actividad).
   150 puntos y se enciende en el marcador; con los tres se prepara **el cóctel de tu signo**:
   «¡Cóctel listo!» con su nombre, fuego lleno, un corazón (si cabe) y 500 puntos. Si uno se escapa,
   en esa partida ya no se completa; al reintentar un nivel, el trío vuelve a como estaba al empezarlo.
+  Con el trío completo, contra el rival el **fuego es verde jade** (`CONFIG.trio.jade`,
+  `Scene.drawJadeFireball`): los disparos normales se ven más grandes y con estela pero hacen el mismo
+  daño (y su caja de choque es la misma); el especial es distinto (cruz de luz y aro) y quita 4 en vez
+  de 3.
+- **Tu trago, al final** (`js/ui/drink.js`): al escribir el nombre en HI RECORDS sale el trago del
+  signo con su icono (`IMAGES.drink`, el vaso genérico, o `icon` de cada uno en `js/world/cocktails.js`),
+  su nombre (con «Ejemplo» mientras sea provisional) y sus ingredientes. Si no entró a la tabla, sale
+  en el diálogo final.
 - **Bolas de fuego**, del color de cada animal: queman todo menos los muros y las nubes de tormenta
   (`burnable` en `js/world/obstacles.js`). Se empieza con 3. Casi todos los cócteles salen arriba
   (solo el 15% a la altura de un salto): para recargar hay que volar, así no basta con quemar todo
@@ -281,6 +289,11 @@ node tools/publicar.mjs                 # crea dist/chow-chow-game/
 node tools/publicar.mjs otra/carpeta    # o donde le digas
 npm run parking                         # crea ../../parkingPage/chow-chow/ (junto a chispas/)
 ```
+
+La presentación para el bar (`docs/presentación-chow-chow-game.md`, sin estilos para que se lea en
+cualquier visualizador) se convierte en PDF con fondo negro, texto blanco y títulos en rojo con
+`npm run presentacion` (`tools/presentacion.mjs`, usa Chrome o Edge): crea el `.html` y el `.pdf` junto
+al `.md`.
 
 `npm run parking` arma el juego dentro de la carpeta del sitio (`firio-studio-project/parkingPage/`),
 igual que Chispas está en `parkingPage/chispas/`. Después se sube `parkingPage` completa a Cloudflare

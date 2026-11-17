@@ -6,6 +6,7 @@
   "scripts": {
     "test": "node --test tools/*.test.mjs",
     "publicar": "node tools/publicar.mjs",
-    "parking": "node tools/publicar.mjs ../../parkingPage/chow-chow"
+    "parking": "node tools/publicar.mjs ../../parkingPage/chow-chow",
+    "presentacion": "node tools/presentacion.mjs"
   }
 }
