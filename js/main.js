@@ -79,6 +79,7 @@ const hud = new HUD({
   ammo: document.getElementById('hud-ammo'),
   combo: document.getElementById('hud-combo'),
   flight: document.getElementById('hud-flight'),
+  trio: document.getElementById('hud-trio'),
   boss: document.getElementById('boss-bar'),
   score: document.getElementById('hud-score'),
   high: document.getElementById('hud-high'),

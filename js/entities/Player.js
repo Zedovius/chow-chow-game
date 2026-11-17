@@ -32,7 +32,7 @@ export class Player {
     this.sign = null; // el animal ('rat', 'ox'...); null: el dragón de la pantalla de inicio
     this.ground = true; // ¿el nivel tiene suelo?
     this.canFly = false; // el poder de volar (la estrella): se conserva de un nivel al otro
-    this.forceFlight = false; // en la pelea final (nivel 13) todos vuelan, y un golpe no lo quita
+    this.forceFlight = false; // en la pelea final (nivel 12) todos vuelan, y un golpe no lo quita
     this.reset();
   }
 

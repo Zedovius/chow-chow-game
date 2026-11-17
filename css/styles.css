@@ -288,6 +288,40 @@ textarea {
   margin: 0;
 }
 
+/* El trío: el hongo, el agave y el chile, apagados hasta tomarlos; con los tres, parpadean */
+.hud__trio {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.35em;
+  margin: 0;
+}
+
+.hud__trio[hidden] {
+  display: none;
+}
+
+.hud__trio-item {
+  display: block;
+  height: 1.5em;
+  width: auto;
+  image-rendering: pixelated;
+  opacity: 0.35;
+  filter: grayscale(1) brightness(0.8);
+}
+
+.hud__trio-item.is-got {
+  opacity: 1;
+  filter: none;
+}
+
+.hud__trio-item.is-gained {
+  animation: ammo-pop 0.4s steps(4) both;
+}
+
+.hud__trio.is-done .hud__trio-item {
+  animation: blink 0.25s steps(1) 6;
+}
+
 .hud__flight[hidden] {
   display: none;
 }
@@ -470,10 +504,10 @@ textarea {
    un triángulo, lo que da (los mismos símbolos del HUD) y los puntos. PROVISIONAL. */
 .legend {
   position: absolute;
-  top: 36%;
+  top: 35%;
   left: 50%;
   display: grid;
-  gap: 1.2em;
+  gap: 0.55em;
   transform: translateX(-50%);
   font-family: var(--font-pixel);
   font-size: clamp(8px, 1.8cqw, 30px);
@@ -764,6 +798,56 @@ textarea {
   color: var(--c-gold);
 }
 
+/* Su cóctel (world/cocktails.js): nombre, «Ejemplo» mientras sea provisional, y sus ingredientes */
+.wheel__cocktail {
+  display: grid;
+  justify-items: center;
+  gap: 0.3em;
+  font-size: clamp(8px, 1.5cqw, 24px);
+}
+
+.wheel__cocktail[hidden],
+.wheel__cocktail-sample[hidden] {
+  display: none;
+}
+
+.wheel__cocktail p {
+  margin: 0;
+}
+
+.wheel__cocktail-top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.wheel__cocktail-label {
+  color: var(--c-gold);
+  text-transform: uppercase;
+}
+
+.wheel__cocktail-name {
+  color: var(--c-moon);
+}
+
+/* «Ejemplo»: el cóctel aún no es el del bar */
+.wheel__cocktail-sample {
+  padding: 0.2em 0.5em;
+  background: var(--c-heart);
+  color: var(--c-black);
+  font-size: 0.75em;
+  text-shadow: none;
+  text-transform: uppercase;
+}
+
+.wheel__cocktail-parts {
+  font-family: var(--font-text);
+  font-size: 0.9em;
+  color: var(--c-moon-dim);
+}
+
 /* Su rival (el de enfrente en la rueda) y por qué chocan */
 .wheel__rival {
   display: flex;
@@ -1034,9 +1118,17 @@ textarea {
   }
 
   .wheel {
-    --u: 0.62cqh;
+    --u: 0.56cqh;
     grid-template-columns: auto;
-    gap: 2cqh;
+    gap: 1.2cqh;
+  }
+
+  .wheel__card {
+    gap: 0.8cqh;
+  }
+
+  .wheel__cocktail {
+    gap: 0.15em;
   }
 
   .wheel__chinese {
@@ -1048,7 +1140,8 @@ textarea {
   }
 
   .wheel__virtues,
-  .wheel__rival {
+  .wheel__rival,
+  .wheel__cocktail {
     font-size: 3cqw;
   }
 
@@ -1466,6 +1559,8 @@ textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .hud__trio-item.is-gained,
+  .hud__trio.is-done .hud__trio-item,
   .hud__life--grown,
   .hud__life--drained,
   .hud__life--leaving,

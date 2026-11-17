@@ -1,8 +1,9 @@
 // La rueda del zodiaco: los 12 animales en círculo. Al elegir la fecha, gira unas vueltas y se
 // detiene con el animal que le toca arriba, bajo la flecha. Entonces, a su lado, su tarjeta: el
 // animal en grande, su símbolo (el carácter tradicional), su nombre en chino simplificado con su
-// pinyin, su nombre en el idioma del juego y sus cuatro virtudes; abajo, su rival (el animal de
-// enfrente en la rueda, contra quien pelea en el nivel 13) y por qué chocan; y ▶. En la rueda, una
+// pinyin, su nombre en el idioma del juego, sus cuatro virtudes y su cóctel (world/cocktails.js; por
+// ahora, ejemplos marcados como tales); abajo, su rival (el animal de
+// enfrente en la rueda, contra quien pelea en el nivel 12) y por qué chocan; y ▶. En la rueda, una
 // línea une al animal con su rival, que queda abajo, enfrente.
 // Enter, A o ▶ siguen (mientras gira, la detienen de una vez); Esc, B o «< Volver» regresan a la
 // fecha (← lleva a «< Volver»).
@@ -11,6 +12,7 @@
 // icono (IMAGES.animals[id].icon en graphics/assets.js) ocupa su lugar.
 
 import { ZODIAC, rivalOf } from '../world/levels.js';
+import { cocktailOf, SAMPLE } from '../world/cocktails.js';
 import { IMAGES } from '../graphics/assets.js';
 import { t, onLanguageChange } from '../i18n/i18n.js';
 
@@ -76,6 +78,13 @@ export class ZodiacWheel {
     this.chinese = make('p', 'wheel__chinese', this.card);
     this.name = make('p', 'wheel__name', this.card);
     this.virtues = make('ul', 'wheel__virtues', this.card);
+    // Su cóctel: nombre y sus tres ingredientes (fermento, mexicano y chino)
+    this.drink = make('div', 'wheel__cocktail', this.card);
+    const drinkTop = make('p', 'wheel__cocktail-top', this.drink);
+    this.drinkLabel = make('span', 'wheel__cocktail-label', drinkTop);
+    this.drinkName = make('span', 'wheel__cocktail-name', drinkTop);
+    this.drinkSample = make('span', 'wheel__cocktail-sample', drinkTop);
+    this.drinkParts = make('p', 'wheel__cocktail-parts', this.drink);
     // Su rival y por qué
     const rival = make('div', 'wheel__rival', this.card);
     this.rivalLabel = make('span', 'wheel__rival-label', rival);
@@ -174,6 +183,18 @@ export class ZodiacWheel {
         li.textContent = virtue;
         return li;
       }));
+      // Su cóctel (provisional: SAMPLE lo marca como ejemplo)
+      const drink = cocktailOf(sign.id);
+      this.drink.hidden = !drink;
+      if (drink) {
+        const parts = { ferment: t(`ingredient.${drink.ferment}`), mexican: t(`ingredient.${drink.mexican}`), chinese: t(`ingredient.${drink.chinese}`) };
+        this.drinkLabel.textContent = t('cocktail.label');
+        this.drinkName.textContent = drink.name;
+        this.drinkSample.textContent = t('cocktail.sample');
+        this.drinkSample.hidden = !SAMPLE;
+        this.drinkParts.textContent = [parts.ferment, parts.mexican, parts.chinese].join(' · ');
+        this.drink.setAttribute('aria-label', t(SAMPLE ? 'cocktail.ariaSample' : 'cocktail.aria', { name: drink.name, ...parts }));
+      }
       // Su rival: su icono (o su disco), su símbolo y su nombre; y por qué chocan
       this.rivalLabel.textContent = t('rival.label');
       this.rivalDisc.style.setProperty('--color', rival.body);

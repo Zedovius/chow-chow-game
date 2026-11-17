@@ -1,4 +1,5 @@
-// Los 12 niveles, uno por animal del zodiaco chino, y las reglas de cada dificultad.
+// Los niveles, uno por animal del zodiaco chino, y las reglas de cada dificultad. Son 12: los mundos
+// de 11 animales (todos menos el rival de quien juega) y, al final, la pelea contra el rival en el suyo.
 // Cada nivel es un poco más rápido y trae obstáculos nuevos (world/obstacles.js). En todos se puede
 // volar; los del Dragón y el Gallo no tienen suelo (noGround): puro cielo, con nubes abajo.
 // Los colores son provisionales; el arte irá después.
@@ -79,6 +80,9 @@ export const ZODIAC = [
   { id: 'pig', hanzi: '豬', simplified: '猪', pinyin: 'zhū', sky: ['#24121c', '#a45a7c'], ground: '#3d1d2e', obstacle: '#f2a0c2', body: '#f4a6b8', fire: '#ff8fab' },
 ];
 
+// Cuántos mundos hay antes de la pelea final: todos menos el del rival
+export const WORLDS = 11;
+
 /** El animal de un id ('rat', 'ox'...). */
 export const signById = (id) => ZODIAC.find((sign) => sign.id === id) ?? null;
 
@@ -94,12 +98,14 @@ export const rivalOf = (id) => ZODIAC[(ZODIAC.findIndex((sign) => sign.id === id
 
 /**
  * El orden de los mundos para quien juega con el animal sign: empieza en el que sigue al suyo y
- * termina en el suyo (el nivel 12 es su mundo). Los mundos sin suelo nunca quedan entre los
+ * termina en el suyo (el nivel 11 es su mundo). El mundo de su rival no está: se guarda para el
+ * final, el nivel 12 (bossLevel), así que son 11 mundos. Los mundos sin suelo nunca quedan entre los
  * primeros tres niveles: si les toca, cambian de lugar con el que está tres más adelante.
  */
 export function worldOrder(sign = 'pig') {
   const start = ZODIAC.findIndex((s) => s.id === sign) + 1;
-  const order = ZODIAC.map((_, i) => ZODIAC[(start + i) % 12]);
+  const rival = rivalOf(sign);
+  const order = ZODIAC.map((_, i) => ZODIAC[(start + i) % 12]).filter((world) => world !== rival);
   for (let i = 0; i < 3; i++) {
     if (order[i].noGround) [order[i], order[i + 3]] = [order[i + 3], order[i]];
   }
@@ -107,7 +113,7 @@ export function worldOrder(sign = 'pig') {
 }
 
 /**
- * Los 12 niveles de una dificultad ('easy' | 'hard') para quien juega con el animal sign. Lo que
+ * Los 11 mundos de una dificultad ('easy' | 'hard') para quien juega con el animal sign. Lo que
  * se aprieta (velocidad, obstáculos nuevos) depende del lugar del nivel, no del animal: el primer
  * mundo siempre es el más tranquilo.
  */
@@ -132,7 +138,7 @@ export function levelsFor(difficulty = 'easy', sign = 'pig') {
 }
 
 /**
- * El nivel 13: la pelea contra el rival de quien juega (el animal de enfrente en la rueda), en el
+ * El nivel 12, el último: la pelea contra el rival de quien juega (el de enfrente en la rueda), en el
  * mundo de ese rival. No tiene obstáculos ni fin por distancia: se gana al vencer al jefe
  * (entities/Boss.js). Todos vuelan, tengan o no la estrella. Salen cócteles seguido (para el fuego)
  * y de vez en cuando comida.
@@ -141,7 +147,7 @@ export function bossLevel(difficulty = 'easy', sign = 'pig') {
   const rules = DIFFICULTIES[difficulty];
   const rival = rivalOf(sign);
   return {
-    index: 12,
+    index: WORLDS,
     id: rival.id,
     nameKey: `zodiac.${rival.id}`,
     boss: true,
@@ -156,5 +162,5 @@ export function bossLevel(difficulty = 'easy', sign = 'pig') {
   };
 }
 
-/** Los 13 niveles: los 12 mundos y la pelea contra el rival. */
+/** Los 12 niveles: los 11 mundos y la pelea contra el rival. */
 export const journeyFor = (difficulty = 'easy', sign = 'pig') => [...levelsFor(difficulty, sign), bossLevel(difficulty, sign)];

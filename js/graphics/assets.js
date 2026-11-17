@@ -22,7 +22,7 @@ export const IMAGES = {
   fireball: null,
   // La estrella del vuelo (la genera tools/sprites/pickups.mjs)
   star: 'assets/images/pickups/estrella.png',
-  // Cada animal: como jugador, como jefe del nivel 13 y en el fondo de su mundo, y su icono para la
+  // Cada animal: como jugador, como jefe del nivel 12 y en el fondo de su mundo, y su icono para la
   // rueda del zodiaco (ver docs/arte-pixel.md). Mientras no haya, se dibujan figuras provisionales.
   animals: {},
   // Un dibujo por cóctel (sus nombres están en entities/Pickup.js)
@@ -30,6 +30,12 @@ export const IMAGES = {
   cocktails: {
     'margarita-lichi': 'assets/images/pickups/margarita-lichi.png',
     'mezcal-jengibre': 'assets/images/pickups/mezcal-jengibre.png',
+  },
+  // Los ingredientes del trío (también los genera tools/sprites/pickups.mjs)
+  ingredients: {
+    hongo: 'assets/images/pickups/hongo.png',
+    agave: 'assets/images/pickups/agave.png',
+    chile: 'assets/images/pickups/chile.png',
   },
   // Un dibujo por comida (sus nombres también están en entities/Pickup.js)
   foods: {

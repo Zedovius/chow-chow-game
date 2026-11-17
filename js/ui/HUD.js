@@ -1,4 +1,4 @@
-// Marcador en HTML (encima del canvas): nivel, vidas, bolas de fuego, racha, puntos y récord.
+// Marcador en HTML (encima del canvas): nivel, vidas, bolas de fuego, el trío, racha, puntos y récord.
 
 import { t, getLanguage } from '../i18n/i18n.js';
 import { sparkle } from './record.js';
@@ -30,8 +30,11 @@ function heart(fill) {
 const fillsFor = (lives, slots) => Array.from({ length: slots }, (_, i) => Math.min(1, Math.max(0, lives - i)));
 
 export class HUD {
-  constructor({ level, lives, ammo, combo, flight, boss, score, high }) {
+  constructor({ level, lives, ammo, combo, flight, trio = null, boss, score, high }) {
     this.levelEl = level;
+    this.trioEl = trio;
+    this.lastTrio = null;
+    this.trioVisible = false;
     this.bossEl = boss;
     this.comboEl = combo;
     this.flightEl = flight;
@@ -117,6 +120,7 @@ export class HUD {
   /** Vuelve a escribir los textos traducibles (al cambiar de idioma). */
   refresh() {
     if (this.lastAmmo) this.setAmmo(this.lastAmmo.count, this.lastAmmo.max, { infinite: this.lastAmmo.infinite });
+    if (this.lastTrio) this.setTrio(this.lastTrio);
     this.setCombo(this.lastCombo);
     if (this.lastLives < 0) return;
     this.fills = null;
@@ -183,7 +187,29 @@ export class HUD {
     }
   }
 
-  /** La barra de vida del jefe del nivel 13, del color del rival. */
+  /**
+   * El trío: el hongo, el agave y el chile, apagados hasta tomarlos (.is-got). collected: los que
+   * lleva en este nivel; visible: se ve (no contra el rival); gained: el que acaba de tomar (.is-gained).
+   */
+  setTrio(collected, { visible = this.trioVisible, gained = null } = {}) {
+    if (!this.trioEl) return;
+    this.lastTrio = collected;
+    this.trioVisible = visible;
+    this.trioEl.hidden = !visible;
+    this.trioEl.classList.remove('is-done');
+    for (const item of this.trioEl.querySelectorAll('[data-ingredient]')) {
+      item.classList.toggle('is-got', collected.has(item.dataset.ingredient));
+      if (gained === item.dataset.ingredient) restart(item, 'is-gained');
+    }
+    this.trioEl.setAttribute('aria-label', t('trio.label', { count: collected.size }));
+  }
+
+  /** El trío completo: los tres parpadean (el cóctel está listo). */
+  trioDone() {
+    if (this.trioEl) restart(this.trioEl, 'is-done');
+  }
+
+  /** La barra de vida del jefe del nivel 12, del color del rival. */
   showBoss(hp, max, color) {
     if (!this.bossEl) return;
     this.bossEl.style.setProperty('--boss-color', color);

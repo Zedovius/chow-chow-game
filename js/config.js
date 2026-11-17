@@ -1,7 +1,7 @@
 // Ajustes globales del juego. Las medidas van en unidades del mundo: el mundo mide 800 × 300 y
 // el canvas lo dibuja a la mitad de resolución (pixel), ampliado sin suavizar.
 
-// Para probar: ?nivel=5 empieza en el nivel 5; ?nivel=13, en la pelea contra el rival. Solo en la
+// Para probar: ?nivel=5 empieza en el nivel 5; ?nivel=12, en la pelea contra el rival. Solo en la
 // computadora de desarrollo (localhost o el archivo abierto directo): en el juego publicado no hace
 // nada, para que nadie se salte niveles y entre a HI RECORDS. En las pruebas de Node no hay location.
 const DEV_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '']);
@@ -139,11 +139,17 @@ export const CONFIG = {
   // momento al azar al principio del nivel (window: qué parte del nivel), a ras del suelo (height:
   // la altura de su centro): se toma corriendo.
   star: { radius: 9, height: 14, window: [0.06, 0.22] },
+  // El trío (hongo, agave y chile): uno de cada uno en cada mundo (no contra el rival), en orden al
+  // azar, uno en cada ventana del recorrido (windows: qué parte del nivel). Con suelo, a una altura
+  // que se alcanza saltando (cocktails.low): no hace falta la estrella. Cada uno da points; juntar
+  // los tres prepara el cóctel del signo: fuego lleno, hearts corazón y bonus puntos. apart: segundos
+  // desde lo último que salió (la estrella y el trío esperan menos que pickups.apart, ver Spawner).
+  trio: { radius: 10, points: 150, bonus: 500, hearts: 1, apart: 1.5, windows: [[0.1, 0.18], [0.32, 0.4], [0.54, 0.62]] },
   // Comida china (la caja para llevar, el tazón de arroz): un corazón (sin pasar del máximo de la
   // dificultad) y points puntos
   food: { hearts: 1, points: 200, radius: 12 },
 
-  // El nivel 13: la pelea contra el rival (entities/Boss.js). Todos los jefes tienen los mismos
+  // El nivel 12, el último: la pelea contra el rival (entities/Boss.js). Todos los jefes tienen los mismos
   // ataques; solo cambian el dibujo y el color. Cada ataque se anuncia antes (telegraph, en
   // segundos) y siempre deja por dónde pasar:
   //   volley  tres disparos a tres alturas (spread entre uno y otro), con huecos para pasar
@@ -198,10 +204,10 @@ export const CONFIG = {
   // quemados, seguidos, el multiplicador de puntos sube step, hasta max. Un golpe la reinicia.
   combo: { every: 8, step: 0.5, max: 3, near: 60 },
 
-  startLevel: Number.isFinite(requestedLevel) ? Math.min(13, Math.max(1, requestedLevel)) - 1 : 0,
+  startLevel: Number.isFinite(requestedLevel) ? Math.min(12, Math.max(1, requestedLevel)) - 1 : 0,
 
   storageKey: 'chowchow.record',
-  // HI RECORDS: los mejores puntajes de quienes terminan los 12 niveles, por dificultad. Ver
+  // HI RECORDS: los mejores puntajes de quienes terminan los 12 niveles (11 mundos y el rival), por dificultad. Ver
   // core/scores.js, ui/NameEntry.js y ui/TitleBoards.js
   leaderboard: {
     storageKey: 'chowchow.clasificacion',

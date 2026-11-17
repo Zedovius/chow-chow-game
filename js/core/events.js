@@ -31,14 +31,14 @@
 //   milestone  { score }                        el puntaje llegó a otra centena
 //   newRecord  { score }                        se superó el récord en esta partida
 //   levelComplete { index, id, hearts }         terminó un nivel (hearts: los que se cobraron)
-//   bossStart  { sign }                         empezó el nivel 13: la pelea contra el rival
+//   bossStart  { sign }                         empezó el nivel 12: la pelea contra el rival
 //   bossWarn   { attack }                       el jefe avisa un ataque ('volley', 'aimed', 'charge')
 //   bossAttack { attack }                       el jefe ataca
 //   bossHit    { hp, max }                      una bola de fuego le pegó al jefe
 //   bossDefeated { sign }                       el jefe fue vencido
 //   dying                                       se quedó sin corazones y cae
 //   gameOver                                    el diálogo de fin del vuelo
-//   ending     { score }                        terminó los 12 niveles
+//   ending     { score }                        terminó los 12 niveles (venció a su rival)
 //   pause / resume                              pausa y regreso al juego
 //   toggleMute                                  la tecla M
 

@@ -1,4 +1,4 @@
-// El jefe del nivel 13: el rival de quien juega (el animal de enfrente en la rueda). Todos los
+// El jefe del nivel 12: el rival de quien juega (el animal de enfrente en la rueda). Todos los
 // jefes hacen lo mismo; solo cambian el dibujo y el color (sign).
 //
 //   enter      entra desde la derecha

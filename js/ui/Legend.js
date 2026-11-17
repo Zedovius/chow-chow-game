@@ -5,13 +5,14 @@
 //   [la estrella]   ▸  ☁          (el poder de volar)
 //   [los cócteles]  ▸  ◆ ×3    100
 //   [la comida]     ▸  ♥ ×1    200
+//   [hongo agave chile] ▸ ◆ MAX ♥ ×1   500   (el trío: el cóctel del signo)
 //
 // Los iconos son los mismos dibujos del juego (graphics/assets.js) y los mismos símbolos del HUD (el
 // rombo de las bolas de fuego, el corazón), así se reconocen al jugar. Para quien usa lector de
 // pantalla, todo se dice en el aria-label.
 
 import { CONFIG } from '../config.js';
-import { COCKTAILS, FOODS } from '../entities/Pickup.js';
+import { COCKTAILS, FOODS, INGREDIENTS } from '../entities/Pickup.js';
 import { IMAGES } from '../graphics/assets.js';
 import { t } from '../i18n/i18n.js';
 
@@ -60,10 +61,18 @@ export class Legend {
       element('span', 'legend__gain', [element('span', 'legend__cloud')]),
       element('span', 'legend__points'),
     ]);
+    // El trío: los tres juntos llenan el fuego y dan un corazón (y preparan el cóctel del signo)
+    const trio = element('div', 'legend__row', [
+      element('span', 'legend__items', INGREDIENTS.map((name) => icon(IMAGES.ingredients[name]))),
+      element('span', 'legend__arrow'),
+      element('span', 'legend__gain', [element('span', 'hud__ammo-icon'), 'MAX', element('span', 'hud__life'), `×${CONFIG.trio.hearts}`]),
+      element('span', 'legend__points', [points(CONFIG.trio.bonus)]),
+    ]);
     this.root.replaceChildren(
       star,
       row(COCKTAILS.map((name) => IMAGES.cocktails[name]), 'hud__ammo-icon', fire, CONFIG.cocktails.points),
       row(FOODS.map((name) => IMAGES.foods[name]), 'hud__life', hearts, CONFIG.food.points),
+      trio,
       element('p', 'legend__prompt', [prompt]),
     );
     this.root.setAttribute('aria-label', t('legend.label', {
@@ -71,6 +80,7 @@ export class Legend {
       hearts,
       cocktail: points(CONFIG.cocktails.points),
       food: points(CONFIG.food.points),
+      trio: points(CONFIG.trio.bonus),
     }));
     this.root.hidden = false;
   }

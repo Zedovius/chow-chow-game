@@ -19,7 +19,7 @@
 
 import { CONFIG } from '../config.js';
 import { Obstacle } from '../entities/Obstacle.js';
-import { Pickup, COCKTAILS, FOODS } from '../entities/Pickup.js';
+import { Pickup, COCKTAILS, FOODS, INGREDIENTS } from '../entities/Pickup.js';
 import { FORMATIONS, sectionAt } from './obstacles.js';
 
 const pickOne = (list) => list[Math.floor(Math.random() * list.length)];
@@ -53,13 +53,13 @@ export class Spawner {
    * carry: lo que le faltaba al nivel anterior para el siguiente cóctel y la siguiente comida (ver
    * carry()); así la cuenta sigue de un nivel al otro y lo que sale cada más de un nivel sí sale.
    */
-  constructor(level, carry = null, { star = false } = {}) {
+  constructor(level, carry = null, { star = false, trio = false } = {}) {
     this.level = level;
     this.progress = 0; // 0 al empezar el nivel, 1 al terminarlo
     const { firstDistance } = CONFIG.obstacles;
     this.lanes = [];
     if (level.lanes.ground) this.lanes.push({ name: 'ground', ...level.lanes.ground, next: firstDistance });
-    // El cielo empieza un poco después, para que no salgan las dos filas juntas (el nivel 13 no
+    // El cielo empieza un poco después, para que no salgan las dos filas juntas (el nivel 12 no
     // tiene filas: ahí los obstáculos son los disparos del jefe)
     if (level.lanes.sky) this.lanes.push({ name: 'sky', ...level.lanes.sky, next: firstDistance * (level.ground ? 1.5 : 1) });
 
@@ -69,6 +69,9 @@ export class Spawner {
     this.nextFood = level.pickups.food ? (carry?.food ?? between(...level.pickups.food)) : Infinity;
     // La estrella del vuelo (si quien juega aún no tiene el poder): una vez, al principio del nivel
     this.starAt = star ? level.length * between(...CONFIG.star.window) : null;
+    // El trío: un hongo, un agave y un chile, en orden al azar, uno en cada ventana del nivel
+    const order = [...INGREDIENTS].sort(() => Math.random() - 0.5);
+    this.ingredients = trio ? order.map((variety, i) => ({ variety, at: level.length * between(...CONFIG.trio.windows[i]) })) : [];
     this.sincePickup = CONFIG.pickups.apart; // segundos desde lo último que salió
   }
 
@@ -176,9 +179,16 @@ export class Spawner {
     this.nextFood -= dt;
     this.sincePickup += dt;
     const star = this.starAt !== null && distance >= this.starAt;
-    const food = this.nextFood <= 0;
-    const cocktail = this.nextCocktail <= 0;
-    if ((!star && !cocktail && !food) || this.sincePickup < CONFIG.pickups.apart) return;
+    const ingredient = this.ingredients.length > 0 && distance >= this.ingredients[0].at;
+    // Si toca un ingrediente pronto (antes de que pase apart), el cóctel y la comida esperan: así el
+    // trío no se va retrasando hasta quedarse fuera del nivel
+    const reserved = this.ingredients.length > 0 && distance + CONFIG.pickups.apart * speed >= this.ingredients[0].at;
+    const food = this.nextFood <= 0 && !reserved;
+    const cocktail = this.nextCocktail <= 0 && !reserved;
+    // La estrella y el trío esperan menos (trio.apart) desde lo último que salió: en los mundos rápidos,
+    // pickups.apart es casi un tercio del nivel y no cabrían los cuatro
+    const apart = star || ingredient ? CONFIG.trio.apart : CONFIG.pickups.apart;
+    if ((!star && !ingredient && !cocktail && !food) || this.sincePickup < apart) return;
     const { clearBefore, clearAfter, bob } = CONFIG.pickups;
     const { skyFloor } = CONFIG.obstacles;
 
@@ -191,6 +201,10 @@ export class Spawner {
     if (star) {
       type = 'star';
       height = CONFIG.star.height; // a ras del suelo: se toma corriendo
+    } else if (ingredient) {
+      // Con suelo, a una altura que se alcanza saltando: el trío nunca pide la estrella
+      type = 'ingredient';
+      if (this.level.ground) height = between(...CONFIG.cocktails.low);
     } else if (food) {
       type = 'food';
     } else if (this.level.ground && !this.level.boss) {
@@ -214,6 +228,8 @@ export class Spawner {
     if (type === 'star') {
       pickups.push(new Pickup('star', x, y));
       this.starAt = null;
+    } else if (type === 'ingredient') {
+      pickups.push(new Pickup('ingredient', x, y, this.ingredients.shift().variety));
     } else if (type === 'food') {
       pickups.push(new Pickup('food', x, y, pickOne(FOODS)));
       this.nextFood = between(...this.level.pickups.food);

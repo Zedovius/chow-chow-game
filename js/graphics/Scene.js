@@ -32,6 +32,7 @@ const COLORS = {
   cloud: '#f4f6ff',
   marker: '#ffe9a8',
   cocktail: { glass: '#bfe7ff', drink: ['#ff6f91', '#7ee081', '#ffd166', '#c084fc'] },
+  ingredient: { hongo: '#fbf7ee', agave: '#5fae7e', chile: '#d7263d' },
   fire: ['#fff3b0', '#ff9f1c', '#e8452c'],
 };
 
@@ -268,10 +269,15 @@ export class Scene {
     }
   }
 
-  /** Un cóctel o una comida: su imagen a su tamaño de pixel, o una figura provisional si no cargó. */
+  /** Un cóctel, una comida, la estrella o un ingrediente: su imagen a su tamaño de pixel, o una figura provisional si no cargó. */
   drawPickup(p) {
     const ctx = this.ctx;
-    const art = { food: () => this.images?.foods?.[p.variety], cocktail: () => this.images?.cocktails?.[p.variety], star: () => this.images?.star };
+    const art = {
+      food: () => this.images?.foods?.[p.variety],
+      cocktail: () => this.images?.cocktails?.[p.variety],
+      star: () => this.images?.star,
+      ingredient: () => this.images?.ingredients?.[p.variety],
+    };
     const image = ready(art[p.type]());
     if (image) {
       // Un pixel de la imagen = un pixel del canvas, centrada
@@ -287,6 +293,12 @@ export class Scene {
       ctx.fillStyle = COLORS.star;
       ctx.fillRect(x + p.r - 2, y, 4, size);
       ctx.fillRect(x, y + p.r - 2, size, 4);
+      return;
+    }
+    if (p.type === 'ingredient') {
+      // El hongo (blanco), el agave (verde) o el chile (rojo): un cuadro de su color
+      ctx.fillStyle = COLORS.ingredient[p.variety] ?? COLORS.sparkle;
+      ctx.fillRect(x + 2, y + 2, size - 4, size - 4);
       return;
     }
     if (p.type === 'food') {
@@ -450,7 +462,7 @@ export class Scene {
   }
 
   /**
-   * El jefe del nivel 13 (PROVISIONAL: un cuerpo grande del color del rival). Antes de cada ataque
+   * El jefe del nivel 12 (PROVISIONAL: un cuerpo grande del color del rival). Antes de cada ataque
    * se ve tenue dónde va a pegar, y parpadea: las tres alturas de la ráfaga, la línea de la
    * puntería o la franja de la embestida. Así se esquiva con pericia.
    */

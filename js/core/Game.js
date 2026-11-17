@@ -2,12 +2,13 @@
 //
 // Estados: title → playing ⇄ paused
 //                  playing → dying → gameOver → (reintentar | title)
-//                  playing → ending (al terminar el nivel 12: nombre en HI RECORDS) → title
+//                  playing → ending (al vencer al rival, en el nivel 12: nombre en HI RECORDS) → title
 //
 // Un corredor sin fin, como Chispas: el dragón corre, salta y se agacha entre obstáculos, y en el
 // aire puede aletear y volar (hasta CONFIG.skyJumps saltos de alto; la cámara lo sigue). El Dragón y
 // el Gallo son niveles sin suelo. Dispara bolas de fuego que se recargan con cócteles; la comida
-// china da corazones. Esquivar de cerca alarga la racha, que multiplica los puntos.
+// china da corazones. En cada mundo salen un hongo, un agave y un chile: juntar los tres (el trío)
+// prepara el cóctel del signo. Esquivar de cerca alarga la racha, que multiplica los puntos.
 // Los 12 niveles van seguidos, sin escenas: al terminar uno se cobran los corazones y el siguiente
 // empieza sin detenerse, con su cartel.
 //
@@ -28,6 +29,8 @@ import { Boss } from '../entities/Boss.js';
 import { Spawner } from '../world/Spawner.js';
 import { Player } from '../entities/Player.js';
 import { Fireball } from '../entities/Fireball.js';
+import { INGREDIENTS } from '../entities/Pickup.js';
+import { cocktailOf } from '../world/cocktails.js';
 import { Scene } from '../graphics/Scene.js';
 import { Camera } from '../graphics/Camera.js';
 import { enterName } from '../ui/NameEntry.js';
@@ -125,7 +128,8 @@ export class Game {
     this.spawner = null;
     this.closeCalls = new CloseCalls();
     this.fireButton = new FireButton(); // el botón de fuego, con o sin carga (core/charge.js)
-    this.boss = null; // el jefe del nivel 13 (entities/Boss.js)
+    this.boss = null; // el jefe del nivel 12 (entities/Boss.js)
+    this.trio = new Set(); // los ingredientes del trío que lleva en este nivel
     this.combo = new Combo();
     this.section = null; // el tramo del nivel en que va (ver PACING en world/obstacles.js)
 
@@ -231,7 +235,7 @@ export class Game {
     this.difficulty = DIFFICULTIES[difficulty] ? difficulty : 'easy';
     this.sign = signById(sign) ? sign : 'dragon';
     // Los mundos van en el orden del animal: empieza en el que sigue al suyo y termina en el suyo
-    // Los 12 mundos (en el orden del animal) y el nivel 13: la pelea contra su rival
+    // Los 11 mundos (en el orden del animal, sin el de su rival) y el nivel 12: la pelea contra su rival
     this.levels = journeyFor(this.difficulty, this.sign);
     this.score = 0;
     this.lives = this.mode.lives;
@@ -290,9 +294,15 @@ export class Game {
     this.speed = this.level.speed;
     // La cuenta de cócteles y comida sigue del nivel anterior si se viene de él sin detenerse
     // La estrella del vuelo sale una vez en cada nivel con suelo, si aún no tiene el poder
-    this.spawner = new Spawner(this.level, continued ? this.spawner?.carry() : null, { star: this.level.ground && !this.level.boss && !this.player.canFly });
+    this.spawner = new Spawner(this.level, continued ? this.spawner?.carry() : null, {
+      star: this.level.ground && !this.level.boss && !this.player.canFly,
+      trio: !this.level.boss, // el hongo, el agave y el chile, en cada mundo
+    });
+    // El trío empieza de cero en cada nivel
+    this.trio = new Set();
+    this.hud.setTrio(this.trio, { visible: !this.level.boss });
     this.section = null;
-    // El nivel 13: el rival, y todos vuelan
+    // El nivel 12: el rival, y todos vuelan
     this.boss = this.level.boss ? new Boss(this.level.id, this.difficulty, Math.floor(Math.random() * 2 ** 32)) : null;
     this.player.forceFlight = Boolean(this.level.boss);
     if (this.boss) this.hud.showBoss(this.boss.hp, this.boss.maxHp, signById(this.level.id).body);
@@ -391,7 +401,7 @@ export class Game {
     if (this.boss ? this.boss.done : this.distance >= this.level.length && !this.obstacles.length) this.completeLevel();
   }
 
-  /** El jefe del nivel 13: se mueve, avisa y ataca (sus disparos son obstáculos del mundo). */
+  /** El jefe del nivel 12: se mueve, avisa y ataca (sus disparos son obstáculos del mundo). */
   updateBoss(dt) {
     const boss = this.boss;
     if (!boss) return;
@@ -486,7 +496,7 @@ export class Game {
 
   /**
    * Cada bola de fuego quema lo primero que toca (si es burnable) o se apaga contra ello. En el nivel
-   * 13, si le da al jefe, le quita vida.
+   * 12, si le da al jefe, le quita vida.
    */
   updateFireballs() {
     for (const fireball of this.fireballs) {
@@ -545,6 +555,7 @@ export class Game {
     for (const pickup of taken) {
       if (pickup.type === 'food') this.collectFood(pickup);
       else if (pickup.type === 'star') this.collectStar();
+      else if (pickup.type === 'ingredient') this.collectIngredient(pickup);
       else this.collectCocktail(pickup);
     }
   }
@@ -599,6 +610,30 @@ export class Game {
     this.ammo = Math.min(this.fireMax, this.ammo + CONFIG.cocktails.perCocktail);
     this.hud.setAmmo(this.ammo, this.fireMax, { gained: true });
     this.events.emit('cocktail', { variety: pickup.variety, ammo: this.ammo });
+  }
+
+  /** Un ingrediente del trío (hongo, agave o chile): puntos y, con los tres, el cóctel del signo. */
+  collectIngredient(pickup) {
+    this.addScore(CONFIG.trio.points * this.mode.score);
+    this.trio.add(pickup.variety);
+    this.hud.setTrio(this.trio, { gained: pickup.variety });
+    this.events.emit('ingredient', { variety: pickup.variety, count: this.trio.size });
+    if (this.trio.size === INGREDIENTS.length) this.completeTrio();
+  }
+
+  /** El trío completo: el cóctel del signo. Fuego lleno, un corazón (si cabe) y puntos extra. */
+  completeTrio() {
+    this.ammo = this.fireMax;
+    this.hud.setAmmo(this.ammo, this.fireMax, { gained: true });
+    if (this.lives < this.mode.maxLives) {
+      this.lives = Math.min(this.mode.maxLives, this.lives + CONFIG.trio.hearts);
+      this.showLives({ gained: true });
+    }
+    this.addScore(CONFIG.trio.bonus * this.mode.score);
+    this.hud.trioDone();
+    const drink = cocktailOf(this.sign);
+    this.showBanner(t('trio.ready', { name: drink?.name ?? '' }).trim());
+    this.events.emit('trio', { sign: this.sign });
   }
 
   completeLevel() {

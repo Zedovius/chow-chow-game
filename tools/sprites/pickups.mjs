@@ -7,7 +7,7 @@
 //        --preview  además, una hoja con todos ampliados ×10 sobre el cielo, para revisarlos
 //
 // Para cambiar un dibujo: edita su cuadrícula y vuelve a correr el script. Los nombres de los
-// archivos son los de entities/Pickup.js (COCKTAILS y FOODS) y graphics/assets.js.
+// archivos son los de entities/Pickup.js (COCKTAILS, FOODS e INGREDIENTS) y graphics/assets.js.
 
 import { writeFile, mkdir } from 'node:fs/promises';
 import { deflateSync } from 'node:zlib';
@@ -49,6 +49,12 @@ const PALETTE = {
   i: '#eef9ff', // hielo
   o: '#ffb02e', // naranja
   O: '#ffe08a', // pulpa de naranja
+  // El trío (ingredientes del bar): hongo blanco, agave y chile
+  g: '#5fae7e', // penca de agave
+  G: '#2f6b4a', // penca en sombra
+  j: '#b9e6c4', // filo claro de la penca
+  R: '#ff8a7a', // brillo del chile
+  n: '#2f7a1f', // rabito del chile
 };
 
 const SPRITES = {
@@ -138,6 +144,50 @@ const SPRITES = {
     'kkkkkkkkkkkk',
   ],
 };
+
+// El trío: juntar los tres en un nivel prepara el cóctel del signo (core/Game.js, collectIngredient).
+// Un hongo blanco (el ingrediente chino), un agave (el fermento: el pulque) y un chile (el mexicano)
+Object.assign(SPRITES, {
+  hongo: [
+    '...kkkkk...',
+    '.kkuuuwwkk.',
+    'kuuwwwwwwsk',
+    'kwwwwwwwwsk',
+    'kswwwwwwssk',
+    '.kkkkkkkkk.',
+    '...kwwsk...',
+    '...kwwsk...',
+    '...kwwsk...',
+    '..kwwwssk..',
+    '..kkkkkkk..',
+  ],
+  agave: [
+    '......k......',
+    '.....kjk.....',
+    '..k..kgk..k..',
+    '.kjk.kgk.kjk.',
+    '.kgk.kgk.kgk.',
+    '..kgkkgkkgk..',
+    'k..kgkgkgk..k',
+    'kjk.kggGk.kjk',
+    '.kgkkgGGkkgk.',
+    '..kggggGGGk..',
+    '...kGGGGGk...',
+    '....kkkkk....',
+  ],
+  chile: [
+    '........kk.',
+    '.......knk.',
+    '.....kknk..',
+    '...kkrrkk..',
+    '..krrrrrrk.',
+    '.krRrrrrrk.',
+    'krRrrrrrk..',
+    'krrrrrrk...',
+    'krrrrkk....',
+    '.kkkk......',
+  ],
+});
 
 // --- PNG sin dependencias -----------------------------------------------------------------
 

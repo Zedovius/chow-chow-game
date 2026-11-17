@@ -22,7 +22,7 @@ export const SOUNDS = {
     rooster: null,
     dog: null,
     pig: null,
-    boss: null, // la pelea contra el rival (nivel 13)
+    boss: null, // la pelea contra el rival (nivel 12)
     ending: null,
   },
 

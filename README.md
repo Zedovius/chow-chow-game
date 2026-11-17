@@ -69,13 +69,17 @@ control cuentan como actividad).
   gira y se detiene en el animal que le toca (▶ o FIRE mientras gira la detienen de una vez);
   «< Volver» regresa a la fecha, que conserva lo elegido, por si se equivocó. Junto a la rueda sale su tarjeta: el animal, su símbolo (el carácter tradicional, como
   龍), su nombre en chino simplificado con su pinyin (龙 · lóng), su nombre en el idioma del juego y
-  sus cuatro virtudes (`virtues.<animal>` en `js/i18n/`), y abajo su rival (el de enfrente en la
-  rueda, 六冲, contra quien pelea en el nivel 13) con el porqué del choque (`rivalry.<animal>`, lo
+  sus cuatro virtudes (`virtues.<animal>` en `js/i18n/`), su cóctel (`js/world/cocktails.js`: nombre
+  y sus tres ingredientes, un fermento, uno mexicano y uno chino; **por ahora son ejemplos** y el juego
+  los marca con «Ejemplo» mientras `SAMPLE` sea `true`), y abajo su rival (el de enfrente en la
+  rueda, 六冲, contra quien pelea en el nivel 12, el último) con el porqué del choque (`rivalry.<animal>`, lo
   suyo contra lo del rival); en la rueda, una línea punteada une a los dos. Los caracteres chinos usan una fuente china
   del sistema (la fuente pixel no los tiene). Con ese animal se juega. La fecha no se guarda: en una
   máquina de bar juega gente distinta.
-- **El orden de los mundos** (`worldOrder` en `js/world/levels.js`): empieza en el animal que sigue
-  al tuyo y el nivel 12 es tu mundo. Los mundos sin suelo nunca caen en los primeros tres niveles.
+- **El orden de los mundos** (`worldOrder` en `js/world/levels.js`): son 11, los de todos los animales
+  menos tu rival (su mundo se guarda para el final). Empieza en el animal que sigue al tuyo y el
+  nivel 11 es tu mundo; el 12 es la pelea contra tu rival. Los mundos sin suelo nunca caen en los
+  primeros tres niveles.
   Lo que se aprieta (velocidad, obstáculos nuevos) depende del número de nivel, no del animal.
 - **Correr y saltar** (`js/entities/Player.js`), como Chispas: el salto es variable (mantener el
   botón salta más alto; soltarlo antes lo corta), abajo agacha en el suelo y en el aire hace caer
@@ -129,20 +133,27 @@ control cuentan como actividad).
   - **Comida china:** un corazón (hasta 3) y 200 puntos.
 
   Al elegir la dificultad sale una **leyenda sin texto**, como en las máquinas de arcade
-  (`js/ui/Legend.js`): la estrella ▸ nubecita, los cócteles ▸ ◆×3 y sus puntos, la comida ▸ ♥×1 y sus puntos (con el
-  multiplicador de la dificultad), y abajo el aviso para empezar. Se quita con el primer salto.
+  (`js/ui/Legend.js`): la estrella ▸ nubecita, los cócteles ▸ ◆×3 y sus puntos, la comida ▸ ♥×1 y sus puntos, el
+  trío ▸ ◆ MAX ♥×1 y sus puntos (con el multiplicador de la dificultad), y abajo el aviso para empezar.
+  Se quita con el primer salto.
+- **El trío** (`CONFIG.trio`, `INGREDIENTS` en `js/entities/Pickup.js`), como los tragos del bar: en
+  cada mundo salen, una vez cada uno y en orden al azar, un hongo blanco (el ingrediente chino), un
+  agave (el fermento, el pulque) y un chile (el mexicano). Con suelo salen a la altura de un salto:
+  no hace falta la estrella. Cada uno da 150 puntos y se enciende en el marcador; con los tres se
+  prepara **el cóctel de tu signo**: «¡Cóctel listo!» con su nombre, fuego lleno, un corazón (si cabe)
+  y 500 puntos. Empieza de cero en cada nivel; contra el rival no sale.
 - **Bolas de fuego**, del color de cada animal: queman todo menos los muros y las nubes de tormenta
   (`burnable` en `js/world/obstacles.js`). Se empieza con 3. Casi todos los cócteles salen arriba
   (solo el 15% a la altura de un salto): para recargar hay que volar, así no basta con quemar todo
-  desde el suelo. Nunca hacen falta: los 12 niveles se pueden pasar
+  desde el suelo. Nunca hacen falta: los 11 mundos se pueden pasar
   sin disparar (lo comprueban las pruebas).
-- **12 niveles** (`js/world/levels.js`): cada uno más rápido; dentro de cada nivel la velocidad
+- **12 niveles** (`js/world/levels.js`): 11 mundos, cada uno más rápido; dentro de cada nivel la velocidad
   sube un poco. Van seguidos; al terminar uno se cobran los corazones. El paso de uno al otro es
   suave (`CONFIG.transition`, 1.6 s): el cielo y el suelo del anterior se desvanecen sobre los del
   nuevo (el suelo se vuelve nubes, o al revés, poco a poco) y la velocidad pasa sin frenones de la
-  que se llevaba a la del nuevo nivel (también al llegar al jefe, que va más despacio). Después de tu mundo (el 12)
-  viene el nivel 13.
-- **Nivel 13: tu rival** (`bossLevel` en `js/world/levels.js`, `js/entities/Boss.js`), en las dos
+  que se llevaba a la del nuevo nivel (también al llegar al jefe, que va más despacio). Después de tu mundo (el 11)
+  viene el nivel 12.
+- **Nivel 12: tu rival** (`bossLevel` en `js/world/levels.js`, `js/entities/Boss.js`), en las dos
   dificultades: el animal de enfrente en la rueda (`rivalOf`: Rata–Caballo, Buey–Cabra,
   Tigre–Mono, Conejo–Gallo, Dragón–Perro, Serpiente–Cerdo), en su mundo. Todos vuelan, tengan o no
   la estrella, y ahí un golpe no quita el vuelo. Si el rival es el Dragón o el Gallo, la pelea es
@@ -164,7 +175,7 @@ control cuentan como actividad).
   - **Embestida:** marca una franja a su altura y la cruza a toda velocidad.
 
   Con la mitad de la vida descansa menos y dispara más rápido. Vencerlo da 5000 puntos (× la
-  dificultad) y termina el viaje. Para probar: `?nivel=13`.
+  dificultad) y termina el viaje. Para probar: `?nivel=12`.
 - **Golpes:** chocar con un obstáculo (o, sin suelo, con las nubes) quita un corazón (y la estrella);
   el animal da un saltito y parpadea invulnerable.
 - **Puntos:** distancia recorrida, cada obstáculo quemado, la comida con los corazones llenos, los corazones al
@@ -179,7 +190,7 @@ control cuentan como actividad).
     primer mundo. El cielo más lleno (oleadas más grandes, más seguido y más formaciones), más cosas
     que no se queman, la velocidad sube más dentro de cada nivel, cócteles cada 7–11 s, comida cada
     15–24 s y hasta 6 bolas de fuego. Los puntos valen ×1.5.
-- **HI RECORDS:** quien vence a su rival (nivel 13) y entra al top 5 de su dificultad escribe un nombre
+- **HI RECORDS:** quien vence a su rival (nivel 12) y entra al top 5 de su dificultad escribe un nombre
   de hasta 6 caracteres. Las tablas se alternan con el menú de inicio.
 - **Bucle de juego** (`js/core/Loop.js`): paso fijo de 1/60 s con interpolación, igual en
   cualquier pantalla.
@@ -249,9 +260,10 @@ Prueban, sin navegador, la física y la lógica:
   tramos de cada nivel; las nubes avisan antes del rayo;
 - que los cócteles y la comida salgan al azar pero nunca pegados a un obstáculo;
 - la racha y los puntos por rozar volando;
-- que un bot que juega como una persona, sin bolas de fuego, pase los 12 niveles en fácil y en
-  difícil sin un golpe (es decir, que todo se puede esquivar con esta física) y que tome casi todo
-  lo que sale sin chocar nunca. Tarda unos 40 s.
+- que un bot que juega como una persona, sin bolas de fuego, pase los 11 mundos en fácil y en
+  difícil sin un golpe (es decir, que todo se puede esquivar con esta física), que tome casi todo
+  lo que sale sin chocar nunca, que en cada mundo salgan los tres del trío y que lo complete en
+  casi todos; Tarda unos 40 s.
 
 ## Guardado
 
