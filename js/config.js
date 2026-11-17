@@ -28,6 +28,10 @@ export const CONFIG = {
   // La cámara: al volar más alto que un salto, deja los pies del dragón a feetAt de la orilla de
   // arriba de la pantalla (follow: qué tan rápido lo alcanza) y muestra un poco más arriba del techo
   camera: { feetAt: 130, follow: 6, overCeiling: 60 },
+  // Celular en vertical (core/view.js): la vista crece hacia arriba hasta height unidades de alto
+  // (con cielo extra), igual que en Chispas, sin pasar del alto de la pantalla menos reserve px
+  // (la cruceta y FIRE deben caber debajo). Con 840 se ve todo el cielo y la cámara ya no se mueve.
+  tallView: { query: '(orientation: portrait) and (max-width: 820px)', height: 840, reserve: 240 },
 
   // El dragón: cabeza y cinco partes de cuerpo que siguen el camino de la cabeza (px/s y px/s²).
   player: {

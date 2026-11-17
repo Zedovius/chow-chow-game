@@ -69,6 +69,13 @@ export class Input {
       button.addEventListener('lostpointercapture', release);
       button.addEventListener('contextmenu', (event) => event.preventDefault());
     }
+
+    // iPhone: mantener el dedo sobre el juego o un botón selecciona el texto, abre la lupa o el menú
+    // de copiar, aun con user-select: none en el CSS. Cancelar el toque desde que empieza lo evita
+    // (los pointer events de arriba siguen llegando; no se usan los clics de estos elementos).
+    for (const el of [surface, ...buttons]) {
+      el.addEventListener('touchstart', (event) => event.preventDefault(), { passive: false });
+    }
   }
 
   onKeyDown(event) {

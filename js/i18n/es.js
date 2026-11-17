@@ -19,9 +19,8 @@ export const es = {
   'hud.boss': 'Rival: {hp} de {max}',
 
   'controls.label': 'Controles táctiles',
-  'controls.duck': '▼ Agacharse',
-  'controls.fire': '✦ Fuego',
-  'controls.jump': '▲ Saltar',
+  'controls.dpad': 'Cruceta: arriba salta, abajo se agacha; en los menús, se mueve',
+  'controls.fire': 'Fuego; en los menús, elegir',
 
   'difficulty.prompt': 'Elige la dificultad',
 
@@ -33,9 +32,13 @@ export const es = {
   'birth.less': '{what}: uno menos',
   'birth.ok': 'Listo',
   'sign.label': 'Tu animal: {name}',
+  'sign.labelRival': 'Tu animal: {name}. Tu rival: {rival}, porque está enfrente en la rueda',
+  'rival.label': 'Tu rival',
+  'rival.why': 'Enfrente en la rueda: chocan',
   'difficulty.easy': 'Fácil',
   'difficulty.hard': 'Difícil',
   'difficulty.back': '< Cambiar idioma',
+  'sign.back': '< Volver',
   'difficulty.switchToHard': 'Cambiar a modo difícil',
   'difficulty.switchToEasy': 'Cambiar a modo fácil',
 
@@ -71,6 +74,19 @@ export const es = {
   'virtues.rooster': 'Observación · Trabajo · Valentía · Honestidad',
   'virtues.dog': 'Lealtad · Honestidad · Amistad · Prudencia',
   'virtues.pig': 'Generosidad · Compasión · Diligencia · Sinceridad',
+  // Por qué chocan tu animal y su rival (el de enfrente en la rueda, 六冲): lo tuyo contra lo suyo
+  'rivalry.rat': 'Astucia contra ímpetu',
+  'rivalry.ox': 'Lo práctico contra lo soñador',
+  'rivalry.tiger': 'Fuerza contra ingenio',
+  'rivalry.rabbit': 'Prudencia contra franqueza',
+  'rivalry.dragon': 'Ambición contra cautela',
+  'rivalry.snake': 'Misterio contra sinceridad',
+  'rivalry.horse': 'Ímpetu contra astucia',
+  'rivalry.goat': 'Lo soñador contra lo práctico',
+  'rivalry.monkey': 'Ingenio contra fuerza',
+  'rivalry.rooster': 'Franqueza contra prudencia',
+  'rivalry.dog': 'Cautela contra ambición',
+  'rivalry.pig': 'Sinceridad contra misterio',
 
   'menu.pause': 'Pausa',
   'menu.resume': 'Continuar',

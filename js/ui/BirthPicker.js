@@ -5,13 +5,17 @@
 //   ← →      pasan al siguiente número (y al botón ▶)
 //   Enter, A elige (también un clic en un número o en ▶)
 //   Esc, B   regresa
-// Con ratón o pantalla táctil, los botones ▲ ▼ de cada número.
+// Con ratón o pantalla táctil, los botones ▲ ▼ de cada número. Con pantalla táctil, ▶ es FIRE,
+// abajo del juego, y la cruceta mueve y cambia los números (ui/TouchPad.js); tocar un número
+// no elige.
 
 import { FIRST_YEAR, LAST_YEAR, daysIn, signOfBirth } from '../world/birth.js';
 import { t, onLanguageChange } from '../i18n/i18n.js';
 
 const THIS_YEAR = Math.min(LAST_YEAR, new Date().getFullYear());
 const FIELDS = ['day', 'month', 'year'];
+// Con pantalla táctil, ▶ es el botón FIRE de abajo del juego (ui/TouchPad.js)
+const touchScreen = globalThis.matchMedia?.('(any-pointer: coarse)') ?? { matches: false };
 
 function button(className, text, label) {
   const el = document.createElement('button');
@@ -45,9 +49,20 @@ export class BirthPicker {
       label.className = 'birth__label';
       up.tabIndex = -1;
       down.tabIndex = -1;
-      up.addEventListener('click', () => this.change(name, 1));
-      down.addEventListener('click', () => this.change(name, -1));
-      value.addEventListener('click', () => this.confirm());
+      // ▲ ▼ no se quedan con el foco: lo tiene su número (así se ve cuál se cambia, y FIRE o A
+      // eligen la fecha en vez de «presionar» otra vez la flecha tocada)
+      for (const [arrow, step] of [[up, 1], [down, -1]]) {
+        arrow.addEventListener('pointerdown', (event) => event.preventDefault());
+        arrow.addEventListener('click', () => {
+          this.change(name, step);
+          value.focus({ preventScroll: true });
+        });
+      }
+      // Enter, A o un clic eligen; con el dedo, tocar un número solo lo marca (para seguir está ▶
+      // abajo del juego): así no se pasa a la rueda sin querer al tocar el año
+      value.addEventListener('click', (event) => {
+        if (event.detail === 0 || !touchScreen.matches) this.confirm();
+      });
       field.append(up, value, down, label);
       row.append(field);
       this.fields[name] = { field, value, up, down, label };
@@ -76,9 +91,9 @@ export class BirthPicker {
     handled();
   }
 
-  /** Lo que se puede enfocar, en orden: los tres números y ▶. */
+  /** Lo que se puede enfocar, en orden: los tres números y ▶ (si se ve: con pantalla táctil, ▶ es FIRE, abajo del juego). */
   get stops() {
-    return [...FIELDS.map((name) => this.fields[name].value), this.ok];
+    return [...FIELDS.map((name) => this.fields[name].value), this.ok].filter((el) => el.getClientRects().length > 0);
   }
 
   move(step) {

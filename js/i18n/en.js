@@ -19,9 +19,8 @@ export const en = {
   'hud.boss': 'Rival: {hp} of {max}',
 
   'controls.label': 'Touch controls',
-  'controls.duck': '▼ Duck',
-  'controls.fire': '✦ Fire',
-  'controls.jump': '▲ Jump',
+  'controls.dpad': 'D-pad: up jumps, down ducks; in menus, it moves',
+  'controls.fire': 'Fire; in menus, select',
 
   'difficulty.prompt': 'Choose the difficulty',
 
@@ -33,9 +32,13 @@ export const en = {
   'birth.less': '{what}: one less',
   'birth.ok': 'Done',
   'sign.label': 'Your animal: {name}',
+  'sign.labelRival': 'Your animal: {name}. Your rival: {rival}, because it sits opposite on the wheel',
+  'rival.label': 'Your rival',
+  'rival.why': 'Opposite on the wheel: they clash',
   'difficulty.easy': 'Easy',
   'difficulty.hard': 'Hard',
   'difficulty.back': '< Change language',
+  'sign.back': '< Back',
   'difficulty.switchToHard': 'Switch to hard mode',
   'difficulty.switchToEasy': 'Switch to easy mode',
 
@@ -71,6 +74,19 @@ export const en = {
   'virtues.rooster': 'Observation · Hard work · Courage · Honesty',
   'virtues.dog': 'Loyalty · Honesty · Friendship · Prudence',
   'virtues.pig': 'Generosity · Compassion · Diligence · Sincerity',
+  // Why your animal and its rival clash (the one opposite on the wheel, 六冲): yours vs. theirs
+  'rivalry.rat': 'Cunning vs. drive',
+  'rivalry.ox': 'Practical vs. dreamy',
+  'rivalry.tiger': 'Strength vs. wit',
+  'rivalry.rabbit': 'Prudence vs. bluntness',
+  'rivalry.dragon': 'Ambition vs. caution',
+  'rivalry.snake': 'Mystery vs. sincerity',
+  'rivalry.horse': 'Drive vs. cunning',
+  'rivalry.goat': 'Dreamy vs. practical',
+  'rivalry.monkey': 'Wit vs. strength',
+  'rivalry.rooster': 'Bluntness vs. prudence',
+  'rivalry.dog': 'Caution vs. ambition',
+  'rivalry.pig': 'Sincerity vs. mystery',
 
   'menu.pause': 'Pause',
   'menu.resume': 'Resume',

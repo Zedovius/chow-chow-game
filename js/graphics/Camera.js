@@ -2,16 +2,19 @@
 // alturas de salto): mientras el dragón corre, la pantalla muestra el suelo como siempre; al
 // volar alto, la cámara sube con él, suave, y se detiene un poco arriba del techo del cielo.
 //
-// y: lo que se ve arriba de la pantalla, en coordenadas del mundo (0 = como siempre; negativo =
-// más arriba). Solo afecta el dibujo: la física no sabe de la cámara.
+// y: lo que se ve arriba de la pantalla normal (sin la franja de la vista alta), en coordenadas del
+// mundo (0 = como siempre; negativo = más arriba). Solo afecta el dibujo: la física no sabe de la
+// cámara. En la vista alta del celular (core/view.js) arriba se ve VIEW.top de cielo más: la cámara
+// sube solo si el dragón pasa de ahí (con la vista más alta, nunca).
 
 import { CONFIG } from '../config.js';
+import { VIEW } from '../core/view.js';
 
 /** Dónde quiere estar la cámara para que se vea bien un dragón con los pies en feetY. */
-export function cameraTarget(feetY) {
+export function cameraTarget(feetY, top = VIEW.top) {
   const { feetAt, overCeiling } = CONFIG.camera;
-  const highest = CONFIG.ceilingY - overCeiling;
-  return Math.min(0, Math.max(highest, feetY - feetAt));
+  const highest = CONFIG.ceilingY - overCeiling + top;
+  return Math.min(0, Math.max(highest, feetY - feetAt + top));
 }
 
 export class Camera {

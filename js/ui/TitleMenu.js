@@ -1,7 +1,7 @@
 // Menú de la pantalla de inicio, en cuatro pasos:
 //   1. el idioma ("English" / "Español"), que se elige primero para que lo demás ya salga traducido;
 //   2. la fecha de nacimiento: mes y año, y el día si hace falta (ui/BirthPicker.js);
-//   3. la rueda del zodiaco gira y le da su animal (ui/ZodiacWheel.js);
+//   3. la rueda del zodiaco gira y le da su animal (ui/ZodiacWheel.js); «< Volver» regresa a la fecha;
 //   4. la dificultad (fácil / difícil); elegirla empieza el juego con ese animal (onStart).
 // Esc regresa un paso; "Cambiar idioma" vuelve al primero. La última dificultad elegida se recuerda;
 // la fecha no se guarda (en una máquina de bar juega gente distinta).
@@ -37,11 +37,11 @@ function store(value) {
 export class TitleMenu {
   /**
    * @param {{ languageStep: HTMLElement, languageChoice: HTMLElement, birthStep: HTMLElement,
-   *           birthPicker: HTMLElement, signStep: HTMLElement, wheel: HTMLElement,
+   *           birthPicker: HTMLElement, signStep: HTMLElement, wheel: HTMLElement, signBack?: HTMLElement,
    *           difficultyStep: HTMLElement, difficultyChoice: HTMLElement, back: HTMLElement,
    *           onStart: (difficulty: string, sign: string) => void }} options
    */
-  constructor({ languageStep, languageChoice, birthStep, birthPicker, signStep, wheel, difficultyStep, difficultyChoice, back, onStart }) {
+  constructor({ languageStep, languageChoice, birthStep, birthPicker, signStep, wheel, signBack, difficultyStep, difficultyChoice, back, onStart }) {
     this.steps = { language: languageStep, birth: birthStep, sign: signStep, difficulty: difficultyStep };
     this.onStart = onStart;
     this.sign = null; // el animal que le dio la rueda ('rat', 'ox'...)
@@ -59,7 +59,10 @@ export class TitleMenu {
         this.show('difficulty');
       },
       onBack: () => this.show('birth'),
+      back: signBack,
     });
+    // «< Volver» de la rueda: a la fecha, que conserva lo que eligió (por si se equivocó)
+    signBack?.addEventListener('click', () => this.show('birth'));
     this.buttons = [...difficultyChoice.querySelectorAll('[data-difficulty]')];
     const stored = readStored();
     this.difficulty = this.buttons.some((b) => b.dataset.difficulty === stored) ? stored : 'easy';

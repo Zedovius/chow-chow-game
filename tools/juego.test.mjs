@@ -987,6 +987,15 @@ test('cada animal tiene su símbolo, su nombre en chino simplificado, su pinyin 
     assert.match(sign.simplified, /^\p{Script=Han}$/u, `${sign.id}: simplificado`);
     assert.ok(sign.pinyin.length > 0);
     for (const dict of [es, en]) assert.equal(dict[`virtues.${sign.id}`].split(' · ').length, 4, `${sign.id}: virtudes`);
+    // Y por qué choca con su rival: lo suyo contra lo del rival (y el rival dice lo mismo al revés)
+    const rival = rivalOf(sign.id);
+    for (const dict of [es, en]) {
+      const [mine, theirs] = dict[`rivalry.${sign.id}`].toLowerCase().split(/ contra | vs\. /);
+      const [theirsBack, mineBack] = dict[`rivalry.${rival.id}`].toLowerCase().split(/ contra | vs\. /);
+      assert.ok(mine && theirs, `${sign.id}: por qué choca con su rival`);
+      assert.equal(mine, mineBack, `${sign.id} contra ${rival.id}`);
+      assert.equal(theirs, theirsBack, `${sign.id} contra ${rival.id}`);
+    }
   }
 });
 
@@ -1008,4 +1017,22 @@ test('los avisos llegan a quien escucha, y un error al atenderlos no detiene a l
     console.error = quiet;
   }
   assert.deepEqual(heard, [2]);
+});
+
+test('la cruceta táctil: una dirección a la vez, nada en el centro y sin cambiar de eje por accidente', async () => {
+  const { padDirection } = await import('../js/ui/TouchPad.js');
+  assert.equal(padDirection(0, 0), null);
+  assert.equal(padDirection(0.1, -0.15), null); // el centro
+  assert.equal(padDirection(0, -0.7), 'up');
+  assert.equal(padDirection(0, 0.7), 'down');
+  assert.equal(padDirection(-0.7, 0), 'left');
+  assert.equal(padDirection(0.7, 0), 'right');
+  // Nunca dos: en diagonal gana el eje más marcado
+  assert.equal(padDirection(0.6, -0.5), 'right');
+  // Con el pulgar en ▲, irse un poco a la derecha no cambia a ▶...
+  assert.equal(padDirection(0.6, -0.5, 'up'), 'up');
+  // ...solo si de verdad se pasa al otro lado
+  assert.equal(padDirection(0.8, -0.4, 'up'), 'right');
+  assert.equal(padDirection(-0.45, 0.55, 'left'), 'left');
+  assert.equal(padDirection(-0.3, 0.7, 'left'), 'down');
 });

@@ -1,13 +1,16 @@
 // La rueda del zodiaco: los 12 animales en círculo. Al elegir la fecha, gira unas vueltas y se
 // detiene con el animal que le toca arriba, bajo la flecha. Entonces, a su lado, su tarjeta: el
 // animal en grande, su símbolo (el carácter tradicional), su nombre en chino simplificado con su
-// pinyin, su nombre en el idioma del juego y sus cuatro virtudes; y ▶.
-// Enter, A o ▶ siguen; Esc o B regresan a la fecha.
+// pinyin, su nombre en el idioma del juego y sus cuatro virtudes; abajo, su rival (el animal de
+// enfrente en la rueda, contra quien pelea en el nivel 13) y por qué chocan; y ▶. En la rueda, una
+// línea une al animal con su rival, que queda abajo, enfrente.
+// Enter, A o ▶ siguen (mientras gira, la detienen de una vez); Esc, B o «< Volver» regresan a la
+// fecha (← lleva a «< Volver»).
 //
 // Cada animal es, por ahora, un disco de su color con su inicial (PROVISIONAL): cuando haya arte, su
 // icono (IMAGES.animals[id].icon en graphics/assets.js) ocupa su lugar.
 
-import { ZODIAC } from '../world/levels.js';
+import { ZODIAC, rivalOf } from '../world/levels.js';
 import { IMAGES } from '../graphics/assets.js';
 import { t, onLanguageChange } from '../i18n/i18n.js';
 
@@ -16,9 +19,13 @@ const TURNS = 3; // vueltas completas antes de detenerse
 const SPIN_SECONDS = 2.4;
 
 export class ZodiacWheel {
-  /** root: donde va la rueda; onDone(sign): siguió con ese animal; onBack: regresar a la fecha. */
-  constructor(root, { onDone, onBack }) {
+  /**
+   * root: donde va la rueda; onDone(sign): siguió con ese animal; onBack: regresar a la fecha;
+   * back: el botón «< Volver» (← lo enfoca).
+   */
+  constructor(root, { onDone, onBack, back = null }) {
     this.root = root;
+    this.back = back;
     this.onDone = onDone;
     this.onBack = onBack;
     this.sign = null;
@@ -45,9 +52,13 @@ export class ZodiacWheel {
     const pointer = document.createElement('span');
     pointer.className = 'wheel__pointer';
     pointer.setAttribute('aria-hidden', 'true');
+    // La línea del choque: de arriba (el animal) a abajo (su rival), por el centro
+    const clash = document.createElement('span');
+    clash.className = 'wheel__clash';
+    clash.setAttribute('aria-hidden', 'true');
     const dial = document.createElement('div');
     dial.className = 'wheel__dial';
-    dial.append(this.ring, pointer);
+    dial.append(clash, this.ring, pointer);
 
     // La tarjeta del animal (aparece al detenerse)
     const make = (tag, className, parent) => {
@@ -65,12 +76,21 @@ export class ZodiacWheel {
     this.chinese = make('p', 'wheel__chinese', this.card);
     this.name = make('p', 'wheel__name', this.card);
     this.virtues = make('ul', 'wheel__virtues', this.card);
+    // Su rival y por qué
+    const rival = make('div', 'wheel__rival', this.card);
+    this.rivalLabel = make('span', 'wheel__rival-label', rival);
+    this.rivalDisc = make('span', 'wheel__rival-disc', rival);
+    this.rivalHanzi = make('span', 'wheel__rival-hanzi', rival);
+    this.rivalHanzi.lang = 'zh-Hant';
+    this.rivalName = make('span', 'wheel__rival-name', rival);
+    this.why = make('p', 'wheel__why', this.card);
     this.ok = make('button', 'button button--primary wheel__ok', this.card);
     this.ok.type = 'button';
     this.ok.textContent = '▶';
     this.ok.addEventListener('click', () => this.confirm());
     root.replaceChildren(dial, this.card);
     root.dataset.nativeKeys = '';
+    root.tabIndex = -1; // para tener el foco cuando ▶ no se ve (con pantalla táctil, ▶ es FIRE)
 
     this.ring.addEventListener('transitionend', () => this.stop());
     root.addEventListener('keydown', (event) => {
@@ -79,10 +99,11 @@ export class ZodiacWheel {
         event.stopPropagation();
         this.onBack();
       } else if (event.key.startsWith('Arrow')) {
-        // Las flechas no hacen nada aquí (solo hay ▶), pero no le llegan al juego
+        // ← va a «< Volver»; las demás, a ▶. No le llegan al juego
         event.preventDefault();
         event.stopPropagation();
-        this.ok.focus();
+        if (event.key === 'ArrowLeft' && this.back) this.back.focus();
+        else this.focus();
       }
     });
     onLanguageChange(() => this.render());
@@ -112,13 +133,15 @@ export class ZodiacWheel {
     this.stopped = true;
     clearTimeout(this.timer);
     this.render();
-    this.ok.focus({ preventScroll: true });
+    this.focus();
   }
 
   render() {
+    const rival = this.sign ? rivalOf(this.sign.id) : null;
     for (const { sign, token } of this.tokens) {
       token.textContent = token.querySelector('img') ? '' : t(`zodiac.${sign.id}`).slice(0, 1);
       token.classList.toggle('is-chosen', this.stopped && sign === this.sign);
+      token.classList.toggle('is-rival', this.stopped && sign === rival);
     }
     const sign = this.stopped ? this.sign : null;
     this.root.classList.toggle('is-stopped', Boolean(sign));
@@ -151,17 +174,47 @@ export class ZodiacWheel {
         li.textContent = virtue;
         return li;
       }));
+      // Su rival: su icono (o su disco), su símbolo y su nombre; y por qué chocan
+      this.rivalLabel.textContent = t('rival.label');
+      this.rivalDisc.style.setProperty('--color', rival.body);
+      const rivalIcon = IMAGES.animals?.[rival.id]?.icon;
+      this.rivalDisc.replaceChildren();
+      if (rivalIcon) {
+        const img = new Image();
+        img.src = rivalIcon;
+        img.alt = '';
+        this.rivalDisc.append(img);
+      } else {
+        this.rivalDisc.textContent = t(`zodiac.${rival.id}`).slice(0, 1);
+      }
+      this.rivalHanzi.textContent = rival.hanzi;
+      this.rivalName.textContent = t(`zodiac.${rival.id}`);
+      const chong = document.createElement('span');
+      chong.lang = 'zh-Hans';
+      chong.textContent = '六冲';
+      const contrast = document.createElement('span');
+      contrast.className = 'wheel__contrast';
+      contrast.textContent = t(`rivalry.${sign.id}`);
+      this.why.replaceChildren(chong, ` · ${t('rival.why')}`, document.createElement('br'), contrast);
     }
     this.ok.hidden = !this.stopped;
-    this.root.setAttribute('aria-label', this.stopped && this.sign ? t('sign.label', { name: t(`zodiac.${this.sign.id}`) }) : '');
+    this.root.setAttribute('aria-label', sign ? t('sign.labelRival', { name: t(`zodiac.${sign.id}`), rival: t(`zodiac.${rival.id}`) }) : '');
   }
 
+  /** El foco en ▶ si se ve; si no (girando, o con pantalla táctil), en la rueda misma. */
   focus() {
-    if (this.stopped) this.ok.focus({ preventScroll: true });
+    if (this.stopped && this.ok.getClientRects().length) this.ok.focus({ preventScroll: true });
+    else this.root.focus({ preventScroll: true });
   }
 
-  /** Enter, A o ▶: sigue con el animal (solo cuando la rueda ya se detuvo). */
+  /** Enter, A o ▶: sigue con el animal; si aún gira, se detiene de una vez y muestra la tarjeta. */
   confirm() {
-    if (this.stopped && this.sign) this.onDone(this.sign);
+    if (!this.sign) return;
+    if (!this.stopped) {
+      this.ring.style.transition = 'none'; // salta al final del giro (--spin ya es el ángulo final)
+      this.stop();
+      return;
+    }
+    this.onDone(this.sign);
   }
 }

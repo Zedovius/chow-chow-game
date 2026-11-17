@@ -32,12 +32,24 @@ y abre `http://localhost:8000/`.
 
 | Acción | Teclado | Táctil / ratón | Control |
 |---|---|---|---|
-| Saltar (mantener: más alto) | Espacio, ↑, W | Mitad derecha del juego, botón «Saltar», clic | A, ↑ |
+| Saltar (mantener: más alto) | Espacio, ↑, W | Mitad derecha del juego, ▲ de la cruceta, clic | A, ↑ |
 | Aletear (en el aire: volar) | Espacio, ↑, W | Igual que saltar | A, ↑ |
-| Agacharse / en el aire, caer más rápido | ↓, S (mantener) | Mitad izquierda del juego, botón «Agacharse» | B, ↓ |
-| Bola de fuego | X, J, F | Botón «Fuego» | X, Y |
+| Agacharse / en el aire, caer más rápido | ↓, S (mantener) | Mitad izquierda del juego, ▼ de la cruceta | B, ↓ |
+| Bola de fuego | X, J, F | Botón FIRE | X, Y |
 | Pausa | Esc, P | Botón ⏸ | Start |
 | Silenciar | M | — | — |
+
+Con pantalla táctil salen una cruceta y un botón redondo FIRE (`js/ui/TouchPad.js`), que llegan al
+juego como un control más (`GamepadInput.virtual`): en los menús, la fecha, la rueda, la pausa y el
+nombre del récord la cruceta se mueve (mantener ▲ ▼ recorre las letras) y FIRE elige (ahí dice ▶);
+dentro del juego ya no sale ▶. La cruceta manda una sola dirección a la vez, nada en el centro, y no
+cambia de eje si el pulgar solo se desvía un poco. En el celular en vertical van abajo; en
+horizontal, a los lados del juego. Con un menú abierto se pasan adentro del `<dialog>` (que deja
+inerte lo de afuera). En un celular en vertical la
+vista es más alta, como en Chispas (`tallView` en `js/config.js`, `js/core/view.js`): hasta 840
+unidades de alto, con cielo extra arriba; se ve todo el cielo y la cámara ya no se mueve. Nada de la
+página se puede seleccionar como texto (en iPhone, el toque largo ya no abre la lupa ni el menú de
+copiar).
 
 Funciona con controles de Xbox, PlayStation, genéricos, el joystick del arcade (que viene girado
 90° y se endereza solo) y el control remoto de las teles. Start mantenido 3 segundos en la pantalla
@@ -52,10 +64,14 @@ control cuentan como actividad).
 
 - **Tu animal** (`js/world/birth.js`, `js/ui/BirthPicker.js`, `js/ui/ZodiacWheel.js`): después del
   idioma se elige la fecha de nacimiento: día, mes y año (el año chino empieza con el Año Nuevo
-  lunar, entre el 21 de enero y el 20 de febrero; las fechas de 1924 a 2043 están en `birth.js`). La rueda del zodiaco gira y se detiene en el animal que le
-  toca. Junto a la rueda sale su tarjeta: el animal, su símbolo (el carácter tradicional, como
+  lunar, entre el 21 de enero y el 20 de febrero; las fechas de 1924 a 2043 están en `birth.js`,
+  comprobadas con el cálculo astronómico de cada luna nueva en hora de China). La rueda del zodiaco
+  gira y se detiene en el animal que le toca (▶ o FIRE mientras gira la detienen de una vez);
+  «< Volver» regresa a la fecha, que conserva lo elegido, por si se equivocó. Junto a la rueda sale su tarjeta: el animal, su símbolo (el carácter tradicional, como
   龍), su nombre en chino simplificado con su pinyin (龙 · lóng), su nombre en el idioma del juego y
-  sus cuatro virtudes (`virtues.<animal>` en `js/i18n/`). Los caracteres chinos usan una fuente china
+  sus cuatro virtudes (`virtues.<animal>` en `js/i18n/`), y abajo su rival (el de enfrente en la
+  rueda, 六冲, contra quien pelea en el nivel 13) con el porqué del choque (`rivalry.<animal>`, lo
+  suyo contra lo del rival); en la rueda, una línea punteada une a los dos. Los caracteres chinos usan una fuente china
   del sistema (la fuente pixel no los tiene). Con ese animal se juega. La fecha no se guarda: en una
   máquina de bar juega gente distinta.
 - **El orden de los mundos** (`worldOrder` en `js/world/levels.js`): empieza en el animal que sigue

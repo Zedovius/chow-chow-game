@@ -172,6 +172,8 @@
           </div>
           <div class="title-screen__step" id="sign-step" hidden>
             <div class="wheel" id="zodiac-wheel" role="group"></div>
+            <!-- Por si se equivocó de fecha -->
+            <button class="title-screen__back" type="button" data-i18n="sign.back">&lt; Volver</button>
           </div>
           <div class="title-screen__step" id="difficulty-step" data-native-keys hidden>
             <p class="title-screen__prompt" id="difficulty-prompt" data-i18n="difficulty.prompt">Elige la dificultad</p>
@@ -189,12 +191,25 @@
       </section>
     </section>
 
-    <!-- Botones táctiles (se muestran con pantalla táctil, ver css/styles.css). Además, tocar la
-         mitad izquierda del juego agacha y la derecha salta. -->
+    <!-- Con pantalla táctil (ver css/styles.css): la cruceta y FIRE, como un control (js/ui/TouchPad.js).
+         ▲ salta, ▼ agacha y FIRE dispara; en los menús la cruceta se mueve y FIRE elige (dice ▶).
+         Además, tocar la mitad izquierda del juego agacha y la derecha salta. -->
     <section class="touch-controls" aria-label="Controles táctiles" data-i18n-attr="aria-label:controls.label">
-      <button class="touch-controls__button" type="button" data-action="duck" data-i18n="controls.duck">▼ Agacharse</button>
-      <button class="touch-controls__button touch-controls__button--fire" type="button" data-action="fire" data-i18n="controls.fire">✦ Fuego</button>
-      <button class="touch-controls__button touch-controls__button--jump" type="button" data-action="jump" data-i18n="controls.jump">▲ Saltar</button>
+      <div class="dpad" id="dpad" role="img" aria-label="Cruceta" data-i18n-attr="aria-label:controls.dpad">
+        <div class="dpad__cross" aria-hidden="true">
+          <span class="dpad__arm dpad__arm--up"></span>
+          <span class="dpad__arm dpad__arm--left"></span>
+          <span class="dpad__hub"></span>
+          <span class="dpad__arm dpad__arm--right"></span>
+          <span class="dpad__arm dpad__arm--down"></span>
+        </div>
+      </div>
+      <button class="pad-fire" id="pad-fire" type="button" aria-label="Fuego" data-i18n-attr="aria-label:controls.fire">
+        <span class="pad-fire__cap" aria-hidden="true">
+          <span class="pad-fire__label pad-fire__label--fire">FIRE</span>
+          <span class="pad-fire__label pad-fire__label--ok">▶</span>
+        </span>
+      </button>
     </section>
   </main>
 

@@ -7,6 +7,9 @@
 // el D-pad manda flechas al elemento enfocado (las atiende ui/arrowKeys.js) y A lo elige.
 // Por privacidad, el navegador solo "ve" el control después de presionar un botón en la página.
 //
+// La cruceta y el botón FIRE de las pantallas táctiles (ui/TouchPad.js) llegan aquí como un control
+// más (virtual): así mueven los menús, la fecha, la rueda y el nombre del récord igual que la palanca.
+//
 // Un joystick puede mandar sus direcciones giradas (en los de arcade pasa si la palanca o su cable
 // quedaron montados de lado en la caja). Para eso está el ajuste de la palanca (ui/stickSetup.js):
 // se abre manteniendo Start 3 segundos en la pantalla de inicio y aquí se recuerda, por el nombre
@@ -83,7 +86,8 @@ function loadTurns() {
 
 // En el juego: qué acción da cada botón
 // A salta (y aletea), B y abajo agachan, X y Y lanzan bolas de fuego
-const GAME_ACTIONS = { a: ['jump', 'confirm'], up: ['jump'], down: ['duck'], b: ['duck'], x: ['fire'], y: ['fire'], start: ['pause'] };
+// fire: el botón FIRE de la pantalla táctil (en los menús, como A: elige)
+const GAME_ACTIONS = { a: ['jump', 'confirm'], up: ['jump'], down: ['duck'], b: ['duck'], x: ['fire'], y: ['fire'], fire: ['fire'], start: ['pause'] };
 // En los menús: qué flecha manda cada dirección
 const MENU_KEYS = { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' };
 
@@ -105,6 +109,7 @@ export class GamepadInput {
     this.raw = new Map(); // las direcciones sin girar de cada control en el cuadro anterior
     this.startSince = null; // desde cuándo se mantiene Start en la pantalla de inicio
     this.repeat = null; // al escribir el nombre: qué dirección se mantiene y cuándo se repite
+    this.virtualHeld = new Set(); // lo que se mantiene en la pantalla táctil (ui/TouchPad.js)
     this.running = false;
     this.poll = this.poll.bind(this);
 
@@ -169,22 +174,45 @@ export class GamepadInput {
       this.running = true;
       requestAnimationFrame(this.poll);
     }
-    if (!connected) this.releaseAll();
+    if (!connected && !this.virtualHeld.size) this.releaseAll();
   }
 
-  poll() {
-    if (!this.connected) {
-      this.running = false;
-      this.releaseAll();
-      return;
+  /**
+   * Un botón de la pantalla táctil (ui/TouchPad.js): 'up' | 'down' | 'left' | 'right' | 'fire'.
+   * Cuenta al momento (sin esperar al siguiente cuadro) y, mientras se mantenga, se sigue leyendo
+   * (para recorrer las letras manteniendo arriba o abajo).
+   */
+  virtual(name, down) {
+    if (down) this.virtualHeld.add(name);
+    else this.virtualHeld.delete(name);
+    this.step();
+    if (!this.running && this.virtualHeld.size) {
+      this.running = true;
+      requestAnimationFrame(this.poll);
     }
+  }
+
+  /** Lo que se presionó y se soltó desde la última lectura, de los controles y de la pantalla táctil. */
+  step() {
     // Al abrir o cerrar un menú con la palanca movida, su dirección cambia de nombre: la de antes se
     // suelta (onRelease) y la nueva se presiona, así no queda un salto o una agachada pegados
     const now = readPads(this.turns, !this.inMenu || this.writingName);
+    for (const name of this.virtualHeld) now.add(name);
     for (const name of now) if (!this.held.has(name)) this.onPress(name);
     for (const name of this.held) if (!now.has(name)) this.onRelease(name);
     this.held = now;
     this.repeatLetter(now);
+    return now;
+  }
+
+  poll() {
+    if (!this.connected && !this.virtualHeld.size) {
+      this.running = false;
+      this.step(); // suelta lo último que se mantenía
+      this.releaseAll();
+      return;
+    }
+    const now = this.step();
     if (this.listener) this.feedRaw();
     this.watchStart(now);
     requestAnimationFrame(this.poll);
@@ -276,9 +304,10 @@ export class GamepadInput {
       return;
     }
     const dialog = this.dialog;
-    if (name === 'a') {
+    if (name === 'a' || name === 'fire') {
+      // Solo un botón que se ve: el foco puede quedarse en uno de un paso ya oculto (Safari)
       const focused = document.activeElement;
-      if (focused instanceof HTMLButtonElement && !focused.disabled) focused.click();
+      if (focused instanceof HTMLButtonElement && !focused.disabled && focused.getClientRects().length) focused.click();
       // Sin nada enfocado, como Enter: la pantalla de inicio elige lo marcado
       else if (!dialog) this.tap('confirm');
     } else if ((name === 'start' || name === 'b') && dialog) {

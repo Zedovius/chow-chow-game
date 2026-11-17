@@ -7,6 +7,8 @@ import { listenToRemote } from './core/Remote.js';
 import { Game } from './core/Game.js';
 import { Events } from './core/events.js';
 import { touch } from './core/activity.js';
+import { VIEW, setViewTop } from './core/view.js';
+import { CONFIG } from './config.js';
 import { AudioManager, connectAudio } from './audio/Audio.js';
 import { loadImages } from './graphics/assets.js';
 import { HUD } from './ui/HUD.js';
@@ -14,14 +16,22 @@ import { Dialogs } from './ui/Dialogs.js';
 import { TitleMenu } from './ui/TitleMenu.js';
 import { TitleBoards } from './ui/TitleBoards.js';
 import { Legend } from './ui/Legend.js';
+import { TouchPad } from './ui/TouchPad.js';
 import { boardsNode } from './ui/leaderboard.js';
 import { setUpStick } from './ui/stickSetup.js';
 import { applyLanguage, onLanguageChange, t } from './i18n/i18n.js';
 
 applyLanguage();
 
+// Nada de la página se selecciona como texto (en iPhone, un toque largo o un doble toque en un
+// botón lo hacía); el CSS ya lo pide (user-select: none) y esto cubre a Safari. Solo se puede escribir
+// y seleccionar en los campos de texto.
+document.addEventListener('selectstart', (event) => {
+  if (!(event.target instanceof Element && event.target.closest('input, textarea, [contenteditable]'))) event.preventDefault();
+});
+
 const canvas = document.getElementById('game-canvas');
-const input = new Input({ surface: canvas, buttons: document.querySelectorAll('.touch-controls__button') });
+const input = new Input({ surface: canvas });
 // El control remoto de las teles: sus botones se traducen a las teclas de siempre
 listenToRemote();
 
@@ -55,6 +65,14 @@ const gamepad = new GamepadInput(input, {
   onSetup: () => setUpStick({ gamepad, dialogs }),
 });
 
+// Con pantalla táctil: la cruceta y FIRE, que llegan como un control más (ver ui/TouchPad.js)
+new TouchPad({
+  dpad: document.getElementById('dpad'),
+  fire: document.getElementById('pad-fire'),
+  dialog: dialogs.el,
+  gamepad,
+});
+
 const hud = new HUD({
   level: document.getElementById('hud-level'),
   lives: document.getElementById('hud-lives'),
@@ -75,6 +93,7 @@ const titleMenu = new TitleMenu({
   birthPicker: document.getElementById('birth-picker'),
   signStep: document.getElementById('sign-step'),
   wheel: document.getElementById('zodiac-wheel'),
+  signBack: document.querySelector('#sign-step .title-screen__back'),
   difficultyStep: document.getElementById('difficulty-step'),
   difficultyChoice: document.getElementById('difficulty-choice'),
   back: document.querySelector('#difficulty-step .title-screen__back'),
@@ -108,6 +127,36 @@ const game = new Game({
     confirm: () => titleMenu.confirm(),
   },
 });
+
+// En un celular en vertical la vista se hace más alta (más cielo arriba, core/view.js), como en
+// Chispas: el canvas cambia de proporción. Se recalcula al girar el teléfono.
+const tallView = window.matchMedia(CONFIG.tallView.query);
+/** Franja extra: hasta CONFIG.tallView.height, sin pasar del alto de la pantalla (los botones deben caber). */
+function tallViewTop() {
+  if (!tallView.matches) return 0;
+  const { height, reserve } = CONFIG.tallView;
+  const room = ((window.innerHeight - reserve) * CONFIG.width) / Math.max(1, canvas.clientWidth);
+  const view = Math.min(height, Math.floor(room / 2) * 2); // par: el canvas mide la mitad
+  return Math.max(0, view - CONFIG.height);
+}
+function updateView() {
+  // El CSS pone el juego de orilla a orilla y arriba en la vista alta: primero eso, luego se mide
+  document.documentElement.dataset.view = tallView.matches ? 'tall' : 'wide';
+  setViewTop(tallViewTop());
+  if (!VIEW.tall) document.documentElement.dataset.view = 'wide';
+  game.scene.fit();
+  game.camera.snap(game.player.y);
+}
+tallView.addEventListener('change', updateView);
+// Solo al cambiar el ancho (girar, pantalla dividida): la barra del navegador que aparece y
+// desaparece al desplazarse cambia el alto y no debe mover el juego
+let lastWidth = window.innerWidth;
+window.addEventListener('resize', () => {
+  if (window.innerWidth === lastWidth) return;
+  lastWidth = window.innerWidth;
+  updateView();
+});
+updateView();
 
 document.getElementById('pause-button').addEventListener('click', () => game.pause());
 onLanguageChange(() => game.refreshTexts());

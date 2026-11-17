@@ -28,6 +28,8 @@
   --c-gold-soft: #ffbf47;
   --c-gold-dark: #b5520a;
   --c-heart: #e5487f;
+  --c-fire: #e8452c; /* el botón FIRE de la pantalla táctil */
+  --c-fire-dark: #7a1d10;
   --c-text: #ece8f6;
   --c-muted: #8c88b0;
   --px: 3px;
@@ -41,17 +43,45 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Una sola columna del ancho de la pantalla: sin ella, lo de adentro (los botones táctiles) podía
+   hacerla más ancha que el celular y el juego se cortaba a la derecha */
 body {
   margin: 0;
   min-height: 100vh;
   min-height: 100dvh;
   display: grid;
+  grid-template-columns: 100%;
   place-items: center;
   background: var(--c-night-900);
   color: var(--c-text);
   font-family: var(--font-text);
   font-size: 18px;
   line-height: 1.4;
+  overflow-x: hidden;
+  /* Es un juego, no una página: nada se selecciona como texto ni abre el menú de copiar o la lupa
+     (en iPhone, al mantener el dedo o tocar dos veces). Sin zoom con doble toque. main.js y
+     core/Input.js lo refuerzan para Safari. Solo los campos de texto se pueden seleccionar. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* Vista alta (celular en vertical, ver core/view.js): el juego va arriba y a todo lo ancho */
+[data-view="tall"] body {
+  place-items: start center;
 }
 
 .visually-hidden {
@@ -70,6 +100,10 @@ body {
   padding: var(--gutter);
 }
 
+[data-view="tall"] .game {
+  width: 100%;
+}
+
 .stage {
   position: relative;
   container-type: inline-size;
@@ -78,10 +112,40 @@ body {
   box-shadow: 0 0 0 var(--px) var(--c-night-600);
 }
 
+/* En el celular en vertical el escenario va de orilla a orilla (solo con marco arriba y abajo),
+   como en Chispas */
+@media (max-width: 520px) {
+  .stage {
+    margin-inline: calc(var(--gutter) * -1);
+    box-shadow:
+      0 calc(var(--px) * -1) 0 0 var(--c-night-600),
+      0 var(--px) 0 0 var(--c-night-600);
+  }
+}
+
+/* En la vista alta, el marcador y la leyenda crecen un poco: en un celular, a la medida del ancho,
+   quedaban diminutos */
+[data-view="tall"] .hud {
+  flex-wrap: wrap;
+  row-gap: 1em;
+  font-size: 2.6cqw;
+}
+
+/* El nombre del nivel, en su propia línea debajo del marcador (sobra cielo arriba) */
+[data-view="tall"] .hud__level {
+  order: 1;
+  flex-basis: 100%;
+}
+
+[data-view="tall"] .legend {
+  top: 30%;
+  font-size: 3.2cqw;
+}
+
 .stage__canvas {
   display: block;
   width: 100%;
-  aspect-ratio: 8 / 3;
+  aspect-ratio: 8 / 3; /* en la vista alta, Scene.fit lo cambia (800 / alto de la vista) */
   image-rendering: pixelated;
   touch-action: none;
   background: var(--c-black);
@@ -616,6 +680,7 @@ body {
   justify-items: center;
   gap: clamp(8px, 3cqw, 48px);
   font-family: var(--font-pixel);
+  --u: 1cqh; /* la medida de la rueda y la tarjeta: en el celular en vertical, más chica */
 }
 
 /* La tarjeta del animal, al lado de la rueda: el animal, su símbolo, su nombre en chino y sus
@@ -623,8 +688,8 @@ body {
 .wheel__card {
   display: grid;
   justify-items: center;
-  gap: clamp(3px, 1.2cqh, 12px);
-  min-width: 40cqh;
+  gap: clamp(3px, calc(1.2 * var(--u)), 12px);
+  min-width: calc(40 * var(--u));
   animation: ammo-pop 0.5s steps(5) both;
 }
 
@@ -635,18 +700,18 @@ body {
 .wheel__top {
   display: flex;
   align-items: center;
-  gap: clamp(6px, 2cqh, 20px);
+  gap: clamp(6px, calc(2 * var(--u)), 20px);
 }
 
 .wheel__portrait {
   display: grid;
   place-items: center;
-  width: 18cqh;
-  height: 18cqh;
+  width: calc(14 * var(--u));
+  height: calc(14 * var(--u));
   border-radius: 50%;
   background: var(--color);
   color: var(--c-black);
-  font-size: 8cqh;
+  font-size: calc(6.5 * var(--u));
   text-shadow: none;
   box-shadow: 0 0 0 var(--px) var(--c-gold), 0 0 0 calc(var(--px) * 2) var(--c-black);
 }
@@ -658,13 +723,15 @@ body {
 
 /* Los caracteres chinos: la fuente pixel no los tiene; van con una fuente china del sistema */
 .wheel__hanzi,
-.wheel__chinese [lang] {
+.wheel__chinese [lang],
+.wheel__rival-hanzi,
+.wheel__why [lang] {
   font-family: "Noto Sans SC", "Noto Sans TC", "Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Heiti SC", sans-serif;
   font-weight: 700;
 }
 
 .wheel__hanzi {
-  font-size: 20cqh;
+  font-size: calc(15 * var(--u));
   line-height: 1;
   color: var(--c-gold-soft);
 }
@@ -683,7 +750,7 @@ body {
 .wheel__virtues {
   display: grid;
   grid-template-columns: auto auto;
-  gap: 0.4em 1.2em;
+  gap: 0.25em 1.2em;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -697,11 +764,67 @@ body {
   color: var(--c-gold);
 }
 
+/* Su rival (el de enfrente en la rueda) y por qué chocan */
+.wheel__rival {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding-top: 0.4em;
+  border-top: var(--px) solid var(--c-night-600);
+  font-size: clamp(8px, 1.5cqw, 24px);
+}
+
+.wheel__rival-label {
+  color: var(--c-heart);
+  text-transform: uppercase;
+}
+
+.wheel__rival-disc {
+  display: grid;
+  place-items: center;
+  width: 2.2em;
+  height: 2.2em;
+  border-radius: 50%;
+  background: var(--color);
+  color: var(--c-black);
+  text-shadow: none;
+  box-shadow: 0 0 0 var(--px) var(--c-heart), 0 0 0 calc(var(--px) * 2) var(--c-black);
+}
+
+.wheel__rival-disc img {
+  width: 100%;
+  image-rendering: pixelated;
+}
+
+.wheel__rival-hanzi {
+  font-size: 1.8em;
+  line-height: 1;
+  color: var(--c-heart);
+}
+
+.wheel__rival-name {
+  color: var(--c-moon);
+  text-transform: uppercase;
+}
+
+.wheel__why {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: clamp(7px, 1.25cqw, 20px);
+  line-height: 1.4;
+  color: var(--c-muted);
+  text-align: center;
+}
+
+.wheel__contrast {
+  color: var(--c-moon-dim);
+}
+
 .wheel__dial {
   position: relative;
-  width: 52cqh;
-  height: 52cqh;
-  margin-top: 3cqh;
+  width: calc(52 * var(--u));
+  height: calc(52 * var(--u));
+  margin-top: calc(3 * var(--u));
 }
 
 .wheel__ring {
@@ -714,19 +837,19 @@ body {
 }
 
 .wheel__token {
-  --r: 21cqh;
+  --r: calc(21 * var(--u));
   position: absolute;
   top: 50%;
   left: 50%;
   display: grid;
   place-items: center;
-  width: 9cqh;
-  height: 9cqh;
-  margin: -4.5cqh 0 0 -4.5cqh;
+  width: calc(9 * var(--u));
+  height: calc(9 * var(--u));
+  margin: calc(-4.5 * var(--u)) 0 0 calc(-4.5 * var(--u));
   border-radius: 50%;
   background: var(--color);
   color: var(--c-black);
-  font-size: 3.6cqh;
+  font-size: calc(3.6 * var(--u));
   text-shadow: none;
   transform: rotate(calc(var(--i) * 30deg)) translateY(calc(-1 * var(--r))) rotate(calc(var(--i) * -30deg - var(--spin)));
 }
@@ -734,6 +857,28 @@ body {
 .wheel__token img {
   width: 100%;
   image-rendering: pixelated;
+}
+
+/* El rival, abajo, enfrente del animal: con un aro del color del choque */
+.wheel__token.is-rival {
+  box-shadow: 0 0 0 var(--px) var(--c-heart), 0 0 0 calc(var(--px) * 2) var(--c-black);
+  animation: blink 0.8s steps(1) 0.5s 3;
+}
+
+/* La línea del choque: del animal (arriba) a su rival (abajo), por el centro de la rueda */
+.wheel__clash {
+  position: absolute;
+  top: calc(50% - calc(21 * var(--u)));
+  left: 50%;
+  width: var(--px);
+  height: calc(42 * var(--u));
+  margin-left: calc(var(--px) / -2);
+  background: repeating-linear-gradient(var(--c-heart) 0 calc(var(--px) * 2), transparent 0 calc(var(--px) * 4));
+  opacity: 0;
+}
+
+.wheel.is-stopped .wheel__clash {
+  opacity: 1;
 }
 
 .wheel__token.is-chosen {
@@ -750,11 +895,11 @@ body {
 
 .wheel__pointer {
   position: absolute;
-  top: -1cqh;
+  top: calc(-1 * var(--u));
   left: 50%;
-  width: 4cqh;
-  height: 3cqh;
-  margin-left: -2cqh;
+  width: calc(4 * var(--u));
+  height: calc(3 * var(--u));
+  margin-left: calc(-2 * var(--u));
   background: var(--c-gold);
   clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
@@ -834,6 +979,82 @@ body {
 
 .title-screen__record output {
   color: var(--c-moon-dim);
+}
+
+/* Más alta que ancha (celular en vertical, con la vista alta): todo a la medida del ancho, la rueda
+   más chica y la tarjeta del animal debajo de ella. (La consulta es a .title-screen) */
+@container (aspect-ratio < 1.1) {
+  .title-screen__heading {
+    margin-top: 8cqw;
+    font-size: 9cqw;
+  }
+
+  .title-screen__step {
+    gap: 3.5cqw;
+  }
+
+  .title-screen__prompt {
+    padding-inline: 5cqw;
+    font-size: 2.8cqw;
+  }
+
+  /* Cambiar idioma a la izquierda y HI RECORDS a la derecha, arriba del título */
+  .title-screen__back,
+  .title-screen__board,
+  #difficulty-step .title-screen__board {
+    top: 2cqw;
+    font-size: 2.6cqw;
+  }
+
+  .title-screen__board,
+  #difficulty-step .title-screen__board {
+    left: auto;
+    right: var(--gutter);
+  }
+
+  .title-screen__record {
+    font-size: 2.6cqw;
+  }
+
+  .birth__fields {
+    gap: 4cqw;
+  }
+
+  .birth__step {
+    padding: 0.3em 0.9em;
+    font-size: 4cqw;
+  }
+
+  .birth__value {
+    font-size: 6cqw;
+  }
+
+  .birth__label {
+    font-size: 2.4cqw;
+  }
+
+  .wheel {
+    --u: 0.62cqh;
+    grid-template-columns: auto;
+    gap: 2cqh;
+  }
+
+  .wheel__chinese {
+    font-size: 3.6cqw;
+  }
+
+  .wheel__name {
+    font-size: 4.4cqw;
+  }
+
+  .wheel__virtues,
+  .wheel__rival {
+    font-size: 3cqw;
+  }
+
+  .wheel__why {
+    font-size: 2.6cqw;
+  }
 }
 
 /* ---------- Botones ---------- */
@@ -1152,6 +1373,30 @@ body {
   width: min(100%, 300px);
 }
 
+/* Celular en horizontal: el nombre a la izquierda y la tabla a la derecha, para que quepa (como en Chispas) */
+@media (orientation: landscape) and (max-height: 540px) {
+  .story__form:has(.name-entry) {
+    gap: 8px;
+    padding: 12px 16px;
+  }
+
+  .name-entry {
+    grid-template-columns: auto 1fr;
+    gap: 4px 18px;
+    align-items: center;
+  }
+
+  .name-entry > * {
+    grid-column: 1;
+  }
+
+  .name-entry .board {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    font-size: 9px;
+  }
+}
+
 @media (max-width: 420px) {
   .story .boards {
     grid-template-columns: 1fr;
@@ -1231,47 +1476,194 @@ body {
   .hud__score--high.is-record,
   .new-record__score,
   .name-entry__slot--active .name-entry__letter,
+  .wheel__token.is-rival,
   .sparkle {
     animation: none;
   }
 }
 
-/* ---------- Controles táctiles ---------- */
-/* Solo con pantalla táctil. PROVISIONALES: botones simples con los colores del juego. */
+/* ---------- Controles táctiles: la cruceta y FIRE (js/ui/TouchPad.js) ---------- */
+/* Solo con pantalla táctil. Del tamaño del pulgar: la cruz mide 3 brazos de --arm (52 px, más que
+   los 44 pt de Apple y los 48 dp de Google por botón) y su zona táctil es --pad más grande por lado;
+   FIRE mide --size (84 px). El grosor de los dos es "sprite stacking": capas iguales apiladas un poco
+   más abajo cada una (drop-shadow / box-shadow), y al presionar se hunden (solo transform: no se
+   redibuja nada). */
 
 .touch-controls {
+  --arm: 52px;
+  --pad: 14px;
   display: none;
-  gap: calc(var(--px) * 4);
-  margin-top: calc(var(--px) * 4);
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 12px;
+  padding: 0 4px 4px;
 }
 
-.touch-controls__button {
-  flex: 1;
-  min-height: 56px;
-  border: 0;
-  border-radius: 0;
-  background: var(--c-night-700);
-  color: var(--c-text);
-  font-family: var(--font-pixel);
-  font-size: 11px;
-  text-transform: uppercase;
+/* La cruceta: la zona táctil (cuadrada) con la cruz adentro */
+.dpad {
+  position: relative;
+  flex: none;
+  width: calc(var(--arm) * 3 + var(--pad) * 2);
+  height: calc(var(--arm) * 3 + var(--pad) * 2);
   touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
   -webkit-touch-callout: none;
-  box-shadow: 0 0 0 var(--px) var(--c-night-600);
 }
 
-.touch-controls__button--fire {
-  color: var(--c-gold);
+.dpad__cross {
+  position: absolute;
+  inset: var(--pad);
+  /* El grosor: tres capas apiladas, 2 px más abajo cada una */
+  filter:
+    drop-shadow(0 2px 0 var(--c-night-800))
+    drop-shadow(0 2px 0 var(--c-night-800))
+    drop-shadow(0 2px 0 var(--c-black));
+  transition: transform 60ms steps(2, end);
 }
 
-.touch-controls__button--jump {
-  color: var(--c-gold-soft);
+.dpad__arm,
+.dpad__hub {
+  position: absolute;
+  width: var(--arm);
+  height: var(--arm);
+  background: var(--c-night-700);
 }
 
-.touch-controls__button:active {
+.dpad__arm--up { top: 0; left: var(--arm); box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.14); }
+.dpad__arm--down { bottom: 0; left: var(--arm); }
+.dpad__arm--left { top: var(--arm); left: 0; box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.1); }
+.dpad__arm--right { top: var(--arm); right: 0; }
+.dpad__hub { top: var(--arm); left: var(--arm); }
+
+/* La flecha de cada brazo */
+.dpad__arm::after {
+  content: "";
+  position: absolute;
+  inset: 32%;
+  background: var(--c-moon-dim);
+  clip-path: polygon(50% 12%, 100% 88%, 0 88%);
+}
+
+.dpad__arm--right::after { rotate: 90deg; }
+.dpad__arm--down::after { rotate: 180deg; }
+.dpad__arm--left::after { rotate: -90deg; }
+
+/* El hoyito del centro */
+.dpad__hub::after {
+  content: "";
+  position: absolute;
+  inset: 34%;
+  border-radius: 50%;
+  background: var(--c-night-800);
+}
+
+/* Presionada: el brazo se ilumina y la cruz se inclina hacia él, como una cruceta de verdad */
+.dpad[data-dir="up"] .dpad__arm--up,
+.dpad[data-dir="down"] .dpad__arm--down,
+.dpad[data-dir="left"] .dpad__arm--left,
+.dpad[data-dir="right"] .dpad__arm--right {
   background: var(--c-night-600);
+}
+
+.dpad[data-dir="up"] .dpad__arm--up::after,
+.dpad[data-dir="down"] .dpad__arm--down::after,
+.dpad[data-dir="left"] .dpad__arm--left::after,
+.dpad[data-dir="right"] .dpad__arm--right::after {
+  background: var(--c-gold-soft);
+}
+
+.dpad[data-dir="up"] .dpad__cross { transform: perspective(420px) rotateX(14deg) translateY(2px); }
+.dpad[data-dir="down"] .dpad__cross { transform: perspective(420px) rotateX(-14deg) translateY(2px); }
+.dpad[data-dir="left"] .dpad__cross { transform: perspective(420px) rotateY(-14deg) translateY(2px); }
+.dpad[data-dir="right"] .dpad__cross { transform: perspective(420px) rotateY(14deg) translateY(2px); }
+
+/* FIRE: un botón redondo de arcade en su base; al presionarlo se hunde */
+.pad-fire {
+  --size: 84px;
+  --depth: 8px;
+  position: relative;
+  flex: none;
+  width: calc(var(--size) + 16px);
+  height: calc(var(--size) + 16px);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--c-night-800); /* la base */
+  box-shadow: inset 0 0 0 3px var(--c-night-600), 0 3px 0 var(--c-black);
+  touch-action: none;
+  -webkit-touch-callout: none;
+  cursor: pointer;
+}
+
+.pad-fire__cap {
+  position: absolute;
+  top: calc(8px - var(--depth) / 2);
+  left: 8px;
+  display: grid;
+  place-items: center;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: var(--c-fire);
+  color: var(--c-moon);
+  font-family: var(--font-pixel);
+  font-size: 14px;
+  text-shadow: 2px 2px 0 var(--c-fire-dark);
+  /* Brillo arriba, sombra abajo y el costado: capas apiladas hacia abajo (el grosor del botón) */
+  box-shadow:
+    inset 0 5px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -5px 0 rgba(0, 0, 0, 0.22),
+    0 calc(var(--depth) / 2) 0 var(--c-fire-dark),
+    0 var(--depth) 0 var(--c-fire-dark),
+    0 var(--depth) 0 3px var(--c-black),
+    0 0 0 3px var(--c-black);
+  transition: transform 50ms steps(2, end), box-shadow 50ms steps(2, end);
+}
+
+.pad-fire.is-pressed .pad-fire__cap {
+  transform: translateY(calc(var(--depth) - 2px));
+  box-shadow:
+    inset 0 5px 0 rgba(0, 0, 0, 0.18),
+    inset 0 -3px 0 rgba(255, 255, 255, 0.12),
+    0 2px 0 var(--c-fire-dark),
+    0 2px 0 3px var(--c-black),
+    0 0 0 3px var(--c-black);
+}
+
+.pad-fire__label--ok {
+  display: none;
+  font-size: 28px;
+}
+
+/* En los menús FIRE elige: dice ▶ */
+.game:has(.title-screen:not([hidden])) .pad-fire__label--fire,
+.story .pad-fire__label--fire {
+  display: none;
+}
+
+.game:has(.title-screen:not([hidden])) .pad-fire__label--ok,
+.story .pad-fire__label--ok {
+  display: block;
+}
+
+/* Con un menú abierto, la cruceta y FIRE están dentro del <dialog>, fijos donde estaban */
+.is-floating {
+  position: fixed;
+  z-index: 1;
+  margin: 0;
+}
+
+/* ...y en la vista alta el menú va arriba, sin taparlos (--pad-top: donde empiezan) */
+[data-view="tall"] .story:has(> .is-floating) {
+  margin-top: 12px;
+  max-height: calc(var(--pad-top, 100dvh) - 24px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dpad__cross,
+  .pad-fire__cap {
+    transition: none;
+  }
 }
 
 @media (any-pointer: coarse) {
@@ -1279,7 +1671,91 @@ body {
     display: flex;
   }
 
-  .game {
-    width: min(100%, calc((100dvh - 2 * var(--gutter) - 72px) * 8 / 3), 1600px);
+  /* Con pantalla táctil, ▶ es FIRE, abajo (no dentro del juego) */
+  .birth__ok,
+  .wheel__ok {
+    display: none;
   }
+
+  /* ▲ ▼ de la fecha: del tamaño de un dedo, aunque la letra sea chica */
+  .birth__step {
+    min-width: 44px;
+    min-height: 26px;
+  }
+
+  /* «< Volver», «< Cambiar idioma» y HI RECORDS, también fáciles de tocar */
+  .title-screen__back,
+  .title-screen__board {
+    min-height: 40px;
+  }
+
+  /* Debajo del juego caben la cruceta y FIRE */
+  .game {
+    width: min(100%, calc((100dvh - 2 * var(--gutter) - 210px) * 8 / 3), 1600px);
+  }
+
+  /* Vista alta (celular en vertical): el juego arriba y los controles abajo, donde llegan los pulgares */
+  [data-view="tall"] .game {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  [data-view="tall"] .touch-controls {
+    margin-top: auto;
+    padding-top: 12px;
+  }
+}
+
+/* Celular en horizontal: no cabe nada debajo del juego; la cruceta a la izquierda y FIRE a la
+   derecha, donde quedan los pulgares al sostenerlo de lado, y el juego en medio */
+@media (any-pointer: coarse) and (orientation: landscape) and (max-height: 540px) {
+  .game {
+    --arm: 46px;
+    --pad: 10px;
+    --side: calc(var(--arm) * 3 + var(--pad) * 2);
+    display: grid;
+    grid-template-columns: var(--side) 1fr var(--side);
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 8px;
+  }
+
+  .touch-controls {
+    --arm: 46px;
+    --pad: 10px;
+    display: contents;
+  }
+
+  .stage {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: center;
+    width: min(100%, calc((100dvh - 16px) * 8 / 3));
+  }
+
+  .dpad {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: end;
+    margin-bottom: 8px;
+  }
+
+  .pad-fire {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: end;
+    justify-self: center;
+    margin-bottom: 24px;
+  }
+}
+
+/* La rueda tiene el foco cuando ▶ no se ve (girando, o con pantalla táctil): sin marco */
+.wheel:focus {
+  outline: none;
 }

@@ -7,11 +7,13 @@
 //
 // El canvas mide la mitad de la pantalla del mundo (CONFIG.pixel) y el navegador lo amplía sin
 // suavizar. El mundo es más alto que la pantalla: todo se dibuja corrido por la cámara (cameraY,
-// graphics/Camera.js), salvo el cielo del fondo, que va pegado a la pantalla.
+// graphics/Camera.js), salvo el cielo del fondo, que va pegado a la pantalla. En la vista alta del
+// celular (core/view.js) el canvas es más alto: arriba se ve VIEW.top de cielo más.
 
 import { CONFIG } from '../config.js';
 import { ready } from './assets.js';
 import { signById } from '../world/levels.js';
+import { VIEW } from '../core/view.js';
 
 const { width: W, height: H, groundY, ceilingY, pixel: P } = CONFIG;
 
@@ -36,11 +38,22 @@ const COLORS = {
 export class Scene {
   /** images: lo que devuelve loadImages() (graphics/assets.js), o null para solo figuras. */
   constructor(canvas, images = null) {
-    canvas.width = W / P;
-    canvas.height = H / P;
+    this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    this.ctx.imageSmoothingEnabled = false;
     this.images = images;
+    this.fit();
+  }
+
+  /** El canvas a la medida de la vista (VIEW): al empezar y cuando cambia (al girar el celular). */
+  fit() {
+    const { canvas } = this;
+    const height = VIEW.height / P;
+    if (canvas.width !== W / P || canvas.height !== height) {
+      canvas.width = W / P;
+      canvas.height = height; // cambiar la medida borra el canvas y su configuración
+    }
+    canvas.style.aspectRatio = `${W} / ${VIEW.height}`;
+    this.ctx.imageSmoothingEnabled = false;
   }
 
   /**
@@ -61,8 +74,8 @@ export class Scene {
     const art = this.images?.levels?.[view.level.id] ?? null;
     ctx.setTransform(1 / P, 0, 0, 1 / P, 0, 0);
     this.drawSky(view, art);
-    // Lo demás, corrido por la cámara
-    ctx.setTransform(1 / P, 0, 0, 1 / P, 0, Math.round(-view.cameraY) / P);
+    // Lo demás, corrido por la cámara (y, en la vista alta, debajo de la franja de cielo extra)
+    ctx.setTransform(1 / P, 0, 0, 1 / P, 0, (VIEW.top - Math.round(view.cameraY)) / P);
     this.drawGround(view, art);
     this.drawObstacles(view, art);
     this.drawPickups(view);
@@ -89,7 +102,7 @@ export class Scene {
     const height = Math.min(1, Math.max(0, -cameraY / (groundY - ceilingY)));
     if (height > 0) {
       ctx.fillStyle = `rgba(0, 0, 0, ${(height * 0.45).toFixed(3)})`;
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(0, 0, W, VIEW.height);
     }
   }
 
@@ -98,13 +111,19 @@ export class Scene {
     const ctx = this.ctx;
     const { sky } = level.colors;
     const skyImage = ready(art?.sky);
-    if (skyImage) tile(ctx, skyImage, scroll * 0.3, 0, H);
-    else {
-      const gradient = ctx.createLinearGradient(0, 0, 0, H);
+    if (skyImage) {
+      // La imagen, a su medida, abajo; la franja extra de la vista alta, del color de arriba del cielo
+      if (VIEW.top) {
+        ctx.fillStyle = sky[0];
+        ctx.fillRect(0, 0, W, VIEW.top);
+      }
+      tile(ctx, skyImage, scroll * 0.3, VIEW.top, H);
+    } else {
+      const gradient = ctx.createLinearGradient(0, 0, 0, VIEW.height);
       gradient.addColorStop(0, sky[0]);
       gradient.addColorStop(1, sky[1]);
       ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(0, 0, W, VIEW.height);
     }
   }
 
@@ -151,7 +170,7 @@ export class Scene {
     const ctx = this.ctx;
     ctx.fillStyle = COLORS.marker;
     for (const p of pickups) {
-      if (p.y + p.r > cameraY + 24 || p.x > W) continue;
+      if (p.y + p.r > cameraY - VIEW.top + 24 || p.x > W) continue;
       const x = Math.round(p.x);
       ctx.fillRect(x - 1, 30, 2, 6);
       ctx.fillRect(x - 3, 32, 6, 2);
