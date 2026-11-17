@@ -19,6 +19,7 @@ import { groundLane, skyLane } from './obstacles.js';
 //   fireMax          lo más que se puede cargar de bolas de fuego
 //   cocktailEvery, foodEvery  cada cuántos segundos (al azar entre los dos) sale un cóctel o comida
 //   restartFromHome  al perder se vuelve al primer nivel
+//   trioRetry        un ingrediente del trío que se escapa vuelve a salir en un nivel posterior
 //   score            multiplica todos los puntos
 export const DIFFICULTIES = {
   easy: {
@@ -35,6 +36,7 @@ export const DIFFICULTIES = {
     cocktailEvery: [6, 10],
     foodEvery: [12, 18],
     restartFromHome: false,
+    trioRetry: true, // un ingrediente del trío que se escapa vuelve a salir más adelante (world/trio.js)
     score: 1,
   },
   hard: {
@@ -51,6 +53,7 @@ export const DIFFICULTIES = {
     cocktailEvery: [7, 11],
     foodEvery: [15, 24],
     restartFromHome: true,
+    trioRetry: false,
     score: 1.5,
   },
 };

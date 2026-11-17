@@ -8,7 +8,7 @@ import { CONFIG } from '../js/config.js';
 import { Player } from '../js/entities/Player.js';
 import { Obstacle } from '../js/entities/Obstacle.js';
 import { Spawner } from '../js/world/Spawner.js';
-import { planTrio } from '../js/world/trio.js';
+import { planTrio, reschedule } from '../js/world/trio.js';
 import { levelsFor, DIFFICULTIES, ZODIAC, worldOrder, rivalOf, signOfYear, bossLevel, journeyFor } from '../js/world/levels.js';
 import { Boss } from '../js/entities/Boss.js';
 import { Fireball } from '../js/entities/Fireball.js';
@@ -1100,4 +1100,42 @@ test('con el trío completo, contra el rival: el fuego verde se ve más fuerte, 
   assert.equal(jadeSpecial.power, CONFIG.trio.jade.specialDamage);
   assert.ok(jadeSpecial.power > special.power, 'el especial verde hace un poco más');
   assert.equal(jadeSpecial.r, special.r);
+});
+
+test('en fácil, el ingrediente que se escapa vuelve a salir después del siguiente, nunca dos en un nivel', () => {
+  for (let i = 0; i < 300; i++) {
+    const plan = { 1: 'hongo', 4: 'agave', 7: 'chile' };
+    // Se escapó el hongo del nivel 2 (índice 1); vamos en el 3 (índice 2)
+    assert.ok(reschedule(plan, 'hongo', 2, 11));
+    const levels = Object.keys(plan).map(Number);
+    assert.equal(levels.length, 3);
+    assert.deepEqual(Object.values(plan).sort(), ['agave', 'chile', 'hongo']);
+    const at = levels.find((level) => plan[level] === 'hongo');
+    assert.ok(at > 7, `después de los que faltan (salió en ${at})`);
+  }
+  // Sin mundos después de los que faltan: en cualquiera libre de ahí en adelante
+  const late = { 8: 'agave', 10: 'chile' };
+  assert.ok(reschedule(late, 'hongo', 9, 11));
+  assert.equal(late[9], 'hongo');
+  // Se escapó en el último mundo: ya no hay dónde
+  const last = { 10: 'chile' };
+  assert.equal(reschedule(last, 'chile', 11, 11), false);
+  assert.equal(Object.keys(last).length, 0);
+});
+
+test('contra el jefe se mueve adelante y atrás, sin salirse de su rango; en los mundos, nunca', () => {
+  const player = new Player();
+  player.reset(true);
+  player.waiting = false;
+  const right = inputOf({ down: ['right'] });
+  for (let i = 0; i < 60 * 5; i++) player.update(DT, right, i);
+  assert.equal(player.x, CONFIG.player.x, 'en los mundos no se mueve de lado');
+  player.moveRange = CONFIG.boss.move;
+  for (let i = 0; i < 60 * 5; i++) player.update(DT, right, i);
+  assert.equal(player.x, CONFIG.boss.move.max, 'hasta su límite, lejos del jefe');
+  assert.ok(CONFIG.boss.move.max < CONFIG.boss.homeX - CONFIG.boss.size.w, 'el límite queda lejos del jefe');
+  const left = inputOf({ down: ['left'] });
+  for (let i = 0; i < 60 * 5; i++) player.update(DT, left, i);
+  assert.equal(player.x, CONFIG.boss.move.min);
+  assert.equal(player.parts(player.y, player.scroll)[0].x, player.x, 'la cabeza va donde está');
 });

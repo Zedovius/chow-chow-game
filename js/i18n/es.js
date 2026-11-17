@@ -63,6 +63,7 @@ export const es = {
   'ingredient.oolong': 'té oolong',
   // El trío (hongo, agave y chile)
   'trio.ready': '¡Cóctel listo! {name}',
+  'trio.jade': 'Tu fuego ahora es verde jade',
   'trio.label': 'Trío: {count} de 3 (hongo, agave y chile)',
   'difficulty.easy': 'Fácil',
   'difficulty.hard': 'Difícil',
@@ -77,6 +78,7 @@ export const es = {
   'level.sky': '¡Puro cielo! No toques las nubes',
   'level.rival': '¡Tu rival!',
   'level.jade': 'Trío completo: tu fuego es verde y más fuerte',
+  'level.move': '◀ ▶ Muévete adelante y atrás',
   'legend.label': 'Estrella: puedes volar. Cóctel: {fire} bolas de fuego y {cocktail} puntos. Comida: {hearts} corazón y {food} puntos. Hongo, agave y chile juntos: tu cóctel, fuego lleno, un corazón y {trio} puntos.',
   'zodiac.rat': 'Rata',
   'zodiac.ox': 'Buey',

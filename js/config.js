@@ -118,10 +118,12 @@ export const CONFIG = {
   // Bolas de fuego: queman lo que sea burnable (world/obstacles.js). Se recargan con cócteles. El
   // máximo que se puede cargar depende de la dificultad (fireMax en world/levels.js)
   fire: { speed: 560, radius: 6, start: 3, cooldown: 0.25 },
-  // El disparo especial (contra el rival, core/charge.js): en fácil siempre (el fuego es infinito);
-  // en difícil, con al menos needs bolas de fuego, mantener el botón seconds segundos lo carga; al soltarlo sale uno grande (radius) que
-  // gasta solo una, le quita damage de vida al jefe y atraviesa sus disparos.
-  charge: { needs: 3, seconds: 0.8, damage: 3, radius: 12 },
+  // El disparo especial (core/charge.js), en todos los niveles y en las dos dificultades (modes): con
+  // al menos needs bolas de fuego (o con fuego infinito, en fácil contra el rival), mantener el botón
+  // seconds segundos lo carga; al soltarlo sale uno grande (radius) que gasta solo una, le quita
+  // damage de vida al jefe, atraviesa sus disparos y quema todo lo que se quema a su paso (los muros y
+  // las nubes de tormenta lo detienen). El disparo normal sale al presionar, como siempre.
+  charge: { needs: 3, seconds: 0.8, damage: 3, radius: 12, modes: { easy: true, hard: true } },
   // Lo que se recoge (world/Spawner.js), como los huesitos de Chispas: sale en momentos y alturas al
   // azar (de casi el suelo hasta casi el techo), se mece un poco, y nunca obliga a chocar: solo
   // aparece si no acaba de salir un obstáculo cerca de su altura (clearBefore) y después esperan
@@ -149,9 +151,10 @@ export const CONFIG = {
   trio: {
     radius: 10, points: 150, bonus: 500, hearts: 1, apart: 1.5, window: [0.15, 0.6],
     halo: { rate: 1.4, from: 26, to: 4 },
-    // Con el trío completo, contra el rival el fuego es verde jade (Scene.drawJadeFireball): los
-    // disparos normales se ven más grandes y con estela, pero hacen el mismo daño (y su caja de choque
-    // es la misma); el especial es distinto y le quita specialDamage al jefe (en vez de charge.damage)
+    // Con el trío completo, desde ese momento y en cualquier nivel, el fuego es verde jade
+    // (Scene.drawJadeFireball): los disparos normales se ven más grandes y con estela, pero hacen el
+    // mismo daño (y su caja de choque es la misma); el especial es distinto y le quita specialDamage
+    // al jefe (en vez de charge.damage)
     jade: { specialDamage: 4 },
   },
   // Comida china (la caja para llevar, el tazón de arroz): un corazón (sin pasar del máximo de la
@@ -168,6 +171,10 @@ export const CONFIG = {
   boss: {
     size: { w: 56, h: 48 },
     homeX: 640, // donde se queda (su centro)
+    // Contra el jefe quien juega se mueve adelante y atrás (◀ ▶): su cabeza, entre min y max (lejos
+    // del jefe y dentro de la pantalla), a speed px/s. Al empezar, unas flechas a sus lados lo avisan
+    // hasta que se mueva (o hintSeconds)
+    move: { min: 90, max: 420, speed: 240, hintSeconds: 8 },
     follow: 140, // qué tan rápido sigue la altura de quien juega (px/s)
     hp: { easy: 10, hard: 16 },
     rest: { easy: [1.4, 2], hard: [0.85, 1.3] },
@@ -187,7 +194,6 @@ export const CONFIG = {
       hard: { cocktail: [3, 4.5], food: [14, 20] },
     },
     infiniteFire: { easy: true, hard: false },
-    chargeShot: { easy: true, hard: true },
     speed: 260, // el mundo sigue corriendo, más despacio
   },
 

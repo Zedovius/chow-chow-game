@@ -1,11 +1,11 @@
 // El botón de fuego, con o sin carga. Sin carga, cada vez que se presiona sale una bola de fuego.
-// Con carga (contra el rival: en fácil siempre; en difícil, con al menos CONFIG.charge.needs bolas
-// de fuego), al presionar empieza a cargar; al soltar sale:
+// Con carga (en todos los niveles, con al menos CONFIG.charge.needs bolas de fuego o con fuego
+// infinito), al presionar empieza a cargar; al soltar sale:
 //   'normal'   si se soltó antes de CONFIG.charge.seconds (un toque rápido)
 //   'special'  si se mantuvo hasta cargarse: grande y pega más (en difícil gasta una bola de fuego)
 // Así un toque sigue siendo un disparo, y mantener el botón es el ataque especial.
-// instant (con fuego infinito, en fácil): el disparo normal sale al presionar, sin esperar a que se
-// suelte, y mantener el botón carga el especial de todos modos (al soltar sale solo si se cargó).
+// instant (así lo usa el juego, core/Game.js): el disparo normal sale al presionar, sin esperar a que
+// se suelte, y mantener el botón carga el especial de todos modos (al soltar sale solo si se cargó).
 
 import { CONFIG } from '../config.js';
 

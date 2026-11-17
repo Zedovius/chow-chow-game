@@ -63,6 +63,7 @@ export const en = {
   'ingredient.oolong': 'oolong tea',
   // The trio (mushroom, agave and chili)
   'trio.ready': 'Cocktail ready! {name}',
+  'trio.jade': 'Your fire is now jade green',
   'trio.label': 'Trio: {count} of 3 (mushroom, agave and chili)',
   'difficulty.easy': 'Easy',
   'difficulty.hard': 'Hard',
@@ -77,6 +78,7 @@ export const en = {
   'level.sky': "All sky! Don't touch the clouds",
   'level.rival': 'Your rival!',
   'level.jade': 'Trio complete: your fire is green and stronger',
+  'level.move': '◀ ▶ Move forward and back',
   'legend.label': 'Star: you can fly. Cocktail: {fire} fireballs and {cocktail} points. Food: {hearts} heart and {food} points. Mushroom, agave and chili together: your cocktail, full fire, one heart and {trio} points.',
   'zodiac.rat': 'Rat',
   'zodiac.ox': 'Ox',

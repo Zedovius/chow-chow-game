@@ -1,5 +1,6 @@
 // Traduce teclado, toques y botones en pantalla a acciones abstractas: jump (saltar y, al volar,
-// aletear), duck (agacharse y, en el aire, caer más rápido), fire (bola de fuego), pause, confirm y
+// aletear), duck (agacharse y, en el aire, caer más rápido), left y right (contra el jefe, moverse
+// atrás y adelante), fire (bola de fuego), pause, confirm y
 // mute (silenciar). El resto del juego solo conoce estas acciones. Los controles (core/Gamepad.js)
 // y el control remoto de la tele (core/Remote.js) llegan a las mismas.
 
@@ -9,6 +10,11 @@ const KEYMAP = {
   KeyW: 'jump',
   ArrowDown: 'duck',
   KeyS: 'duck',
+  // Adelante y atrás: solo contra el jefe (Player.moveRange)
+  ArrowLeft: 'left',
+  KeyA: 'left',
+  ArrowRight: 'right',
+  KeyD: 'right',
   KeyX: 'fire',
   KeyJ: 'fire',
   KeyF: 'fire',

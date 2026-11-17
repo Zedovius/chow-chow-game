@@ -87,7 +87,7 @@ function loadTurns() {
 // En el juego: qué acción da cada botón
 // A salta (y aletea), B y abajo agachan, X y Y lanzan bolas de fuego
 // fire: el botón FIRE de la pantalla táctil (en los menús, como A: elige)
-const GAME_ACTIONS = { a: ['jump', 'confirm'], up: ['jump'], down: ['duck'], b: ['duck'], x: ['fire'], y: ['fire'], fire: ['fire'], start: ['pause'] };
+const GAME_ACTIONS = { a: ['jump', 'confirm'], up: ['jump'], down: ['duck'], left: ['left'], right: ['right'], b: ['duck'], x: ['fire'], y: ['fire'], fire: ['fire'], start: ['pause'] };
 // En los menús: qué flecha manda cada dirección
 const MENU_KEYS = { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' };
 

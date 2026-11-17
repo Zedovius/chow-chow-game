@@ -31,7 +31,7 @@ import { Player } from '../entities/Player.js';
 import { Fireball } from '../entities/Fireball.js';
 import { INGREDIENTS } from '../entities/Pickup.js';
 import { cocktailOf } from '../world/cocktails.js';
-import { planTrio } from '../world/trio.js';
+import { planTrio, reschedule } from '../world/trio.js';
 import { Scene, JADE } from '../graphics/Scene.js';
 import { Camera } from '../graphics/Camera.js';
 import { enterName } from '../ui/NameEntry.js';
@@ -132,6 +132,7 @@ export class Game {
     this.fireButton = new FireButton(); // el botón de fuego, con o sin carga (core/charge.js)
     this.boss = null; // el jefe del nivel 12 (entities/Boss.js)
     this.trio = new Set(); // los ingredientes del trío que lleva en el viaje
+    this.moveHint = 0; // segundos que aún se ven las flechas ◀ ▶ contra el jefe
     this.trioPlan = {}; // en qué nivel sale cada uno (world/trio.js)
     this.levelStartTrio = new Set();
     this.combo = new Combo();
@@ -302,6 +303,11 @@ export class Game {
     this.speed = this.level.speed;
     // La cuenta de cócteles y comida sigue del nivel anterior si se viene de él sin detenerse
     // La estrella del vuelo sale una vez en cada nivel con suelo, si aún no tiene el poder
+    // En fácil, el ingrediente que se escapó en el nivel anterior vuelve a salir más adelante
+    const missed = continued ? this.trioPlan[index - 1] : null;
+    if (missed && this.mode.trioRetry && !this.trio.has(missed)) {
+      reschedule(this.trioPlan, missed, index, this.levels.filter((level) => !level.boss).length);
+    }
     // El ingrediente del trío de este nivel, si le toca uno y aún no lo tiene
     const planned = this.level.boss ? null : this.trioPlan[index] ?? null;
     this.spawner = new Spawner(this.level, continued ? this.spawner?.carry() : null, {
@@ -315,6 +321,9 @@ export class Game {
     // El nivel 12: el rival, y todos vuelan
     this.boss = this.level.boss ? new Boss(this.level.id, this.difficulty, Math.floor(Math.random() * 2 ** 32)) : null;
     this.player.forceFlight = Boolean(this.level.boss);
+    // Contra el jefe, también adelante y atrás (◀ ▶); unas flechas lo avisan hasta que se mueva
+    this.player.moveRange = this.level.boss ? CONFIG.boss.move : null;
+    this.moveHint = this.level.boss ? CONFIG.boss.move.hintSeconds : 0;
     if (this.boss) this.hud.showBoss(this.boss.hp, this.boss.maxHp, signById(this.level.id).body);
     else this.hud.hideBoss();
     if (continued) this.player.setGround(this.level.ground);
@@ -345,10 +354,13 @@ export class Game {
   levelHints() {
     if (this.level.boss) {
       const hints = [t('level.rival')];
-      if (CONFIG.boss.chargeShot[this.difficulty]) hints.push(t('level.charge'));
+      hints.push(t('level.move')); // ◀ ▶: adelante y atrás
+      if (CONFIG.charge.modes[this.difficulty]) hints.push(t('level.charge'));
       if (this.jadeFire) hints.push(t('level.jade')); // trae el trío: fuego verde
       return hints;
     }
+    // En el primer nivel, cómo se carga el disparo especial (se puede en todos)
+    if (this.levelIndex === 0 && CONFIG.charge.modes[this.difficulty]) return this.level.ground ? [t('level.charge')] : [t('level.sky'), t('level.charge')];
     return this.level.ground ? [] : [t('level.sky')];
   }
 
@@ -395,6 +407,8 @@ export class Game {
 
     this.player.prevY = this.player.y;
     this.player.update(dt, this.input, this.scroll);
+    // Las flechas de ◀ ▶ se van al moverse (o con el tiempo)
+    if (this.moveHint > 0) this.moveHint = this.player.x !== CONFIG.player.x ? 0 : this.moveHint - dt;
     if (this.player.jumped) this.events.emit('jump');
     if (this.player.flapped) this.events.emit('flap');
     if (this.player.landed) this.events.emit('land');
@@ -466,9 +480,9 @@ export class Game {
 
   // --- Fuego ----------------------------------------------------------------------
 
-  /** Con el trío completo, contra el rival el fuego es verde jade (más fuerte el especial). */
+  /** Con el trío completo, el fuego es verde jade en cualquier nivel (más fuerte el especial contra el jefe). */
   get jadeFire() {
-    return Boolean(this.boss) && this.trio.size === INGREDIENTS.length;
+    return this.trio.size === INGREDIENTS.length;
   }
 
   /** Contra el rival en fácil, el fuego no se acaba. */
@@ -477,12 +491,14 @@ export class Game {
   }
 
   /**
-   * Contra el rival, mantener el botón carga el especial: en fácil, siempre (fuego infinito); en
-   * difícil, con suficientes bolas de fuego.
+   * Mantener el botón carga el especial, en todos los niveles: con fuego infinito (fácil contra el
+   * rival), siempre; si no, con CONFIG.charge.needs bolas de fuego para empezar (y al menos una al
+   * soltarlo: el disparo normal del primer toque ya gastó una).
    */
   get canCharge() {
-    const enough = this.infiniteFire || this.ammo >= CONFIG.charge.needs;
-    return Boolean(this.boss) && !this.boss.defeated && CONFIG.boss.chargeShot[this.difficulty] && enough;
+    const charging = this.fireButton.charging !== null;
+    const enough = this.infiniteFire || this.ammo >= CONFIG.charge.needs || (charging && this.ammo >= 1);
+    return !this.boss?.defeated && CONFIG.charge.modes[this.difficulty] && enough;
   }
 
   /**
@@ -495,7 +511,7 @@ export class Game {
       pressed: this.input.wasPressed('fire'),
       down: this.input.isDown('fire'),
       canCharge: this.canCharge,
-      instant: this.infiniteFire, // en fácil el disparo normal sale al presionar
+      instant: true, // el disparo normal sale al presionar; mantener el botón carga el especial
     });
     if (this.fireButton.charged) this.events.emit('chargeReady');
     this.hud.setCharge(this.canCharge, this.fireButton.progress);
@@ -528,8 +544,8 @@ export class Game {
       }
       const target = this.obstacles.find((o) => anyOverlap(box, o.hitboxes()));
       if (!target) continue;
-      // La especial atraviesa los disparos del jefe (los quema y sigue)
-      fireball.spent = !(fireball.special && target.kind === 'shot');
+      // La especial atraviesa los disparos del jefe y todo lo que se quema (lo quema y sigue)
+      fireball.spent = !(fireball.special && (target.kind === 'shot' || target.burnable));
       if (target.burnable) {
         this.obstacles = this.obstacles.filter((o) => o !== target);
         this.addScore(CONFIG.burnBonus * this.mode.score);
@@ -652,7 +668,7 @@ export class Game {
     this.addScore(CONFIG.trio.bonus * this.mode.score);
     this.hud.trioDone();
     const drink = cocktailOf(this.sign);
-    this.showBanner(t('trio.ready', { name: drink?.name ?? '' }).trim());
+    this.showBanner([t('trio.ready', { name: drink?.name ?? '' }).trim(), t('trio.jade')].join('\n'));
     this.events.emit('trio', { sign: this.sign });
   }
 
@@ -913,6 +929,8 @@ export class Game {
         fire: signById(this.boss.sign).fire,
       },
       headY: lerp(this.player.prevY, this.player.y),
+      headX: lerp(this.player.prevX, this.player.x),
+      moveHint: this.moveHint > 0 && this.player.alive, // las flechas ◀ ▶ a sus lados
       obstacles: this.obstacles.map((o) => ({
         kind: o.kind,
         height: o.height,

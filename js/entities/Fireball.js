@@ -1,7 +1,8 @@
 // Una bola de fuego: sale de la boca del animal y avanza recto. Quema lo que sea burnable y se
 // apaga contra lo demás (ver Game.updateFireballs). La especial (special, el disparo cargado) es más
-// grande, le quita más vida al jefe (power) y atraviesa sus disparos. jade: con el trío completo, contra
-// el rival el fuego es verde; se ve más poderoso (Scene) pero solo el especial hace más daño.
+// grande, le quita más vida al jefe (power), atraviesa sus disparos y quema todo lo que se quema a su
+// paso. jade: con el trío completo el fuego es verde; se ve más poderoso (Scene) pero solo el especial
+// hace más daño.
 
 import { CONFIG } from '../config.js';
 

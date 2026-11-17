@@ -140,12 +140,13 @@ control cuentan como actividad).
   tragos del bar: un hongo blanco (el ingrediente chino), un agave (el fermento, el pulque) y un chile
   (el mexicano) se juntan **a lo largo de todo el viaje**. Al empezar la partida se eligen al azar
   tres mundos distintos y en cada uno sale uno de los tres: nunca dos en el mismo nivel, y contra el
-  rival no sale ninguno. Son coleccionables: los rodean dos aros dorados que se encogen una y otra vez
+  rival no sale ninguno. En fácil (`trioRetry`), si uno se escapa vuelve a salir en un nivel posterior,
+  después del siguiente que toque (`reschedule` en `js/world/trio.js`); en difícil se pierde. Son coleccionables: los rodean dos aros dorados que se encogen una y otra vez
   (`Scene.drawHalo`). Con suelo salen a la altura de un salto: no hace falta la estrella. Cada uno da
   150 puntos y se enciende en el marcador; con los tres se prepara **el cóctel de tu signo**:
   «¡Cóctel listo!» con su nombre, fuego lleno, un corazón (si cabe) y 500 puntos. Si uno se escapa,
   en esa partida ya no se completa; al reintentar un nivel, el trío vuelve a como estaba al empezarlo.
-  Con el trío completo, contra el rival el **fuego es verde jade** (`CONFIG.trio.jade`,
+  Con el trío completo, desde ese momento y en cualquier nivel, el **fuego es verde jade** (`CONFIG.trio.jade`,
   `Scene.drawJadeFireball`): los disparos normales se ven más grandes y con estela pero hacen el mismo
   daño (y su caja de choque es la misma); el especial es distinto (cruz de luz y aro) y quita 4 en vez
   de 3.
@@ -170,15 +171,19 @@ control cuentan como actividad).
   la estrella, y ahí un golpe no quita el vuelo. Si el rival es el Dragón o el Gallo, la pelea es
   en su cielo, sin suelo (tocar las nubes cuesta un corazón). No hay obstáculos: solo el jefe, que
   se le gana con bolas de fuego (10 en fácil, 16 en difícil); se le puede pegar desde que se ve.
-  - **Mantener FUEGO carga un disparo especial** (`js/core/charge.js`): se suelta cargado y sale
-    una bola grande que le quita 3 de vida al jefe y atraviesa sus disparos. Un toque sigue siendo
-    un disparo normal. Mientras se carga, el animal brilla del color de su fuego y el rombo del HUD
-    crece.
-  - **Fácil:** el fuego es infinito (∞ en el HUD), y el especial también: se carga cuantas veces se
-    quiera. El disparo normal sale al presionar (sin esperar a soltar). Solo sale comida, muy de vez
-    en cuando.
-  - **Difícil:** salen cócteles seguido; el especial se carga con 3 o más bolas de fuego y gasta
-    solo una.
+  - **Ahí también se mueve adelante y atrás** (◀ ▶, A / D, la palanca o la cruceta; `CONFIG.boss.move`),
+    dentro de un rango que no llega al jefe ni sale de la pantalla. El cartel lo dice y, al empezar,
+    dos flechas parpadean a los lados del animal hasta que se mueve. En los mundos no: ahí el ritmo
+    de los obstáculos está calculado con el animal siempre en el mismo lugar.
+  - **Mantener FUEGO carga un disparo especial** (`js/core/charge.js`, `CONFIG.charge`), **en todos
+    los niveles y en las dos dificultades**: se suelta cargado y sale una bola grande que le quita 3
+    de vida al jefe (4 con el fuego jade), atraviesa sus disparos y, en los mundos, quema todo lo que
+    se quema a su paso (los muros y las nubes de tormenta lo detienen). El disparo normal sale al
+    presionar, como siempre. Se carga con 3 o más bolas de fuego y gasta solo una. Mientras se carga,
+    el animal brilla del color de su fuego y el rombo del HUD crece. El primer nivel lo avisa.
+  - **Fácil, contra el rival:** el fuego es infinito (∞ en el HUD), y el especial también. Solo sale
+    comida, muy de vez en cuando.
+  - **Difícil, contra el rival:** salen cócteles seguido.
 
   Los 12 jefes tienen los mismos ataques, siempre avisados antes (se ve tenue dónde van a pegar):
   - **Ráfaga:** tres disparos a tres alturas, con huecos para pasar.

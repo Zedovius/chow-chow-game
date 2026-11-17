@@ -33,6 +33,7 @@ export class Player {
     this.ground = true; // ¿el nivel tiene suelo?
     this.canFly = false; // el poder de volar (la estrella): se conserva de un nivel al otro
     this.forceFlight = false; // en la pelea final (nivel 12) todos vuelan, y un golpe no lo quita
+    this.moveRange = null; // en la pelea final se mueve adelante y atrás: { min, max, speed } (CONFIG.boss.move)
     this.reset();
   }
 
@@ -77,6 +78,7 @@ export class Player {
   reset(ground = this.ground) {
     this.ground = ground;
     this.x = CONFIG.player.x;
+    this.prevX = this.x;
     this.baseY = ground ? CONFIG.groundY : CONFIG.groundY - CONFIG.player.hoverHeight;
     this.y = this.baseY;
     this.prevY = this.y;
@@ -106,6 +108,7 @@ export class Player {
   /** Un paso; scroll: lo recorrido hasta ahora (para el camino del cuerpo). */
   update(dt, input, scroll) {
     const { jumpVelocity, jumpCutVelocity, flight } = CONFIG.player;
+    this.prevX = this.x;
     this.jumped = false;
     this.flapped = false;
     this.landed = false;
@@ -149,6 +152,13 @@ export class Player {
         this.flapTime = 0;
       }
       this.fastFall = input.isDown('duck');
+    }
+
+    // Contra el jefe (moveRange, ver Game.startLevel): adelante y atrás con ◀ ▶
+    if (this.moveRange && this.alive) {
+      const { min, max, speed } = this.moveRange;
+      const direction = (input.isDown('right') ? 1 : 0) - (input.isDown('left') ? 1 : 0);
+      this.x = Math.min(max, Math.max(min, this.x + direction * speed * dt));
     }
 
     this.physics(dt);
@@ -296,10 +306,11 @@ export class Player {
    * (al empezar), el resto del cuerpo sigue en línea recta hacia atrás. angle apunta de cada parte
    * hacia la de adelante (sobre el camino: en el suelo, 0).
    *
-   * headY (los pies) y scroll permiten dibujar entre dos pasos (interpolados, ver Game.render).
+   * headY (los pies), scroll y headX (contra el jefe se mueve de lado) permiten dibujar entre dos
+   * pasos (interpolados, ver Game.render).
    * ducking: con o sin agacharse (para saber qué habría golpeado de pie).
    */
-  parts(headY = this.y, scroll = this.scroll, { ducking = this.ducking } = {}) {
+  parts(headY = this.y, scroll = this.scroll, { ducking = this.ducking, headX = this.x } = {}) {
     const { head, body, spacing, duckScale } = CONFIG.player;
     const scale = ducking ? duckScale : 1;
     const trail = this.trail;
@@ -334,7 +345,7 @@ export class Player {
       return {
         index: k,
         kind: k === 0 ? 'head' : 'body',
-        x: this.x - (scroll - point.at),
+        x: headX - (scroll - point.at),
         y: point.y - h / 2,
         w: sizes[k].w,
         h,

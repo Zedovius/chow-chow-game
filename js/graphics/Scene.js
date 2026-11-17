@@ -497,10 +497,11 @@ export class Scene {
    * y riding (va en su nubecita). Todo esto es PROVISIONAL hasta que llegue el arte de cada animal
    * (IMAGES.animals[id] en assets.js).
    */
-  drawPlayer({ dragon: player, headY, scroll, charge = 0, fireColor }) {
+  drawPlayer({ dragon: player, headY, headX = player.x, scroll, charge = 0, fireColor, moveHint = false }) {
     const sign = signById(player.sign ?? 'dragon');
-    const parts = player.parts(headY, scroll);
+    const parts = player.parts(headY, scroll, { headX });
     const head = parts[0];
+    if (moveHint) this.drawMoveHint(head);
     if (charge > 0) this.drawCharge(head, charge, fireColor ?? sign.fire);
     if (player.riding) this.drawCloud(head.x, head.y + head.h / 2 + 2, player.flapTime);
     if (sign.long) this.drawLong(player, parts, sign);
@@ -605,6 +606,27 @@ export class Scene {
     ctx.fillRect(Math.round(head.x - r), Math.round(head.y - r / 2), r * 2, r);
     ctx.fillRect(Math.round(head.x - r / 2), Math.round(head.y - r), r, r * 2);
     ctx.globalAlpha = 1;
+  }
+
+  /**
+   * Contra el jefe, al empezar: dos flechas que parpadean a los lados del animal (◀ ▶), porque ahí se
+   * puede mover adelante y atrás. Se van al moverse (Game.moveHint).
+   */
+  drawMoveHint(head) {
+    const ctx = this.ctx;
+    if (Math.floor(performance.now() / 280) % 2) return;
+    const size = 10;
+    const y = Math.round(head.y / P) * P;
+    const gap = head.w / 2 + 12;
+    ctx.fillStyle = COLORS.marker;
+    for (const side of [-1, 1]) {
+      const tip = Math.round((head.x + side * (gap + size)) / P) * P;
+      // Un triángulo de pixeles que apunta hacia afuera: la punta lejos del animal
+      for (let i = 0; i < size; i += P) {
+        const h = P + i;
+        ctx.fillRect(tip - side * i - (side > 0 ? P : 0), y - h / 2, P, h);
+      }
+    }
   }
 
   /** La nubecita en la que vuelan los animales sin alas. PROVISIONAL. */
