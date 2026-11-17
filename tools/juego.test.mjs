@@ -8,6 +8,7 @@ import { CONFIG } from '../js/config.js';
 import { Player } from '../js/entities/Player.js';
 import { Obstacle } from '../js/entities/Obstacle.js';
 import { Spawner } from '../js/world/Spawner.js';
+import { planTrio } from '../js/world/trio.js';
 import { levelsFor, DIFFICULTIES, ZODIAC, worldOrder, rivalOf, signOfYear, bossLevel, journeyFor } from '../js/world/levels.js';
 import { Boss } from '../js/entities/Boss.js';
 import { Fireball } from '../js/entities/Fireball.js';
@@ -639,12 +640,14 @@ function botRun(difficulty, seed, { stars = true } = {}) {
     let carry = null;
     let foods = 0;
     const trios = []; // cuántos ingredientes del trío salieron y cuántos tomó, en cada nivel
-    for (const level of levelsFor(difficulty)) {
+    const levels = levelsFor(difficulty);
+    const plan = planTrio(levels.length); // en qué tres mundos sale cada ingrediente
+    for (const level of levels) {
       const trio = { seen: 0, got: 0 };
       trios.push(trio);
       if (level.index === 0) dragon.reset(level.ground);
       else dragon.setGround(level.ground);
-      const spawner = new Spawner(level, carry, { star: stars && level.ground && !dragon.canFly, trio: true });
+      const spawner = new Spawner(level, carry, { star: stars && level.ground && !dragon.canFly, ingredient: plan[level.index] ?? null });
       let distance = 0;
       let steps = 0;
       while (!(distance >= level.length && !obstacles.length)) {
@@ -717,7 +720,7 @@ function botRun(difficulty, seed, { stars = true } = {}) {
       carry = spawner.carry();
       completed++;
     }
-    return { hits, completed, seen, collected, foods, trios };
+    return { hits, completed, seen, collected, foods, trios, plan };
   });
 }
 
@@ -734,14 +737,16 @@ test('los 11 mundos se pueden ganar sin fuego, y se puede tomar casi todo sin ch
       assert.equal(result.hits, 0, `${difficulty} semilla ${seed}: ${result.hits} golpes`);
       seen += result.seen;
       collected += result.collected;
-      // En cada mundo salen los tres del trío (hongo, agave y chile), sin chocar para tomarlos
-      for (const [i, trio] of result.trios.entries()) assert.equal(trio.seen, 3, `${difficulty} semilla ${seed}: nivel ${i + 1}, ${trio.seen} del trío`);
-      trios += result.trios.length;
-      fullTrios += result.trios.filter((trio) => trio.got === 3).length;
+      // El trío: cada ingrediente sale en el nivel que le tocó, uno por nivel, sin chocar para tomarlo
+      for (const [i, trio] of result.trios.entries()) {
+        assert.equal(trio.seen, result.plan[i] ? 1 : 0, `${difficulty} semilla ${seed}: nivel ${i + 1}, ${trio.seen} del trío`);
+      }
+      trios += 3;
+      fullTrios += result.trios.reduce((sum, trio) => sum + trio.got, 0);
     }
   }
-  // El bot completa el trío en casi todos los niveles: se puede (sin estrella, saltando)
-  assert.ok(fullTrios / trios >= 0.7, `trío completo solo en ${fullTrios} de ${trios} niveles`);
+  // El bot toma casi todos los ingredientes: se pueden tomar (sin estrella, saltando)
+  assert.ok(fullTrios / trios >= 0.75, `solo tomó ${fullTrios} de ${trios} ingredientes`);
   // Lo que no toma es porque el bot no es perfecto (decide con un segundo de vista), no porque haya
   // que chocar: en ninguna partida choca
   assert.ok(collected / seen >= 0.8, `solo tomó ${collected} de ${seen}`);
@@ -1054,7 +1059,7 @@ test('la cruceta táctil: una dirección a la vez, nada en el centro y sin cambi
   assert.equal(padDirection(-0.3, 0.7, 'left'), 'down');
 });
 
-test('el trío: un hongo, un agave y un chile por mundo; cada signo tiene su cóctel', async () => {
+test('el trío: un hongo, un agave y un chile en tres mundos distintos al azar; cada signo tiene su cóctel', async () => {
   const { cocktailOf } = await import('../js/world/cocktails.js');
   const { es } = await import('../js/i18n/es.js');
   const { en } = await import('../js/i18n/en.js');
@@ -1065,6 +1070,19 @@ test('el trío: un hongo, un agave y un chile por mundo; cada signo tiene su có
       assert.ok(es[`ingredient.${part}`] && en[`ingredient.${part}`], `${sign.id}: falta el texto de ${part}`);
     }
   }
-  const world = new Spawner(levelsFor('easy')[0], null, { trio: true });
-  assert.deepEqual(world.ingredients.map((i) => i.variety).sort(), ['agave', 'chile', 'hongo']);
+  const seenLevels = new Set();
+  for (let i = 0; i < 300; i++) {
+    const plan = planTrio(11);
+    const levels = Object.keys(plan).map(Number);
+    assert.equal(levels.length, 3, 'tres niveles distintos');
+    assert.deepEqual(Object.values(plan).sort(), ['agave', 'chile', 'hongo']);
+    for (const level of levels) {
+      assert.ok(level >= 0 && level < 11);
+      seenLevels.add(level);
+    }
+  }
+  assert.equal(seenLevels.size, 11, 'puede tocar en cualquier mundo');
+  const world = new Spawner(levelsFor('easy')[0], null, { ingredient: 'agave' });
+  assert.deepEqual(world.ingredients.map((i) => i.variety), ['agave']);
+  assert.equal(new Spawner(levelsFor('easy')[0]).ingredients.length, 0);
 });

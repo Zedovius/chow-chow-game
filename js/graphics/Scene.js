@@ -33,6 +33,8 @@ const COLORS = {
   marker: '#ffe9a8',
   cocktail: { glass: '#bfe7ff', drink: ['#ff6f91', '#7ee081', '#ffd166', '#c084fc'] },
   ingredient: { hongo: '#fbf7ee', agave: '#5fae7e', chile: '#d7263d' },
+  halo: '#ffd23f', // el aro de los ingredientes del trío, lejos...
+  haloNear: '#fff6c2', // ...y ya cerca
   fire: ['#fff3b0', '#ff9f1c', '#e8452c'],
 };
 
@@ -262,6 +264,7 @@ export class Scene {
   drawPickups({ pickups }) {
     const ctx = this.ctx;
     for (const p of pickups) {
+      if (p.type === 'ingredient') this.drawHalo(p); // los del trío son coleccionables: con halo
       this.drawSparkles(p);
       ctx.globalAlpha = Math.floor(p.t * 8) % 2 ? 0.6 : 1;
       this.drawPickup(p);
@@ -324,6 +327,41 @@ export class Scene {
     ctx.fillRect(x + p.r - 1, y + size - 4, 2, 4);
     ctx.fillStyle = COLORS.cocktail.drink[index];
     ctx.fillRect(x + 2, y + 4, size - 4, size - 10);
+  }
+
+  /**
+   * El halo de un ingrediente del trío: dos aros que se encogen una y otra vez hacia él
+   * (CONFIG.trio.halo), de pixel en pixel, más claros y gruesos al acercarse. Así se ve como un
+   * coleccionable, distinto de los cócteles y la comida. (Sin un brillo transparente de fondo: un
+   * dorado transparente sobre el cielo azul se ve gris.)
+   */
+  drawHalo({ x, y, t }) {
+    const ctx = this.ctx;
+    const { rate, from, to } = CONFIG.trio.halo;
+    const cx = Math.round(x / P) * P;
+    const cy = Math.round(y / P) * P;
+    // Dos aros, medio ciclo uno del otro, del más lejano al más cercano
+    for (const offset of [0, 0.5]) {
+      const k = (t * rate + offset) % 1;
+      const radius = from - (from - to) * k * k; // se acelera al llegar
+      ctx.fillStyle = k > 0.55 ? COLORS.haloNear : COLORS.halo;
+      ctx.globalAlpha = 0.55 + 0.45 * k;
+      // Ya cerca, el aro es de dos pixeles
+      for (const r of k > 0.55 ? [radius, radius + P] : [radius]) {
+        const steps = Math.max(24, Math.round((4 * Math.PI * r) / P)); // de sobra: sin huecos en el aro
+        const seen = new Set();
+        for (let i = 0; i < steps; i++) {
+          const angle = (i / steps) * Math.PI * 2;
+          const px = Math.round((cx + Math.cos(angle) * r) / P);
+          const py = Math.round((cy + Math.sin(angle) * r) / P);
+          const key = px * 4096 + py;
+          if (seen.has(key)) continue; // sin pintar dos veces el mismo pixel (se vería más claro)
+          seen.add(key);
+          ctx.fillRect(px * P, py * P, P, P);
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
   }
 
   /**

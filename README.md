@@ -136,12 +136,15 @@ control cuentan como actividad).
   (`js/ui/Legend.js`): la estrella ▸ nubecita, los cócteles ▸ ◆×3 y sus puntos, la comida ▸ ♥×1 y sus puntos, el
   trío ▸ ◆ MAX ♥×1 y sus puntos (con el multiplicador de la dificultad), y abajo el aviso para empezar.
   Se quita con el primer salto.
-- **El trío** (`CONFIG.trio`, `INGREDIENTS` en `js/entities/Pickup.js`), como los tragos del bar: en
-  cada mundo salen, una vez cada uno y en orden al azar, un hongo blanco (el ingrediente chino), un
-  agave (el fermento, el pulque) y un chile (el mexicano). Con suelo salen a la altura de un salto:
-  no hace falta la estrella. Cada uno da 150 puntos y se enciende en el marcador; con los tres se
-  prepara **el cóctel de tu signo**: «¡Cóctel listo!» con su nombre, fuego lleno, un corazón (si cabe)
-  y 500 puntos. Empieza de cero en cada nivel; contra el rival no sale.
+- **El trío** (`CONFIG.trio`, `js/world/trio.js`, `INGREDIENTS` en `js/entities/Pickup.js`), como los
+  tragos del bar: un hongo blanco (el ingrediente chino), un agave (el fermento, el pulque) y un chile
+  (el mexicano) se juntan **a lo largo de todo el viaje**. Al empezar la partida se eligen al azar
+  tres mundos distintos y en cada uno sale uno de los tres: nunca dos en el mismo nivel, y contra el
+  rival no sale ninguno. Son coleccionables: los rodean dos aros dorados que se encogen una y otra vez
+  (`Scene.drawHalo`). Con suelo salen a la altura de un salto: no hace falta la estrella. Cada uno da
+  150 puntos y se enciende en el marcador; con los tres se prepara **el cóctel de tu signo**:
+  «¡Cóctel listo!» con su nombre, fuego lleno, un corazón (si cabe) y 500 puntos. Si uno se escapa,
+  en esa partida ya no se completa; al reintentar un nivel, el trío vuelve a como estaba al empezarlo.
 - **Bolas de fuego**, del color de cada animal: queman todo menos los muros y las nubes de tormenta
   (`burnable` en `js/world/obstacles.js`). Se empieza con 3. Casi todos los cócteles salen arriba
   (solo el 15% a la altura de un salto): para recargar hay que volar, así no basta con quemar todo
@@ -262,8 +265,8 @@ Prueban, sin navegador, la física y la lógica:
 - la racha y los puntos por rozar volando;
 - que un bot que juega como una persona, sin bolas de fuego, pase los 11 mundos en fácil y en
   difícil sin un golpe (es decir, que todo se puede esquivar con esta física), que tome casi todo
-  lo que sale sin chocar nunca, que en cada mundo salgan los tres del trío y que lo complete en
-  casi todos; Tarda unos 40 s.
+  lo que sale sin chocar nunca, y que cada ingrediente del trío salga en el mundo que le tocó, uno
+  por nivel, y se pueda tomar; Tarda unos 40 s.
 
 ## Guardado
 

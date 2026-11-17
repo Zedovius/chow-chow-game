@@ -139,12 +139,17 @@ export const CONFIG = {
   // momento al azar al principio del nivel (window: qué parte del nivel), a ras del suelo (height:
   // la altura de su centro): se toma corriendo.
   star: { radius: 9, height: 14, window: [0.06, 0.22] },
-  // El trío (hongo, agave y chile): uno de cada uno en cada mundo (no contra el rival), en orden al
-  // azar, uno en cada ventana del recorrido (windows: qué parte del nivel). Con suelo, a una altura
-  // que se alcanza saltando (cocktails.low): no hace falta la estrella. Cada uno da points; juntar
-  // los tres prepara el cóctel del signo: fuego lleno, hearts corazón y bonus puntos. apart: segundos
-  // desde lo último que salió (la estrella y el trío esperan menos que pickups.apart, ver Spawner).
-  trio: { radius: 10, points: 150, bonus: 500, hearts: 1, apart: 1.5, windows: [[0.1, 0.18], [0.32, 0.4], [0.54, 0.62]] },
+  // El trío (hongo, agave y chile) se junta en todo el viaje: cada uno sale en un mundo distinto, al
+  // azar (world/trio.js; nunca dos en el mismo nivel ni contra el rival), en un momento al azar del
+  // nivel (window: qué parte). Con suelo, a una altura que se alcanza saltando (cocktails.low): no
+  // hace falta la estrella. Cada uno da points; juntar los tres prepara el cóctel del signo: fuego
+  // lleno, hearts corazón y bonus puntos. apart: segundos desde lo último que salió (la estrella y el
+  // trío esperan menos que pickups.apart, ver Spawner). halo: el aro que se encoge una y otra vez a
+  // su alrededor (Scene.drawHalo): veces por segundo y de qué tan lejos a qué tan cerca.
+  trio: {
+    radius: 10, points: 150, bonus: 500, hearts: 1, apart: 1.5, window: [0.15, 0.6],
+    halo: { rate: 1.4, from: 26, to: 4 },
+  },
   // Comida china (la caja para llevar, el tazón de arroz): un corazón (sin pasar del máximo de la
   // dificultad) y points puntos
   food: { hearts: 1, points: 200, radius: 12 },

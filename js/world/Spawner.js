@@ -19,7 +19,7 @@
 
 import { CONFIG } from '../config.js';
 import { Obstacle } from '../entities/Obstacle.js';
-import { Pickup, COCKTAILS, FOODS, INGREDIENTS } from '../entities/Pickup.js';
+import { Pickup, COCKTAILS, FOODS } from '../entities/Pickup.js';
 import { FORMATIONS, sectionAt } from './obstacles.js';
 
 const pickOne = (list) => list[Math.floor(Math.random() * list.length)];
@@ -53,7 +53,7 @@ export class Spawner {
    * carry: lo que le faltaba al nivel anterior para el siguiente cóctel y la siguiente comida (ver
    * carry()); así la cuenta sigue de un nivel al otro y lo que sale cada más de un nivel sí sale.
    */
-  constructor(level, carry = null, { star = false, trio = false } = {}) {
+  constructor(level, carry = null, { star = false, ingredient = null } = {}) {
     this.level = level;
     this.progress = 0; // 0 al empezar el nivel, 1 al terminarlo
     const { firstDistance } = CONFIG.obstacles;
@@ -69,9 +69,8 @@ export class Spawner {
     this.nextFood = level.pickups.food ? (carry?.food ?? between(...level.pickups.food)) : Infinity;
     // La estrella del vuelo (si quien juega aún no tiene el poder): una vez, al principio del nivel
     this.starAt = star ? level.length * between(...CONFIG.star.window) : null;
-    // El trío: un hongo, un agave y un chile, en orden al azar, uno en cada ventana del nivel
-    const order = [...INGREDIENTS].sort(() => Math.random() - 0.5);
-    this.ingredients = trio ? order.map((variety, i) => ({ variety, at: level.length * between(...CONFIG.trio.windows[i]) })) : [];
+    // Un ingrediente del trío, si en este nivel toca uno (world/trio.js): en un momento al azar
+    this.ingredients = ingredient ? [{ variety: ingredient, at: level.length * between(...CONFIG.trio.window) }] : [];
     this.sincePickup = CONFIG.pickups.apart; // segundos desde lo último que salió
   }
 

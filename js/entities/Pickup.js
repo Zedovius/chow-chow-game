@@ -1,5 +1,5 @@
 // Lo que se recoge con la cabeza: los cócteles (recargan las bolas de fuego), la comida china (un
-// corazón), la estrella (el poder de volar) y los tres ingredientes del trío (juntarlos en un nivel
+// corazón), la estrella (el poder de volar) y los tres ingredientes del trío (juntarlos en el viaje
 // prepara el cóctel del signo). Van con el mundo y se mecen un poco, como
 // los huesitos de Chispas. Dónde y cuándo salen: world/Spawner.js.
 
@@ -12,7 +12,7 @@ export const COCKTAILS = ['margarita-lichi', 'mezcal-jengibre'];
 // solo cambia el dibujo
 export const FOODS = ['caja-china', 'tazon-de-arroz'];
 // El trío, como los tragos del bar: un ingrediente chino (hongo blanco), un fermento (el agave del
-// pulque) y uno mexicano (chile). Sale uno de cada uno en cada nivel (world/Spawner.js)
+// pulque) y uno mexicano (chile). Cada uno sale en un mundo distinto del viaje, al azar (world/trio.js)
 export const INGREDIENTS = ['hongo', 'agave', 'chile'];
 
 const RADIUS = {

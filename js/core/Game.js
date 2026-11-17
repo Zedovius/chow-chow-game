@@ -7,8 +7,8 @@
 // Un corredor sin fin, como Chispas: el dragón corre, salta y se agacha entre obstáculos, y en el
 // aire puede aletear y volar (hasta CONFIG.skyJumps saltos de alto; la cámara lo sigue). El Dragón y
 // el Gallo son niveles sin suelo. Dispara bolas de fuego que se recargan con cócteles; la comida
-// china da corazones. En cada mundo salen un hongo, un agave y un chile: juntar los tres (el trío)
-// prepara el cóctel del signo. Esquivar de cerca alarga la racha, que multiplica los puntos.
+// china da corazones. En tres mundos al azar sale un ingrediente (un hongo, un agave o un chile, uno
+// por nivel): juntar los tres en el viaje (el trío) prepara el cóctel del signo. Esquivar de cerca alarga la racha, que multiplica los puntos.
 // Los 12 niveles van seguidos, sin escenas: al terminar uno se cobran los corazones y el siguiente
 // empieza sin detenerse, con su cartel.
 //
@@ -31,6 +31,7 @@ import { Player } from '../entities/Player.js';
 import { Fireball } from '../entities/Fireball.js';
 import { INGREDIENTS } from '../entities/Pickup.js';
 import { cocktailOf } from '../world/cocktails.js';
+import { planTrio } from '../world/trio.js';
 import { Scene } from '../graphics/Scene.js';
 import { Camera } from '../graphics/Camera.js';
 import { enterName } from '../ui/NameEntry.js';
@@ -129,7 +130,9 @@ export class Game {
     this.closeCalls = new CloseCalls();
     this.fireButton = new FireButton(); // el botón de fuego, con o sin carga (core/charge.js)
     this.boss = null; // el jefe del nivel 12 (entities/Boss.js)
-    this.trio = new Set(); // los ingredientes del trío que lleva en este nivel
+    this.trio = new Set(); // los ingredientes del trío que lleva en el viaje
+    this.trioPlan = {}; // en qué nivel sale cada uno (world/trio.js)
+    this.levelStartTrio = new Set();
     this.combo = new Combo();
     this.section = null; // el tramo del nivel en que va (ver PACING en world/obstacles.js)
 
@@ -240,6 +243,10 @@ export class Game {
     this.score = 0;
     this.lives = this.mode.lives;
     this.ammo = Math.min(CONFIG.fire.start, this.fireMax);
+    // El trío: en qué tres mundos sale cada ingrediente, y empieza sin ninguno
+    this.trioPlan = planTrio(this.levels.filter((level) => !level.boss).length);
+    this.trio = new Set();
+    this.levelStartTrio = new Set();
     this.combo.reset();
     this.hud.setCombo(1);
     this.recordToBeat = this.record;
@@ -294,13 +301,15 @@ export class Game {
     this.speed = this.level.speed;
     // La cuenta de cócteles y comida sigue del nivel anterior si se viene de él sin detenerse
     // La estrella del vuelo sale una vez en cada nivel con suelo, si aún no tiene el poder
+    // El ingrediente del trío de este nivel, si le toca uno y aún no lo tiene
+    const planned = this.level.boss ? null : this.trioPlan[index] ?? null;
     this.spawner = new Spawner(this.level, continued ? this.spawner?.carry() : null, {
       star: this.level.ground && !this.level.boss && !this.player.canFly,
-      trio: !this.level.boss, // el hongo, el agave y el chile, en cada mundo
+      ingredient: planned && !this.trio.has(planned) ? planned : null,
     });
-    // El trío empieza de cero en cada nivel
-    this.trio = new Set();
-    this.hud.setTrio(this.trio, { visible: !this.level.boss });
+    // Lo que lleva del trío (se junta en todo el viaje; al reintentar el nivel, vuelve a como estaba)
+    this.levelStartTrio = new Set(this.trio);
+    this.hud.setTrio(this.trio, { visible: true });
     this.section = null;
     // El nivel 12: el rival, y todos vuelan
     this.boss = this.level.boss ? new Boss(this.level.id, this.difficulty, Math.floor(Math.random() * 2 ** 32)) : null;
@@ -612,7 +621,7 @@ export class Game {
     this.events.emit('cocktail', { variety: pickup.variety, ammo: this.ammo });
   }
 
-  /** Un ingrediente del trío (hongo, agave o chile): puntos y, con los tres, el cóctel del signo. */
+  /** Un ingrediente del trío (hongo, agave o chile): puntos y, con los tres del viaje, el cóctel del signo. */
   collectIngredient(pickup) {
     this.addScore(CONFIG.trio.points * this.mode.score);
     this.trio.add(pickup.variety);
@@ -711,6 +720,7 @@ export class Game {
     }
     this.score = this.levelStartScore;
     this.ammo = this.levelStartAmmo;
+    this.trio = new Set(this.levelStartTrio);
     this.player.canFly = this.levelStartFlight;
     this.hud.setFlight(this.player.canFly);
     this.combo.reset();
