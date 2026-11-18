@@ -7,8 +7,9 @@
 //   aiming     dispara a la altura de quien juega (uno en fácil, varios en difícil)
 //   charging   cruza la pantalla por la franja que avisó, y regresa (returning)
 // Sus ataques: volley (tres disparos), aimed (a la altura de quien juega), charge (embiste), rain
-// (lluvia de fuego en diagonal desde lo alto) y wall (un muro de disparos con un hueco). El de la
-// lluvia y el muro se decide al avisar (plan), para que el aviso muestre justo por dónde vendrán.
+// (lluvia de fuego en diagonal desde lo alto) y wall (una línea vertical de pocos disparos muy
+// separados). La lluvia y el muro se deciden al avisar (plan), para que el aviso muestre justo por
+// dónde vendrán.
 //   defeated   vencido: cae
 //
 // Los disparos son obstáculos ('shot', entities/Obstacle.js) que Game agrega al mundo (spawn).
@@ -40,7 +41,7 @@ export class Boss {
     this.attack = null; // el ataque que viene o que está haciendo
     this.shots = 0; // disparos que le faltan (aiming)
     this.last = null; // el último ataque (no repite el mismo dos veces seguidas)
-    this.plan = null; // la lluvia ({ drops: [x], top }) o el muro ({ x, gapY }) que viene
+    this.plan = null; // la lluvia ({ drops: [x], top }) o el muro ({ x, ys }) que viene
     this.flash = 0; // le acaban de pegar (parpadea)
     this.t = 0;
     this.seed = seed >>> 0;
@@ -177,10 +178,13 @@ export class Boss {
       }
       this.plan = { drops, top };
     } else if (this.attack === 'wall') {
-      // El hueco: en fácil, cerca de la altura de quien juega; en difícil, en cualquier lugar
-      const [top, bottom] = [CONFIG.ceilingY + wall.gap / 2 + 6, CONFIG.groundY - wall.gap / 2 - 6];
-      const [low, high] = this.difficulty === 'easy' ? [Math.max(top, playerY - wall.near), Math.min(bottom, playerY + wall.near)] : [top, bottom];
-      this.plan = { x: this.x - this.w / 2 - shot.w, gapY: low + this.random() * Math.max(0, high - low) };
+      // Pocos disparos, repartidos de arriba abajo con la misma separación, corridos al azar
+      const top = CONFIG.ceilingY + shot.h;
+      const bottom = CONFIG.groundY - shot.h / 2 - 2;
+      const step = (bottom - top) / wall.shots;
+      const offset = this.random() * step;
+      const ys = [...Array(wall.shots).keys()].map((i) => top + offset + i * step);
+      this.plan = { x: this.x - this.w / 2 - shot.w, ys };
     }
   }
 
@@ -229,12 +233,11 @@ export class Boss {
     this.plan = null;
   }
 
-  /** El muro de fuego: disparos de arriba abajo, menos en el hueco avisado. */
+  /** El muro de fuego: los disparos avisados, en una línea vertical. */
   wall(spawn) {
     const { shot, wall, enrage } = CONFIG.boss;
-    const { x, gapY } = this.plan;
-    for (let y = CONFIG.ceilingY + shot.h; y <= CONFIG.groundY - shot.h / 2 - 2; y += wall.step) {
-      if (Math.abs(y - gapY) < wall.gap / 2 + shot.h / 2) continue;
+    const { x, ys } = this.plan;
+    for (const y of ys) {
       const o = new Obstacle('shot', x, { height: 'boss', center: CONFIG.groundY - y });
       o.bob = 0;
       o.speedBonus = shot.speed[this.difficulty] * wall.speed * (this.enraged ? enrage.speed : 1);

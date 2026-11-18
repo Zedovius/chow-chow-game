@@ -447,15 +447,12 @@ export class Scene {
     }
   }
 
-  /** El aviso del muro de fuego: la columna completa, menos el hueco. */
-  drawWallWarning({ x, gapY }) {
+  /** El aviso del muro de fuego: dónde saldrá cada disparo, y una línea tenue que los une. */
+  drawWallWarning({ x, ys }) {
     const ctx = this.ctx;
-    const { w: shotW } = CONFIG.boss.shot;
-    const { gap } = CONFIG.boss.wall;
-    const top = Math.round(gapY - gap / 2);
-    const bottom = Math.round(gapY + gap / 2);
-    ctx.fillRect(Math.round(x), ceilingY, shotW, top - ceilingY);
-    ctx.fillRect(Math.round(x), bottom, shotW, groundY - bottom);
+    const { w: shotW, h: shotH } = CONFIG.boss.shot;
+    for (const y of ys) ctx.fillRect(Math.round(x), Math.round(y - shotH / 2), shotW, shotH);
+    for (let y = ceilingY; y < groundY; y += 12) ctx.fillRect(Math.round(x + shotW / 2) - P / 2, y, P, P * 2);
   }
 
   /**

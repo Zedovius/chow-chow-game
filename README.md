@@ -189,13 +189,11 @@ control cuentan como actividad).
   - **Ráfaga:** tres disparos a tres alturas, con huecos para pasar.
   - **Puntería:** disparos a tu altura (uno en fácil, tres seguidos en difícil).
   - **Embestida:** marca una franja a su altura y la cruza a toda velocidad.
-  - **Lluvia de fuego** (`CONFIG.boss.rain`): bolas que caen en diagonal desde lo alto (4 en fácil, 6 en
-    difícil), apuntadas: una cruza justo a tu altura y las demás más arriba o más abajo, cada una en
-    otro momento. El aviso dibuja en puntos el camino de cada una. Se esquiva subiendo, bajando o
-    moviéndose de lado.
-  - **Muro de fuego** (`CONFIG.boss.wall`): una columna de disparos de arriba abajo con un solo hueco;
-    el aviso muestra la columna tenue y dónde estará el hueco (en fácil, cerca de tu altura). Hay que
-    volar hasta él.
+  - **Lluvia de fuego** (`CONFIG.boss.rain`): 3 bolas que caen en diagonal desde lo alto, apuntadas:
+    una cruza justo a tu altura y las otras más arriba o más abajo, cada una en otro momento. El aviso
+    dibuja en puntos el camino de cada una. Se esquiva subiendo, bajando o moviéndose de lado.
+  - **Muro de fuego** (`CONFIG.boss.wall`): 4 disparos en una línea vertical, repartidos de arriba abajo
+    y muy separados (a alturas que cambian cada vez); el aviso marca dónde saldrá cada uno.
 
   Con la mitad de la vida descansa menos y dispara más rápido. Vencerlo da 5000 puntos (× la
   dificultad) y termina el viaje. Para probar: `?nivel=12`.

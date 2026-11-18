@@ -186,11 +186,11 @@ export const CONFIG = {
     // la izquierda con el mundo). Están apuntadas: una cruza la columna de quien juega justo a su
     // altura y las demás cada spacing más arriba o más abajo, cada una en otro momento. Se esquivan
     // subiendo, bajando o moviéndose de lado. Se ve tenue el camino de cada una antes de caer
-    rain: { drops: { easy: 4, hard: 6 }, fall: 260, spacing: 90 },
-    // Muro de fuego: una columna de disparos de arriba abajo (uno cada step) con un hueco de gap; en
-    // fácil el hueco queda a lo más near de la altura de quien juega. Avanza más despacio que un
-    // disparo (speed: × shot.speed). Se ve tenue dónde estará el hueco
-    wall: { step: 22, gap: 84, near: 150, speed: 0.55 },
+    rain: { drops: { easy: 3, hard: 3 }, fall: 260, spacing: 90 },
+    // Muro de fuego: shots disparos en una línea vertical, repartidos de arriba abajo y muy separados
+    // (quedan varios huecos amplios), a alturas que cambian cada vez. Avanza más despacio que un
+    // disparo (speed: × shot.speed). Se ve tenue dónde saldrá cada uno
+    wall: { shots: 4, speed: 0.55 },
     enrage: { at: 0.5, rest: 0.7, speed: 1.15 },
     points: 100, // por cada bola de fuego que le pega
     bonus: 5000, // al vencerlo

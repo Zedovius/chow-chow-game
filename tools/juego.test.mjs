@@ -808,7 +808,10 @@ test('el jefe siempre avisa antes de atacar, y su copia hace exactamente lo mism
   // La ráfaga deja huecos por donde cabe la cabeza, y el muro también
   const { spread, h } = CONFIG.boss.shot;
   assert.ok(spread - h > CONFIG.player.head.h + 10);
-  assert.ok(CONFIG.boss.wall.gap > CONFIG.player.head.h + 30, 'el hueco del muro es holgado');
+  // El muro: pocos disparos y muy separados (huecos holgados)
+  const wallStep = (CONFIG.groundY - CONFIG.ceilingY) / CONFIG.boss.wall.shots;
+  assert.ok(CONFIG.boss.wall.shots <= 4 && wallStep - h > CONFIG.player.head.h * 3, 'el muro deja huecos amplios');
+  assert.ok(CONFIG.boss.rain.drops.easy <= 3 && CONFIG.boss.rain.drops.hard <= 3, 'la lluvia es de 3');
 });
 
 test('el jefe cae con tantas bolas de fuego como su vida (también mientras entra)', () => {
@@ -1150,7 +1153,7 @@ test('la lluvia de fuego del jefe: una bola cruza justo a la altura de quien jue
     const playerY = [230, 120, -150][k % 3]; // abajo, en medio y arriba
     do boss.prepare(190, playerY, speed); while (boss.attack !== 'rain');
     const { drops, top } = boss.plan;
-    assert.ok(drops.length >= CONFIG.boss.rain.drops.hard - 1, `solo ${drops.length} bolas`);
+    assert.equal(drops.length, CONFIG.boss.rain.drops.hard, `solo ${drops.length} bolas`);
     // Cuándo y a qué altura cruza cada una la columna de quien juega
     const crossings = drops.map((x0) => {
       const t = (x0 + CONFIG.boss.shot.w / 2 - 190) / speed;
