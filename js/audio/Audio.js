@@ -9,9 +9,11 @@
 //   · En pausa la música baja a cero; con la pestaña oculta se detiene todo.
 //   · El silencio (tecla M) se guarda en localStorage (chowchow.sonido).
 
-import { SOUNDS } from './sounds.js';
+import { SOUNDS, VOICES } from './sounds.js';
 
 const MUTE_KEY = 'chowchow.sonido';
+const LATE = 300; // ms: un efecto que no pudo sonar antes (aún se bajaba, o el audio no arrancaba) ya no suena
+const MIN_GAP = 45; // ms: el mismo efecto no se encima consigo mismo (tres cosas quemadas a la vez)
 
 function loadMuted() {
   try {
@@ -38,6 +40,8 @@ export class AudioManager {
     this.quiet = false; // pausa: la música baja a cero (los efectos del menú sí suenan)
     this.wanted = null; // la pista que debería sonar (su clave en sounds.music)
     this.track = null; // { key, source, gain }
+    this.last = new Map(); // efecto → { at, index }: cuándo sonó y qué versión
+    this.held = new Map(); // efecto → { source, gain } que suena mientras dura algo (hold)
     this.Context = globalThis.AudioContext ?? globalThis.webkitAudioContext;
 
     if (typeof document !== 'undefined') {
@@ -65,7 +69,15 @@ export class AudioManager {
       const { master, music, sfx } = this.sounds.volume;
       this.master = this.ctx.createGain();
       this.master.gain.value = this.muted ? 0 : master;
-      this.master.connect(this.ctx.destination);
+      // Un limitador: muchos efectos a la vez (o con música) no truenan en la bocina
+      const limiter = this.ctx.createDynamicsCompressor();
+      limiter.threshold.value = -6;
+      limiter.knee.value = 4;
+      limiter.ratio.value = 12;
+      limiter.attack.value = 0.002;
+      limiter.release.value = 0.12;
+      this.master.connect(limiter);
+      limiter.connect(this.ctx.destination);
       this.musicBus = this.ctx.createGain();
       this.musicBus.gain.value = this.quiet ? 0 : music;
       this.musicBus.connect(this.master);
@@ -100,18 +112,80 @@ export class AudioManager {
   /** Baja de antemano todo lo que está en sounds.js (tras el desbloqueo), para que no haya esperas. */
   preload() {
     if (!this.ctx) return;
-    for (const url of [...Object.values(this.sounds.music), ...Object.values(this.sounds.sfx)]) this.load(url);
+    for (const url of [...Object.values(this.sounds.sfx), ...Object.values(this.sounds.music)].flat()) this.load(url);
   }
 
-  /** Un efecto (su clave en sounds.sfx). */
-  async sfx(name) {
-    if (!this.ctx || this.muted) return;
-    const buffer = await this.load(this.sounds.sfx[name]);
-    if (!buffer || !this.ctx) return;
+  /**
+   * Un efecto (su clave en sounds.sfx). index: cuál de sus versiones (si no, una al azar, distinta de la
+   * anterior); delay: segundos antes de sonar; vary: cuánto cambia la altura, al azar (0.04: ±4 %), para
+   * que lo que se repite mucho no canse.
+   */
+  async sfx(name, { index = null, delay = 0, vary = 0 } = {}) {
+    const asked = performance.now();
+    const last = this.last.get(name);
+    if (last && asked - last.at < MIN_GAP) return;
+    const chosen = this.version(name, index, last?.index);
+    this.last.set(name, { at: asked, index: chosen.index });
+    const buffer = await this.ready(chosen.url, asked);
+    if (!buffer) return;
     const source = this.ctx.createBufferSource();
     source.buffer = buffer;
+    source.playbackRate.value = 1 + vary * (2 * Math.random() - 1);
     source.connect(this.sfxBus);
-    source.start();
+    source.start(this.ctx.currentTime + delay);
+  }
+
+  /** Qué archivo suena: el único, la versión pedida o una al azar que no sea la anterior. */
+  version(name, index, previous = -1) {
+    const entry = this.sounds.sfx[name];
+    if (!Array.isArray(entry)) return { url: entry, index: 0 };
+    const last = entry.length - 1;
+    let i = index === null ? Math.floor(Math.random() * entry.length) : Math.max(0, Math.min(last, index));
+    if (index === null && i === previous && last > 0) i = (i + 1) % entry.length;
+    return { url: entry[i], index: i };
+  }
+
+  /**
+   * El archivo listo para sonar ahora, o null: en silencio, con la pestaña oculta, si no cargó, o si
+   * para cuando está listo ya es tarde (así, si el navegador aún no deja sonar nada, los efectos no
+   * se acumulan para sonar todos juntos después).
+   */
+  async ready(url, asked) {
+    if (!this.ctx || this.muted || (typeof document !== 'undefined' && document.hidden)) return null;
+    const buffer = await this.load(url);
+    if (buffer && this.ctx.state !== 'running') {
+      await Promise.race([this.ctx.resume().catch(() => {}), new Promise((resolve) => { setTimeout(resolve, LATE); })]);
+    }
+    return buffer && this.ctx.state === 'running' && performance.now() - asked <= LATE ? buffer : null;
+  }
+
+  /** Un efecto que suena mientras dura algo (la carga del especial, la rueda), hasta release(name). */
+  async hold(name) {
+    this.release(name);
+    const slot = { source: null, gain: null };
+    this.held.set(name, slot);
+    const buffer = await this.ready(this.version(name, null).url, performance.now());
+    if (!buffer || this.held.get(name) !== slot) return; // ya se soltó
+    slot.gain = this.ctx.createGain();
+    slot.gain.connect(this.sfxBus);
+    slot.source = this.ctx.createBufferSource();
+    slot.source.buffer = buffer;
+    const loop = this.sounds.loops?.[name];
+    if (loop) {
+      slot.source.loop = true;
+      [slot.source.loopStart, slot.source.loopEnd] = loop;
+    }
+    slot.source.connect(slot.gain);
+    slot.source.start();
+  }
+
+  release(name) {
+    const slot = this.held.get(name);
+    this.held.delete(name);
+    if (!slot?.source) return;
+    const now = this.ctx.currentTime;
+    slot.gain.gain.setTargetAtTime(0, now, 0.012);
+    slot.source.stop(now + 0.08);
   }
 
   /**
@@ -195,9 +269,43 @@ export class AudioManager {
 
 /** Une los avisos del juego con el sonido. Para cambiar qué suena cuándo, aquí. */
 export function connectAudio(audio, events) {
-  const sfxOn = ['jump', 'flap', 'land', 'bump', 'fire', 'fireEmpty', 'chargeReady', 'fireSpecial', 'burn', 'fizzle', 'cocktail', 'bossWarn', 'bossAttack', 'bossHit', 'bossDefeated', 'food', 'flightGained', 'flightLost', 'comboUp', 'comboLost', 'thunder', 'hit', 'levelComplete', 'dying', 'newRecord', 'milestone', 'closeCall'];
-  for (const name of sfxOn) events.on(name, () => audio.sfx(name));
+  // Cada animal salta y aletea con su voz (VOICES en sounds.js)
+  let voice = 0;
+  events.on('start', ({ sign }) => { voice = VOICES[sign] ?? 0; });
+  events.on('jump', () => audio.sfx('jump', { index: voice }));
+  events.on('flap', () => audio.sfx('flap', { index: voice }));
 
+  // Con el trío completo, el fuego jade suena distinto
+  events.on('fire', ({ jade }) => audio.sfx(jade ? 'fireJade' : 'fire', { vary: 0.04 }));
+  events.on('chargeStart', () => audio.hold('charge'));
+  events.on('chargeEnd', () => audio.release('charge'));
+  events.on('fireSpecial', ({ jade }) => audio.sfx(jade ? 'fireSpecialJade' : 'fireSpecial'));
+  events.on('burn', () => audio.sfx('burn', { vary: 0.06 }));
+  events.on('bossHit', ({ special, weak }) => {
+    if (weak) audio.sfx('bossWeak');
+    if (special || !weak) audio.sfx(special ? 'bossHitSpecial' : 'bossHit');
+  });
+
+  events.on('bossWarn', () => audio.sfx('bossWarn'));
+  const attacks = { volley: 'bossShot', aimed: 'bossShot', charge: 'bossCharge', rain: 'bossRain', wall: 'bossWall' };
+  events.on('bossAttack', ({ attack }) => audio.sfx(attacks[attack] ?? 'bossShot'));
+
+  events.on('hit', () => audio.sfx('hit'));
+  events.on('dying', () => audio.sfx('dying', { delay: 0.2 })); // después del golpe
+
+  events.on('flightGained', () => audio.sfx('star'));
+  events.on('food', () => audio.sfx('food'));
+  events.on('cocktail', () => audio.sfx('cocktail'));
+  events.on('ingredient', () => audio.sfx('ingredient'));
+
+  // Superar el récord, y entrar a HI RECORDS al final
+  events.on('newRecord', () => audio.sfx('record'));
+  events.on('highScore', () => audio.sfx('record'));
+
+  events.on('pause', () => audio.sfx('pause'));
+  events.on('gameOver', () => audio.sfx('gameOver'));
+
+  // La música
   events.on('title', () => {
     audio.setQuiet(false);
     audio.music('title');
@@ -206,16 +314,25 @@ export function connectAudio(audio, events) {
     audio.setQuiet(false);
     audio.music(id);
   });
-  events.on('pause', () => {
-    audio.sfx('pause');
-    audio.setQuiet(true);
-  });
+  events.on('pause', () => audio.setQuiet(true));
   events.on('resume', () => audio.setQuiet(false));
-  events.on('gameOver', () => {
-    audio.sfx('gameOver');
-    audio.stopMusic();
-  });
+  events.on('gameOver', () => audio.stopMusic());
   events.on('bossStart', () => audio.music('boss'));
   events.on('ending', () => audio.music('ending'));
   events.on('toggleMute', () => audio.toggleMute());
+}
+
+/**
+ * Los menús avisan con eventos del DOM: menu:move (se cambió de botón), menu:select (▶, o se eligió algo)
+ * y la rueda del zodiaco: gira, se detiene con un animal, o se dejó de ver.
+ */
+export function connectMenuAudio(audio, target = document) {
+  target.addEventListener('menu:move', () => audio.sfx('menuMove'));
+  target.addEventListener('menu:select', () => audio.sfx('play'));
+  target.addEventListener('wheel:spin', () => audio.hold('wheel'));
+  target.addEventListener('wheel:leave', () => audio.release('wheel'));
+  target.addEventListener('wheel:stop', () => {
+    audio.release('wheel');
+    audio.sfx('wheelStop');
+  });
 }

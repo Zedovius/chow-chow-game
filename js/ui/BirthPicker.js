@@ -100,6 +100,8 @@ export class BirthPicker {
     const stops = this.stops;
     const at = stops.indexOf(document.activeElement);
     stops[(at + step + stops.length) % stops.length].focus();
+    // Aviso para el sonido: se cambió de número o de botón (cambiar el valor no suena)
+    this.root.dispatchEvent(new CustomEvent('menu:move', { bubbles: true }));
   }
 
   /** Cambia un número, dando la vuelta en sus límites. */

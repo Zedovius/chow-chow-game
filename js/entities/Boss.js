@@ -42,7 +42,9 @@ export class Boss {
     this.shots = 0; // disparos que le faltan (aiming)
     this.last = null; // el último ataque (no repite el mismo dos veces seguidas)
     this.plan = null; // la lluvia ({ drops: [x], top }) o el muro ({ x, ys }) que viene
+    this.target = { x: CONFIG.player.x, y: this.y }; // la cabeza de quien juega
     this.flash = 0; // le acaban de pegar (parpadea)
+    this.weakFlash = 0; // le acaban de dar en el punto débil
     this.t = 0;
     this.seed = seed >>> 0;
   }
@@ -74,6 +76,17 @@ export class Boss {
     return this.state === 'telegraph' ? this.attack : null;
   }
 
+  /** El punto débil está encendido: mientras avisa un ataque. */
+  get weakOpen() {
+    return this.state === 'telegraph';
+  }
+
+  /** ¿Una bola de fuego a la altura y da en el punto débil, ahora? */
+  isWeakHit(y) {
+    const { weak } = CONFIG.boss;
+    return this.weakOpen && Math.abs(y - (this.y + weak.y)) <= weak.reach;
+  }
+
   /** Lo más arriba y lo más abajo que puede estar su centro. */
   get range() {
     return [CONFIG.ceilingY + this.h / 2 + 10, CONFIG.groundY - this.h / 2 - 4];
@@ -87,9 +100,11 @@ export class Boss {
     const { homeX, follow, telegraph, charge, enrage } = CONFIG.boss;
     this.prevX = this.x;
     this.prevY = this.y;
+    this.target = { x: playerX, y: playerY };
     this.t += dt;
     this.timer += dt;
     this.flash = Math.max(0, this.flash - dt);
+    this.weakFlash = Math.max(0, this.weakFlash - dt);
     const [top, bottom] = this.range;
     const toward = (target, speed) => {
       const goal = Math.min(bottom, Math.max(top, target));
@@ -112,7 +127,7 @@ export class Boss {
         break;
       case 'aiming':
         if (this.timer >= CONFIG.boss.aimed.every) {
-          this.fire(playerY, spawn);
+          this.fire(playerY, spawn, this.hand(this.aimAngle), CONFIG.boss.launch.aimed);
           this.timer = 0;
           if (--this.shots <= 0) this.rest();
         }
@@ -192,11 +207,11 @@ export class Boss {
     const { shot, aimed } = CONFIG.boss;
     this.timer = 0;
     if (this.attack === 'volley') {
-      for (const dy of [-shot.spread, 0, shot.spread]) this.fire(this.y + dy, spawn);
+      for (const dy of [-shot.spread, 0, shot.spread]) this.fire(this.y + dy, spawn, this.mouth, CONFIG.boss.launch.volley);
       this.rest();
     } else if (this.attack === 'aimed') {
       this.shots = aimed[this.difficulty];
-      this.fire(playerY, spawn);
+      this.fire(playerY, spawn, this.hand(this.aimAngle), CONFIG.boss.launch.aimed);
       if (--this.shots > 0) this.state = 'aiming';
       else this.rest();
     } else if (this.attack === 'rain') {
@@ -210,15 +225,45 @@ export class Boss {
     }
   }
 
-  /** Un disparo hacia la izquierda, a la altura y (el centro), desde su boca. */
-  fire(y, spawn) {
+  /** Su boca. */
+  get mouth() {
+    const { x, y } = CONFIG.boss.mouth;
+    return { x: this.x + x, y: this.y + y };
+  }
+
+  /** El ángulo del brazo para apuntar a quien juega (grados; más, más abajo). */
+  get aimAngle() {
+    const { arm } = CONFIG.boss;
+    const angle = (Math.atan2(this.target.y - (this.y + arm.y), this.x + arm.x - this.target.x) * 180) / Math.PI;
+    return Math.min(arm.max, Math.max(arm.min, angle));
+  }
+
+  /** Su mano, con el brazo en un ángulo. */
+  hand(angle) {
+    const { arm } = CONFIG.boss;
+    const a = (angle * Math.PI) / 180;
+    return { x: this.x + arm.x - arm.reach * Math.cos(a), y: this.y + arm.y + arm.reach * Math.sin(a) };
+  }
+
+  /** Un disparo hacia la izquierda que sale de from y en time segundos llega a la altura y (el centro). */
+  fire(y, spawn, from, time) {
     const { shot, enrage } = CONFIG.boss;
     const [top, bottom] = [CONFIG.ceilingY + shot.h, CONFIG.groundY - shot.h / 2 - 2];
     const center = CONFIG.groundY - Math.min(bottom, Math.max(top, y));
-    const o = new Obstacle('shot', this.x - this.w / 2 - shot.w, { height: 'boss', center });
-    o.bob = 0;
+    const o = new Obstacle('shot', from.x - shot.w / 2, { height: 'boss', center });
+    this.launch(o, from, time);
     o.speedBonus = shot.speed[this.difficulty] * (this.enraged ? enrage.speed : 1);
     spawn(o);
+  }
+
+  /** Pone un disparo en from; en time segundos se abre hasta su altura. */
+  launch(o, from, time) {
+    o.bob = 0;
+    o.launchFrom = from.y - (o.y + o.h / 2);
+    o.launchTime = time;
+    o.offset = o.launchFrom;
+    o.y = o.baseY + o.offset;
+    o.prevY = o.y;
   }
 
   /** La lluvia de fuego: una bola en lo alto por cada lugar avisado, que cae en diagonal. */
@@ -235,11 +280,11 @@ export class Boss {
 
   /** El muro de fuego: los disparos avisados, en una línea vertical. */
   wall(spawn) {
-    const { shot, wall, enrage } = CONFIG.boss;
-    const { x, ys } = this.plan;
-    for (const y of ys) {
-      const o = new Obstacle('shot', x, { height: 'boss', center: CONFIG.groundY - y });
-      o.bob = 0;
+    const { shot, wall, enrage, arm, launch } = CONFIG.boss;
+    const from = this.hand(arm.wall);
+    for (const y of this.plan.ys) {
+      const o = new Obstacle('shot', from.x - shot.w / 2, { height: 'boss', center: CONFIG.groundY - y });
+      this.launch(o, from, launch.wall);
       o.speedBonus = shot.speed[this.difficulty] * wall.speed * (this.enraged ? enrage.speed : 1);
       spawn(o);
     }
@@ -248,12 +293,14 @@ export class Boss {
 
   /**
    * Le pegó una bola de fuego (damage: cuánta vida le quita). Devuelve true si le hizo daño. También
-   * mientras entra: las bolas de fuego solo lo alcanzan cuando ya se ve, y así ninguna se pierde.
+   * mientras entra: las bolas de fuego solo lo alcanzan cuando ya se ve, y así ninguna se pierde. weak: le
+   * dio en el punto débil (ver isWeakHit), que quita más.
    */
-  hit(damage = 1) {
+  hit(damage = 1, { weak = false } = {}) {
     if (this.defeated) return false;
-    this.hp = Math.max(0, this.hp - damage);
-    this.flash = 0.15;
+    this.hp = Math.max(0, this.hp - damage * (weak ? CONFIG.boss.weak.damage : 1));
+    if (weak) this.weakFlash = 0.35;
+    else this.flash = 0.15;
     if (this.hp <= 0) {
       this.state = 'defeated';
       this.timer = 0;
@@ -264,7 +311,7 @@ export class Boss {
 
   hitboxes() {
     if (this.defeated) return [];
-    return [{ x: this.x - this.w / 2 + 4, y: this.y - this.h / 2 + 4, w: this.w - 8, h: this.h - 8 }];
+    return CONFIG.boss.boxes.map(({ x, y, w, h }) => ({ x: this.x + x, y: this.y + y, w, h }));
   }
 
   /** Una copia independiente: hace exactamente lo mismo (comparte la semilla, no el azar del juego). */

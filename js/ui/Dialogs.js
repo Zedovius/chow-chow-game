@@ -22,10 +22,22 @@ export class Dialogs {
     // Esc cierra el diálogo con la acción por defecto (cancelValue).
     dialog.addEventListener('cancel', (event) => {
       event.preventDefault();
-      if (this.onCancel) this.onCancel();
-      else dialog.close(this.cancelValue);
+      if (this.onCancel) {
+        this.onCancel();
+        return;
+      }
+      this.selected();
+      dialog.close(this.cancelValue);
+    });
+    this.actionsEl.addEventListener('click', (event) => {
+      if (event.target.closest?.('button')) this.selected();
     });
     arrowKeys(dialog, '.story__actions button');
+  }
+
+  /** Aviso para el sonido: se eligió algo. */
+  selected() {
+    this.el.dispatchEvent(new CustomEvent('menu:select', { bubbles: true }));
   }
 
   get isOpen() {

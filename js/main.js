@@ -9,7 +9,7 @@ import { Events } from './core/events.js';
 import { touch } from './core/activity.js';
 import { VIEW, setViewTop } from './core/view.js';
 import { CONFIG } from './config.js';
-import { AudioManager, connectAudio } from './audio/Audio.js';
+import { AudioManager, connectAudio, connectMenuAudio } from './audio/Audio.js';
 import { loadImages } from './graphics/assets.js';
 import { HUD } from './ui/HUD.js';
 import { Dialogs } from './ui/Dialogs.js';
@@ -39,6 +39,7 @@ listenToRemote();
 const events = new Events();
 const audio = new AudioManager();
 connectAudio(audio, events);
+connectMenuAudio(audio);
 
 // El arte (graphics/assets.js): lo que no haya cargado se dibuja con figuras provisionales
 const images = loadImages();
@@ -103,11 +104,14 @@ const titleMenu = new TitleMenu({
 
 // Las tablas completas, desde el botón HI RECORDS de cada paso del menú
 for (const button of document.querySelectorAll('[data-open-boards]')) {
-  button.addEventListener('click', () => dialogs.show({
-    title: t('board.title'),
-    extra: [boardsNode()],
-    actions: [{ label: t('board.back'), value: 'ok', primary: true }],
-  }));
+  button.addEventListener('click', () => {
+    button.dispatchEvent(new CustomEvent('menu:select', { bubbles: true }));
+    dialogs.show({
+      title: t('board.title'),
+      extra: [boardsNode()],
+      actions: [{ label: t('board.back'), value: 'ok', primary: true }],
+    });
+  });
 }
 
 const game = new Game({

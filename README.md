@@ -13,7 +13,7 @@ compilación. Nació como fork de la base de *Chispas*.
 > **Estado:** base del juego. La física, la lógica, los menús y HI RECORDS están completos y
 > probados. El dragón, los obstáculos, los escenarios, los botones táctiles y los colores son
 > **provisionales** (figuras simples en `js/graphics/Scene.js`, colores en `js/world/levels.js` y
-> estilos simples en `css/styles.css`), y todavía no hay sonido. Todo está
+> estilos simples en `css/styles.css`), y todavía no hay música. Todo está
 > listo para recibirlos: ver [Arte](#arte) y [Sonido](#sonido).
 
 ## Jugar en local
@@ -249,21 +249,45 @@ cámara). Para el HTML, `#stage` tiene `data-state` (el estado), `data-ground` (
 suelo) y `data-high` (si se vuela alto), y los colores de `css/styles.css` son variables en
 `:root`.
 
+### Los jefes
+
+`npm run jefes` (`tools/sprites/jefes.mjs`) convierte cada ilustración de `tools/sprites/originales/`
+(PNG con fondo transparente, el brazo aparte) en sus sprites: es el pixelador de Chispas para Node
+(`tools/sprites/pixelar.mjs`), con gradientes de luz. Saca el cuerpo en 8 cuadros (cola, orejas, paño,
+farol...), el brazo en 21 ángulos y sus medidas (`js/graphics/bossArt.js`). `js/graphics/bossPainter.js`
+los dibuja: el brazo cambia según el ataque y el ojo brilla del color de sus disparos y sigue a quien
+juega. Todo va en capas de profundidad (sprite stacking de lado): al girar hacia quien juega, cada capa se
+corre un poco más que la de atrás. El punto débil (la moneda; `CONFIG.boss.weak`, en el mismo lugar para
+los 12) se enciende en rojo mientras avisa un ataque, y darle ahí quita el doble. Para otro jefe, agrega su ilustración y sus puntos en `BOSSES`. Los que no tienen arte se ven con
+figuras. Todos chocan con las mismas cajas (`CONFIG.boss.boxes`). Ya está la Rata (la rival del Caballo).
+
 ## Sonido
 
-`js/audio/Audio.js` (Web Audio) ya está conectado a los avisos del juego. Para agregar sonido,
-coloca los archivos en `assets/audio/` y escribe sus rutas en `js/audio/sounds.js`:
+Los efectos ya están (`assets/audio/sfx/`); falta la música. `js/audio/Audio.js` (Web Audio) está
+conectado a los avisos del juego, y `js/audio/sounds.js` dice qué archivo suena con cada uno:
 
-- **Música:** una pista para el inicio, una por animal y una para el final. Cambian con un fundido,
-  y si un nivel no tiene pista, sigue la que sonaba.
-- **Efectos:** uno por aviso (salto, aleteo, fuego, quemar, cóctel, comida, racha, trueno,
-  golpe...). El aviso `section` dice en qué tramo va el nivel, por si la música quiere cambiar en
-  el último tramo (`rush`).
+- **Música:** una pista para el inicio, una por animal, una para el jefe y una para el final. Coloca
+  los archivos en `assets/audio/` y escribe sus rutas en `sounds.js`. Cambian con un fundido, y si
+  un nivel no tiene pista, sigue la que sonaba. El aviso `section` dice en qué tramo va el nivel,
+  por si la música quiere cambiar en el último tramo (`rush`).
+- **Efectos:** con carácter de maquinita de 32 bits (capas, FM, ruido filtrado, estéreo y
+  reverberación). Sol menor pentatónica (G B♭ C D F) es la guía para que no choquen con la música, pero
+  no son melodías. Los de los menús no pasan de C5, para que no suenen agudos. Suenan saltar y
+  aletear (tres voces, según el animal: `VOICES`), disparar, cargar y soltar el especial, (distintos con el fuego jade), destruir o golpear un obstáculo, morir, Game Over, los ataques del jefe y pegarle
+  (normal y especial), la estrella, la comida, los cócteles, los ingredientes, el récord, la rueda del
+  zodiaco, la pausa y los botones de los menús; lo demás (las tormentas, cambiar la fecha...) va en
+  silencio a propósito. Los crea
+  `tools/sonidos.mjs` con `npm run sonidos`, sin muestras de nadie, y también escribe
+  `docs/sonidos.html`, para oírlos todos. Para usar otro archivo en un efecto, pon su ruta en
+  `sounds.js`.
 
 Lo que no tenga archivo, o no cargue, no suena y el juego sigue igual. Los navegadores no dejan
 sonar nada hasta el primer toque, clic o tecla: el audio se activa solo en ese momento. En pausa la
 música baja a cero, y con la pestaña oculta no suena nada. M silencia, y se recuerda en
 `chowchow.sonido`. Qué suena con cada aviso se cambia en `connectAudio`, al final de `Audio.js`.
+
+En una máquina de bar que solo usa el control, Chrome no cuenta sus botones como primer toque: ábrelo con
+`--autoplay-policy=no-user-gesture-required` para que suene desde el principio.
 
 ## Pruebas
 

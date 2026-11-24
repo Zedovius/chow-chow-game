@@ -109,12 +109,19 @@ export function enterName({ dialogs, entries, difficulty, score, place, drink = 
 
   const saveButton = () => dialogs.actionsEl.querySelector('button');
 
+  /** Aviso para el sonido: se cambió de casilla (cambiar la letra no suena). */
+  function moved() {
+    root.dispatchEvent(new CustomEvent('menu:move', { bubbles: true }));
+  }
+
   function forward() {
+    if (document.activeElement !== saveButton()) moved();
     if (active < nameLength - 1) focusSlot(active + 1);
     else saveButton().focus();
   }
 
   function back() {
+    if (document.activeElement === saveButton() || active > 0) moved();
     if (document.activeElement === saveButton()) focusSlot(nameLength - 1);
     else if (active > 0) focusSlot(active - 1);
   }
@@ -123,7 +130,6 @@ export function enterName({ dialogs, entries, difficulty, score, place, drink = 
     if (document.activeElement === saveButton()) focusSlot(nameLength - 1);
     letters[active] = (letters[active] + step + CHARACTERS.length) % CHARACTERS.length;
     paint();
-    root.dispatchEvent(new CustomEvent('menu:move', { bubbles: true }));
   }
 
   function write(character) {

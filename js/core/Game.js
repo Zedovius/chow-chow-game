@@ -149,6 +149,7 @@ export class Game {
     this.levelStartAmmo = this.ammo;
     this.levelStartFlight = false;
     this.fireCooldown = 0;
+    this.charging = false; // se está cargando el especial (para el sonido)
     this.distance = 0;
     this.speed = 0;
     this.scroll = 0;
@@ -201,6 +202,7 @@ export class Game {
 
   showTitle() {
     this.flow++;
+    this.cancelCharge();
     this.dialogs.close('title');
     this.hideBanner();
     this.legend?.hide();
@@ -334,7 +336,7 @@ export class Game {
     }
     this.hud.setScore(this.score);
     this.hud.setLevel(this.levelLabel());
-    this.fireButton.reset();
+    this.cancelCharge();
     this.hud.setAmmo(this.ammo, this.fireMax, { infinite: this.infiniteFire });
     this.hud.setCharge(false, 0);
     this.showLives();
@@ -515,6 +517,7 @@ export class Game {
       canCharge: this.canCharge,
       instant: true, // el disparo normal sale al presionar; mantener el botón carga el especial
     });
+    this.setCharging(this.fireButton.charging !== null);
     if (this.fireButton.charged) this.events.emit('chargeReady');
     this.hud.setCharge(this.canCharge, this.fireButton.progress);
     if (!shot || (shot === 'normal' && this.fireCooldown > 0)) return;
@@ -529,7 +532,20 @@ export class Game {
     if (!this.infiniteFire) this.ammo -= 1;
     this.fireCooldown = CONFIG.fire.cooldown;
     this.hud.setAmmo(this.ammo, this.fireMax, { spent: true, infinite: this.infiniteFire });
-    this.events.emit(special ? 'fireSpecial' : 'fire', { ammo: this.ammo });
+    this.events.emit(special ? 'fireSpecial' : 'fire', { ammo: this.ammo, jade: this.jadeFire });
+  }
+
+  /** Avisa cuando empieza y cuando deja de cargarse el especial. */
+  setCharging(charging) {
+    if (charging === this.charging) return;
+    this.charging = charging;
+    this.events.emit(charging ? 'chargeStart' : 'chargeEnd');
+  }
+
+  /** Suelta la carga sin disparar. */
+  cancelCharge() {
+    this.fireButton.reset();
+    this.setCharging(false);
   }
 
   /**
@@ -541,7 +557,7 @@ export class Game {
       const box = fireball.hitboxes();
       if (this.boss && anyOverlap(box, this.boss.hitboxes())) {
         fireball.spent = true;
-        this.hitBoss(fireball.power);
+        this.hitBoss(fireball.power, { special: fireball.special, weak: this.boss.isWeakHit(fireball.y) });
         continue;
       }
       const target = this.obstacles.find((o) => anyOverlap(box, o.hitboxes()));
@@ -561,13 +577,13 @@ export class Game {
   }
 
   /** Una bola de fuego le pegó al jefe: puntos, racha y, si era la última, la victoria. */
-  hitBoss(damage = 1) {
+  hitBoss(damage = 1, { special = false, weak = false } = {}) {
     const boss = this.boss;
-    if (!boss.hit(damage)) return;
+    if (!boss.hit(damage, { weak })) return;
     this.addScore(CONFIG.boss.points * this.mode.score);
     this.extendCombo(1);
     this.hud.setBoss(boss.hp, boss.maxHp, { hit: true });
-    this.events.emit('bossHit', { hp: boss.hp, max: boss.maxHp });
+    this.events.emit('bossHit', { hp: boss.hp, max: boss.maxHp, special, weak });
     if (!boss.defeated) return;
     // Vencido: sus disparos desaparecen y el bono no se multiplica por la racha
     this.obstacles = this.obstacles.filter((o) => o.kind !== 'shot');
@@ -608,6 +624,7 @@ export class Game {
     }
     if (this.lives <= 0) {
       this.player.die();
+      this.cancelCharge();
       saveRecord(this.record);
       this.fsm.set('dying');
       this.events.emit('dying');
@@ -694,7 +711,7 @@ export class Game {
     this.events.emit('pause');
     touch(); // la cuenta para regresar solo al menú empieza aquí (ver checkIdle)
     // Si estaba cargando el especial, se cancela (al continuar no sale un disparo solo)
-    this.fireButton.reset();
+    this.cancelCharge();
     this.hud.setCharge(this.canCharge, 0);
     const choice = await this.dialogs.show({
       title: t('menu.pause'),
@@ -768,6 +785,7 @@ export class Game {
     const flow = ++this.flow;
     this.fsm.set('ending');
     touch();
+    this.cancelCharge();
     this.hideBanner();
     saveRecord(this.record);
     this.events.emit('ending', { score: this.score });
@@ -795,6 +813,7 @@ export class Game {
     const entries = loadBoards()[difficulty];
     const place = placeIn(entries, score);
     if (!place) return { timedOut: false, asked: false };
+    this.events.emit('highScore', { place });
     // Al escribir su nombre, también su trago (el del bar para su signo)
     const { name, timedOut } = await enterName({ dialogs: this.dialogs, entries, difficulty, score, place, drink: drinkNode(this.sign) });
     if (name) addScore(difficulty, name, score); // si no escribió nada, no se guarda ninguna fila
@@ -808,7 +827,8 @@ export class Game {
     this.score += combo ? points * this.combo.multiplier : points;
     this.hud.setScore(this.score);
     if (this.score >= this.nextMilestone) {
-      this.nextMilestone += CONFIG.milestone;
+      // Un bono grande (vencer al jefe) pasa varias centenas de una vez: se avisa una sola
+      this.nextMilestone = (Math.floor(this.score / CONFIG.milestone) + 1) * CONFIG.milestone;
       this.hud.milestone();
       this.events.emit('milestone', { score: this.score });
     }
@@ -924,11 +944,18 @@ export class Game {
         h: this.boss.h,
         t: this.boss.t,
         state: this.boss.state,
+        timer: this.boss.timer, // segundos en ese estado
+        attack: this.boss.attack, // el último ataque
+        sign: this.boss.sign,
+        enraged: this.boss.enraged,
         warning: this.boss.warning, // el ataque que avisa: 'volley' | 'aimed' | 'charge' | 'rain' | 'wall' | null
+        aimAngle: this.boss.aimAngle, // el ángulo del brazo para apuntar
         plan: this.boss.plan, // por dónde vendrá la lluvia o dónde estará el hueco del muro
         worldSpeed: this.speed, // la lluvia baja en diagonal: hacia la izquierda con el mundo
         aimY: this.player.y - CONFIG.player.head.h / 2, // a dónde apuntaría ('aimed')
         flash: this.boss.flash > 0,
+        weakOpen: this.boss.weakOpen, // el punto débil está encendido
+        weakFlash: this.boss.weakFlash, // segundos que le quedan de rojo por un golpe ahí
         color: signById(this.boss.sign).body,
         fire: signById(this.boss.sign).fire,
       },

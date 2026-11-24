@@ -105,9 +105,17 @@ export class TitleMenu {
     return Object.keys(this.steps).find((name) => !this.steps[name].hidden) ?? 'language';
   }
 
-  show(step) {
+  /** Pasa a un paso. silent: nadie lo eligió (sin sonido). */
+  show(step, { silent = false } = {}) {
+    if (!silent && step !== this.step) this.selected();
+    if (step !== 'sign') this.wheel.notify('leave'); // si aún giraba, deja de sonar
     for (const [name, el] of Object.entries(this.steps)) el.hidden = name !== step;
     this.focusStep();
+  }
+
+  /** Aviso para el sonido: se eligió algo. */
+  selected() {
+    this.steps.language.dispatchEvent(new CustomEvent('menu:select', { bubbles: true }));
   }
 
   focusStep() {
@@ -126,6 +134,7 @@ export class TitleMenu {
     this.difficulty = difficulty;
     store(difficulty);
     this.render();
+    this.selected();
     this.onStart(difficulty, this.sign);
   }
 
@@ -148,7 +157,7 @@ export class TitleMenu {
   /** Al volver a la pantalla de inicio se empieza otra vez por el idioma (y la fecha). */
   reset() {
     this.sign = null;
-    this.show('language');
+    this.show('language', { silent: true });
   }
 
   render() {

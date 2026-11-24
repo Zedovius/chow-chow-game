@@ -40,6 +40,11 @@ export class Obstacle {
     this.prevY = this.y; // el del paso anterior (para dibujar entre dos pasos, Game.render)
     this.offset = 0; // lo que se movió hacia abajo (negativo: hacia arriba) por su motion
     this.fall = 0; // px/s hacia abajo (la lluvia de fuego del jefe, entities/Boss.js)
+    // Un disparo del jefe sale de su boca o su mano (launchFrom: qué tan arriba o abajo de su altura) y
+    // se abre hasta su altura en launchTime segundos
+    this.launchFrom = 0;
+    this.launchTime = 0;
+    this.launchAge = 0;
     this.bob = spec.ground ? 0 : SKY_BOB;
     this.t = Math.random() * Math.PI * 2;
     // Las criaturas y lo que rueda van más rápido que el suelo
@@ -104,6 +109,10 @@ export class Obstacle {
       if (this.diving) this.offset = this.diveDir * Math.min(this.diveDepth, Math.abs(this.offset) + dive.speed * dt);
     } else if (this.motion === 'rise') {
       this.offset = Math.max(-this.room.up, this.offset - rise.speed * dt);
+    }
+    if (this.launchTime) {
+      this.launchAge = Math.min(this.launchTime, this.launchAge + dt);
+      this.offset = this.launchFrom * (1 - this.launchAge / this.launchTime) ** 1.6;
     }
     this.y = this.baseY + this.offset + Math.sin(this.t * 6) * this.bob;
     if (this.lightning) {

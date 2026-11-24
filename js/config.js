@@ -169,16 +169,34 @@ export const CONFIG = {
   //   charge  marca una franja a su altura y la cruza a toda velocidad
   // Con la mitad de vida (enrage) descansa menos y dispara más rápido.
   boss: {
-    size: { w: 56, h: 48 },
+    // Su tamaño (para pintar la franja de la embestida y no salirse del cielo) y las cajas con las que
+    // choca, medidas desde su centro: el cuerpo, la cabeza y los pies (sin orejas ni cola). Son las
+    // mismas para los 12 jefes, aunque cada uno se dibuje distinto: así todas las peleas son parejas.
+    size: { w: 76, h: 100 },
+    boxes: [
+      { x: -17, y: -48, w: 46, h: 86 },
+      { x: -37, y: -37, w: 20, h: 20 },
+      { x: -26, y: 38, w: 40, h: 12 },
+    ],
+    // De dónde salen sus ataques, desde su centro: la boca (la ráfaga) y la mano (lo apuntado y el muro),
+    // que está a reach del hombro, según el ángulo del brazo (grados: más, más abajo). Cada disparo sale
+    // de ahí y en launch segundos se abre hasta su altura, lejos todavía de quien juega (move.max)
+    mouth: { x: -23, y: -23 },
+    arm: { x: 9, y: 4, reach: 38, min: -70, max: 45, wall: -74 },
+    launch: { volley: 0.2, aimed: 0.16, wall: 0.28 },
     homeX: 640, // donde se queda (su centro)
     // Contra el jefe quien juega se mueve adelante y atrás (◀ ▶): su cabeza, entre min y max (lejos
     // del jefe y dentro de la pantalla), a speed px/s. Al empezar, unas flechas a sus lados lo avisan
     // hasta que se mueva (o hintSeconds)
     move: { min: 90, max: 420, speed: 240, hintSeconds: 8 },
     follow: 140, // qué tan rápido sigue la altura de quien juega (px/s)
-    hp: { easy: 10, hard: 21 }, // en difícil, 30 % más que los 16 de antes
+    hp: { easy: 12, hard: 25 },
+    // Su punto débil, desde su centro (la moneda del pecho; en el mismo lugar en los 12): solo mientras
+    // avisa un ataque, se enciende en rojo, y darle ahí quita damage veces más. Cuenta si el centro de la
+    // bola de fuego va a su altura (a reach o menos)
+    weak: { x: -15, y: -1, r: 13, reach: 15, damage: 2 },
     rest: { easy: [1.4, 2], hard: [0.85, 1.3] },
-    telegraph: { volley: 0.7, aimed: 0.6, charge: 0.9, rain: 1, wall: 1 },
+    telegraph: { volley: 0.7, aimed: 0.6, charge: 1.1, rain: 1, wall: 1 },
     shot: { w: 14, h: 10, speed: { easy: 210, hard: 290 }, spread: 64 },
     aimed: { easy: 1, hard: 3, every: 0.3 },
     charge: { speed: 720, back: 300 },

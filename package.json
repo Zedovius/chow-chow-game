@@ -5,6 +5,8 @@
   "description": "Chow Chow: un pequeño dragón vuela por los doce animales del zodiaco chino.",
   "scripts": {
     "test": "node --test tools/*.test.mjs",
+    "jefes": "node tools/sprites/jefes.mjs",
+    "sonidos": "node tools/sonidos.mjs",
     "publicar": "node tools/publicar.mjs",
     "parking": "node tools/publicar.mjs ../../parkingPage/chow-chow",
     "presentacion": "node tools/presentacion.mjs"

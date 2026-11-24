@@ -1144,6 +1144,54 @@ test('contra el jefe se mueve adelante y atrás, sin salirse de su rango; en los
   assert.equal(player.parts(player.y, player.scroll)[0].x, player.x, 'la cabeza va donde está');
 });
 
+test('el punto débil del jefe: solo mientras avisa, a la altura de la moneda, y quita el doble', () => {
+  const { weak } = CONFIG.boss;
+  const boss = new Boss('rat', 'hard', 9);
+  while (boss.state === 'enter') boss.update(DT, { playerY: 120, spawn: () => {} });
+  assert.equal(boss.isWeakHit(boss.y + weak.y), false, 'descansando no está encendido');
+  while (!boss.warning) boss.update(DT, { playerY: 120, spawn: () => {} });
+  assert.ok(boss.isWeakHit(boss.y + weak.y));
+  assert.equal(boss.isWeakHit(boss.y + weak.y - weak.reach - 1), false);
+  assert.equal(boss.isWeakHit(boss.y + weak.y + weak.reach + 1), false);
+  const before = boss.hp;
+  boss.hit(1, { weak: true });
+  assert.equal(before - boss.hp, weak.damage);
+  assert.ok(boss.weakFlash > 0 && boss.flash === 0, 'se tiñe de rojo, no de blanco');
+  boss.hit(1);
+  assert.equal(before - boss.hp, weak.damage + 1);
+  // Se llega a la moneda por el frente: ninguna otra caja la tapa a su altura
+  const coin = boss.y + weak.y;
+  const first = boss.hitboxes().filter((b) => b.y <= coin && b.y + b.h >= coin);
+  assert.equal(first.length, 1);
+});
+
+test('los disparos del jefe salen de su boca o su mano y llegan a su altura antes de poder tocar a quien juega', () => {
+  const front = CONFIG.boss.move.max + CONFIG.player.head.w / 2;
+  for (const difficulty of ['easy', 'hard']) {
+    for (const playerY of [235, 100, -200]) {
+      const boss = new Boss('rat', difficulty, 5);
+      while (boss.state === 'enter') boss.update(DT, { playerY, spawn: () => {} });
+      for (let i = 0; i < 400; i++) boss.update(DT, { playerY, spawn: () => {} }); // a su altura
+      for (const attack of ['volley', 'aimed', 'wall']) {
+        boss.x = CONFIG.boss.homeX;
+        do boss.prepare(190, playerY); while (boss.attack !== attack);
+        boss.hp = 1; // furioso: los disparos más rápidos
+        boss.target = { x: 190, y: playerY };
+        const shots = [];
+        const from = attack === 'volley' ? boss.mouth : boss.hand(attack === 'wall' ? CONFIG.boss.arm.wall : boss.aimAngle);
+        boss.strike(playerY, (o) => shots.push(o));
+        assert.ok(shots.length);
+        for (const o of shots) {
+          assert.ok(Math.abs(o.x + o.w / 2 - from.x) < 1 && Math.abs(o.y + o.h / 2 - from.y) < 1, `${attack}: no sale de su lugar`);
+          while (o.launchAge < o.launchTime) o.update(DT, CONFIG.boss.speed);
+          assert.ok(o.x > front + 10, `${attack}: todavía se abre en x = ${o.x.toFixed(0)}`);
+          assert.ok(Math.abs(o.y - o.baseY) < 0.01);
+        }
+      }
+    }
+  }
+});
+
 test('la lluvia de fuego del jefe: una bola cruza justo a la altura de quien juega, las demás en otros momentos', () => {
   const boss = new Boss('dog', 'hard', 3);
   const speed = CONFIG.boss.speed;

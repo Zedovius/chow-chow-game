@@ -12,6 +12,8 @@
 
 import { CONFIG } from '../config.js';
 import { ready } from './assets.js';
+import { BOSS_ART } from './bossArt.js';
+import { BossPainter } from './bossPainter.js';
 import { signById } from '../world/levels.js';
 import { VIEW } from '../core/view.js';
 
@@ -48,6 +50,7 @@ export class Scene {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.images = images;
+    this.bossPainter = new BossPainter();
     this.fit();
   }
 
@@ -86,7 +89,7 @@ export class Scene {
     this.drawGround(view, art);
     this.drawObstacles(view, art);
     this.drawPickups(view);
-    if (view.boss) this.drawBoss(view.boss);
+    if (view.boss) this.drawBoss(view.boss, { x: view.headX, y: view.headY - CONFIG.player.head.h / 2 });
     if (!view.blink) this.drawPlayer(view);
     this.drawFireballs(view);
     ctx.setTransform(1 / P, 0, 0, 1 / P, 0, 0);
@@ -585,11 +588,12 @@ export class Scene {
   }
 
   /**
-   * El jefe del nivel 12 (PROVISIONAL: un cuerpo grande del color del rival). Antes de cada ataque
-   * se ve tenue dónde va a pegar, y parpadea: las tres alturas de la ráfaga, la línea de la
-   * puntería o la franja de la embestida. Así se esquiva con pericia.
+   * El jefe del nivel 12: con su arte si ya tiene (graphics/bossPainter.js) o, PROVISIONAL, un cuerpo
+   * grande del color del rival. Antes de cada ataque se ve tenue dónde va a pegar, y parpadea: las tres
+   * alturas de la ráfaga, la línea de la puntería o la franja de la embestida. Así se esquiva con
+   * pericia. target: la cabeza de quien juega (el jefe la mira).
    */
-  drawBoss(boss) {
+  drawBoss(boss, target) {
     const ctx = this.ctx;
     const { x, y, w, h, warning, t } = boss;
     const blink = Math.floor(t * 10) % 2 === 0;
@@ -603,22 +607,30 @@ export class Scene {
       else for (const dy of [-spread, 0, spread]) ctx.fillRect(0, Math.round(y + dy - shotH / 2), x - w / 2, shotH);
     }
     if (boss.state === 'defeated' && blink) return;
-    const left = Math.round(x - w / 2);
-    const top = Math.round(y - h / 2);
-    ctx.fillStyle = boss.flash ? '#ffffff' : boss.color;
-    ctx.fillRect(left + 4, top + 6, w - 4, h - 12);
-    ctx.fillRect(left, top + 14, 16, h - 26); // la cabeza, mirando a la izquierda
+    const art = BOSS_ART[boss.sign];
+    if (art && this.bossPainter.draw(ctx, boss, art, this.images?.bosses?.[boss.sign], target)) return;
+    // Sin arte: sus cajas de choque (cuerpo, cabeza y pies), con orejas
+    const [torso, head, feet] = CONFIG.boss.boxes.map((b) => ({ ...b, x: Math.round(x + b.x), y: Math.round(y + b.y) }));
     ctx.fillStyle = shade(boss.color, 0.7);
-    ctx.fillRect(left + 6, top, 6, 8); // orejas
-    ctx.fillRect(left + 18, top + 2, 6, 6);
-    ctx.fillRect(left + 10, top + h - 8, 8, 8); // patas
-    ctx.fillRect(left + w - 16, top + h - 8, 8, 8);
+    ctx.fillRect(torso.x + 2, torso.y - 12, 8, 12); // orejas
+    ctx.fillRect(torso.x + 18, torso.y - 10, 8, 10);
+    ctx.fillRect(feet.x, feet.y, 16, feet.h); // patas
+    ctx.fillRect(feet.x + feet.w - 16, feet.y, 16, feet.h);
+    ctx.fillStyle = boss.flash ? '#ffffff' : boss.weakFlash > 0 ? (blink ? '#ff2b2b' : '#7a0010') : boss.color;
+    ctx.fillRect(torso.x, torso.y, torso.w, torso.h);
+    ctx.fillRect(head.x, head.y, head.w + 2, head.h);
     ctx.fillStyle = COLORS.eye;
-    ctx.fillRect(left + 4, top + 18, 4, 4);
+    ctx.fillRect(head.x + 12, head.y + 4, 4, 4);
+    // El punto débil: un disco dorado en el pecho, que se enciende igual que el de los que tienen arte
+    const weak = [Math.round(x + CONFIG.boss.weak.x), Math.round(y + CONFIG.boss.weak.y)];
+    ctx.fillStyle = COLORS.star;
+    ctx.fillRect(weak[0] - 8, weak[1] - 10, 16, 20);
+    ctx.fillRect(weak[0] - 10, weak[1] - 8, 20, 16);
+    this.bossPainter.weak(ctx, weak, boss);
     // La boca se enciende al avisar un disparo
     if (warning && warning !== 'charge') {
       ctx.fillStyle = blink ? boss.fire : COLORS.fire[0];
-      ctx.fillRect(left - 4, Math.round(y - 3), 6, 6);
+      ctx.fillRect(head.x - 4, head.y + 10, 6, 6);
     }
   }
 

@@ -113,8 +113,10 @@ export class ZodiacWheel {
         // ← va a «< Volver»; las demás, a ▶. No le llegan al juego
         event.preventDefault();
         event.stopPropagation();
+        const before = document.activeElement;
         if (event.key === 'ArrowLeft' && this.back) this.back.focus();
         else this.focus();
+        if (document.activeElement !== before) this.root.dispatchEvent(new CustomEvent('menu:move', { bubbles: true }));
       }
     });
     onLanguageChange(() => this.render());
@@ -137,6 +139,12 @@ export class ZodiacWheel {
     // Por si el navegador no avisa del fin de la animación
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.stop(), instant ? 0 : SPIN_SECONDS * 1000 + 100);
+    if (!instant) this.notify('spin');
+  }
+
+  /** Aviso para el sonido: empezó a girar ('spin'), se detuvo ('stop') o se dejó de ver ('leave'). */
+  notify(what) {
+    this.root.dispatchEvent(new CustomEvent(`wheel:${what}`, { bubbles: true }));
   }
 
   stop() {
@@ -145,6 +153,7 @@ export class ZodiacWheel {
     clearTimeout(this.timer);
     this.render();
     this.focus();
+    if (this.root.getClientRects().length) this.notify('stop'); // si no se salió antes a otro paso
   }
 
   render() {
