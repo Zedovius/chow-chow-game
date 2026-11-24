@@ -127,6 +127,7 @@ export class ZodiacWheel {
   spin(sign) {
     this.sign = sign;
     this.stopped = false;
+    this.root.dispatchEvent(new CustomEvent('wheel:sign', { bubbles: true, detail: sign.id })); // para ir cargando su dibujo
     this.render();
     const index = ZODIAC.indexOf(sign);
     // Siempre hacia adelante: desde donde quedó, unas vueltas más hasta que el animal quede arriba
@@ -159,7 +160,7 @@ export class ZodiacWheel {
   render() {
     const rival = this.sign ? rivalOf(this.sign.id) : null;
     for (const { sign, token } of this.tokens) {
-      token.textContent = token.querySelector('img') ? '' : t(`zodiac.${sign.id}`).slice(0, 1);
+      if (!token.querySelector('img')) token.textContent = t(`zodiac.${sign.id}`).slice(0, 1);
       token.classList.toggle('is-chosen', this.stopped && sign === this.sign);
       token.classList.toggle('is-rival', this.stopped && sign === rival);
     }

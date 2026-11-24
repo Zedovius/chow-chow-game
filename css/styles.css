@@ -975,6 +975,15 @@ textarea {
   image-rendering: pixelated;
 }
 
+/* Con su retrato: fondo de noche (los animales son del color de su disco y no se distinguirían) */
+.wheel__token:has(img),
+.wheel__portrait:has(img),
+.wheel__rival-disc:has(img) {
+  background: radial-gradient(circle at 35% 25%, #4a519c, var(--c-night-700) 75%);
+}
+
+.wheel__token:has(img) { box-shadow: 0 0 0 var(--px) var(--color); }
+
 /* El rival, abajo, enfrente del animal: con un aro del color del choque */
 .wheel__token.is-rival {
   box-shadow: 0 0 0 var(--px) var(--c-heart), 0 0 0 calc(var(--px) * 2) var(--c-black);
@@ -1749,6 +1758,10 @@ textarea {
 .dpad[data-dir="right"] .dpad__arm--right::after {
   background: var(--c-gold-soft);
 }
+
+/* Contra el jefe, mientras no se mueva de lado: sus brazos ◀ ▶ laten (Game: data-move del escenario) */
+:root:has(#stage[data-move="true"]) :is(.dpad__arm--left, .dpad__arm--right)::after { animation: dpad-hint 1.1s ease-in-out infinite; }
+@keyframes dpad-hint { 50% { background: var(--c-gold-soft); } }
 
 .dpad[data-dir="up"] .dpad__cross { transform: perspective(420px) rotateX(14deg) translateY(2px); }
 .dpad[data-dir="down"] .dpad__cross { transform: perspective(420px) rotateX(-14deg) translateY(2px); }

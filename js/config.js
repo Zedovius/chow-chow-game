@@ -2,12 +2,16 @@
 // el canvas lo dibuja a la mitad de resolución (pixel), ampliado sin suavizar.
 
 // Para probar: ?nivel=5 empieza en el nivel 5; ?nivel=12, en la pelea contra el rival. Solo en la
-// computadora de desarrollo (localhost o el archivo abierto directo): en el juego publicado no hace
-// nada, para que nadie se salte niveles y entre a HI RECORDS. En las pruebas de Node no hay location.
-const DEV_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '']);
-const dev = Boolean(globalThis.location) && DEV_HOSTS.has(globalThis.location.hostname);
+// computadora de desarrollo (localhost, el archivo abierto directo o, para probar en el celular, su
+// dirección en la red de la casa): en el juego publicado no hace nada, para que nadie se salte niveles y
+// entre a HI RECORDS. En las pruebas de Node no hay location.
+//   ?jefe=rat                  directo a la pelea contra ese jefe (la página jefes.html los lista); ahí no
+//                              se guardan récords, y al salir se regresa a la lista. Además:
+//   &dificultad=hard  &trio=1  &invencible=1
+const DEV_HOSTS = /^(localhost|127[.]0[.]0[.]1|[[]::1[\]]|192[.]168[.].+|10[.].+|172[.](1[6-9]|2[0-9]|3[01])[.].+|)$/;
+const dev = Boolean(globalThis.location) && DEV_HOSTS.test(globalThis.location.hostname);
 const params = new URLSearchParams(dev ? globalThis.location.search : '');
-const requestedLevel = Number.parseInt(params.get('nivel') ?? '', 10);
+const requestedLevel = params.get('jefe') ? 12 : Number.parseInt(params.get('nivel') ?? '', 10);
 
 // El salto completo: 700² / (2 · 2400) ≈ 102 de alto. Se puede volar hasta SKY_JUMPS saltos de alto.
 const JUMP = { gravity: 2400, velocity: 700 };
@@ -186,7 +190,7 @@ export const CONFIG = {
     launch: { volley: 0.2, aimed: 0.16, wall: 0.28 },
     homeX: 640, // donde se queda (su centro)
     // Contra el jefe quien juega se mueve adelante y atrás (◀ ▶): su cabeza, entre min y max (lejos
-    // del jefe y dentro de la pantalla), a speed px/s. Al empezar, unas flechas a sus lados lo avisan
+    // del jefe y dentro de la pantalla), a speed px/s. Al empezar, unas puntas tenues a sus lados lo avisan
     // hasta que se mueva (o hintSeconds)
     move: { min: 90, max: 420, speed: 240, hintSeconds: 8 },
     follow: 140, // qué tan rápido sigue la altura de quien juega (px/s)
@@ -247,6 +251,14 @@ export const CONFIG = {
   combo: { every: 8, step: 0.5, max: 3, near: 60 },
 
   startLevel: Number.isFinite(requestedLevel) ? Math.min(12, Math.max(1, requestedLevel)) - 1 : 0,
+
+  // Probando a un jefe (?jefe=...), o null
+  bossTest: params.get('jefe') ? {
+    boss: params.get('jefe'),
+    difficulty: params.get('dificultad') === 'hard' ? 'hard' : 'easy',
+    trio: params.has('trio'),
+    invincible: params.has('invencible'),
+  } : null,
 
   storageKey: 'chowchow.record',
   // HI RECORDS: los mejores puntajes de quienes terminan los 12 niveles (11 mundos y el rival), por dificultad. Ver

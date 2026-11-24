@@ -1,0 +1,102 @@
+<!doctype html>
+<!-- Para probar las peleas contra los jefes. Solo en desarrollo: tools/publicar.mjs no la copia, y el juego
+     publicado ignora ?jefe=... (ver js/config.js). Necesita un servidor local, como el juego. -->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Chow Chow: probar jefes</title>
+  <link rel="icon" href="assets/icons/icon-192.png">
+  <style>
+    @font-face { font-family: "Press Start 2P"; src: url("assets/fonts/press-start-2p-latin.woff2") format("woff2"); }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px 16px 48px; background: #05040a; color: #ece8f6; font: 16px/1.5 system-ui, sans-serif; }
+    main { max-width: 960px; margin: 0 auto; }
+    h1 { margin: 0 0 16px; color: #ff9f1c; font: 18px/1.4 "Press Start 2P", monospace; }
+    fieldset { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 0 0 20px; padding: 14px 16px; border: 2px solid #262c66; }
+    label { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+    input { width: 18px; height: 18px; accent-color: #ff9f1c; }
+    ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+    a { display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: center; min-height: 84px; padding: 12px; border: 2px solid #262c66; background: #0b1238; color: inherit; text-decoration: none; }
+    a:hover, a:focus-visible { border-color: #ff9f1c; outline: 0; }
+    a.is-drawn { border-color: #b5520a; }
+    .disc { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--color); color: #05040a; font-size: 26px; }
+    .sprite { width: 52px; height: 59px; background-repeat: no-repeat; image-rendering: pixelated; }
+    strong { display: block; font: 13px/1.5 "Press Start 2P", monospace; }
+    small { color: #c9c4dc; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Probar jefes</h1>
+    <fieldset>
+      <label><input type="radio" name="dificultad" value="easy" checked> Fácil</label>
+      <label><input type="radio" name="dificultad" value="hard"> Difícil</label>
+      <label><input type="checkbox" name="trio"> Fuego jade (trío completo)</label>
+      <label><input type="checkbox" name="invencible"> No perder corazones</label>
+    </fieldset>
+    <ul id="list"><li>Abre esta página desde un servidor local, como el juego.</li></ul>
+  </main>
+  <script type="module">
+    import { ZODIAC, rivalOf } from './js/world/levels.js';
+    import { BOSS_ART } from './js/graphics/bossArt.js';
+    import { es } from './js/i18n/es.js';
+
+    const list = document.getElementById('list');
+    const options = document.querySelector('fieldset');
+    const KEY = 'chowchow.probarJefes';
+    const read = () => ({
+      hard: options.querySelector('[value="hard"]').checked,
+      trio: options.querySelector('[name="trio"]').checked,
+      invencible: options.querySelector('[name="invencible"]').checked,
+    });
+    // Se recuerda lo elegido mientras la pestaña siga abierta
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(KEY)) ?? {};
+      options.querySelector('[value="hard"]').checked = Boolean(saved.hard);
+      options.querySelector('[name="trio"]').checked = Boolean(saved.trio);
+      options.querySelector('[name="invencible"]').checked = Boolean(saved.invencible);
+    } catch { /* sin almacenamiento, empieza con lo de siempre */ }
+
+    function render() {
+      const { hard, trio, invencible } = read();
+      try { sessionStorage.setItem(KEY, JSON.stringify(read())); } catch { /* da igual */ }
+      list.replaceChildren(...ZODIAC.map((sign) => {
+        const art = BOSS_ART[sign.id];
+        const link = document.createElement('a');
+        const query = new URLSearchParams({ jefe: sign.id, dificultad: hard ? 'hard' : 'easy' });
+        if (trio) query.set('trio', '1');
+        if (invencible) query.set('invencible', '1');
+        link.href = './?' + query;
+        link.classList.toggle('is-drawn', Boolean(art));
+        const icon = document.createElement('span');
+        if (art) {
+          icon.className = 'sprite';
+          const k = 52 / art.w;
+          icon.style.backgroundImage = `url(${art.body})`;
+          icon.style.backgroundSize = `${art.w * art.frames * k}px ${art.h * art.layers * k}px`;
+        } else {
+          icon.className = 'disc';
+          icon.style.setProperty('--color', sign.body);
+          icon.textContent = sign.hanzi;
+        }
+        const name = document.createElement('strong');
+        name.textContent = es[`zodiac.${sign.id}`];
+        const who = document.createElement('small');
+        who.textContent = `Juegas con: ${es[`zodiac.${rivalOf(sign.id).id}`]}`;
+        const state = document.createElement('small');
+        state.textContent = art ? ' · con dibujo' : '';
+        const text = document.createElement('span');
+        text.append(name, who, state);
+        link.append(icon, text);
+        const li = document.createElement('li');
+        li.append(link);
+        return li;
+      }));
+    }
+    options.addEventListener('change', render);
+    render();
+  </script>
+</body>
+</html>

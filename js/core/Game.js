@@ -30,7 +30,6 @@ import { Spawner } from '../world/Spawner.js';
 import { Player } from '../entities/Player.js';
 import { Fireball } from '../entities/Fireball.js';
 import { INGREDIENTS } from '../entities/Pickup.js';
-import { cocktailOf } from '../world/cocktails.js';
 import { planTrio, reschedule } from '../world/trio.js';
 import { Scene, JADE } from '../graphics/Scene.js';
 import { Camera } from '../graphics/Camera.js';
@@ -51,6 +50,7 @@ function loadRecord() {
 }
 
 function saveRecord(value) {
+  if (CONFIG.bossTest) return; // probando a un jefe no se guarda nada
   try {
     localStorage.setItem(CONFIG.storageKey, String(Math.floor(value)));
   } catch {
@@ -59,6 +59,7 @@ function saveRecord(value) {
 }
 
 const blend = (from, to, alpha) => from + (to - from) * alpha;
+const HINT_FADE = 0.5; // segundos en que se desvanecen las flechas de ◀ ▶
 // Suave al empezar y al terminar (0 a 1)
 const smooth = (k) => k * k * (3 - 2 * k);
 
@@ -249,7 +250,7 @@ export class Game {
     this.ammo = Math.min(CONFIG.fire.start, this.fireMax);
     // El trío: en qué tres mundos sale cada ingrediente, y empieza sin ninguno
     this.trioPlan = planTrio(this.levels.filter((level) => !level.boss).length);
-    this.trio = new Set();
+    this.trio = new Set(CONFIG.bossTest?.trio ? INGREDIENTS : []);
     this.levelStartTrio = new Set();
     this.combo.reset();
     this.hud.setCombo(1);
@@ -266,7 +267,7 @@ export class Game {
     this.startLevel(CONFIG.startLevel); // 0, salvo al probar con ?nivel=N
     // Lo que vale cada cosa que se recoge, hasta el primer salto. Mientras, el cartel solo dice el
     // nivel; el aviso para empezar va debajo de la leyenda, y las pistas salen después del salto.
-    if (this.legend) {
+    if (this.legend && !CONFIG.bossTest) {
       this.showBanner(this.levelLabel(), false);
       this.legend.show({
         score: this.mode.score,
@@ -354,13 +355,8 @@ export class Game {
 
   /** Lo que el cartel de un nivel avisa debajo del nombre (el vuelo lo explica la leyenda). */
   levelHints() {
-    if (this.level.boss) {
-      const hints = [t('level.rival')];
-      hints.push(t('level.move')); // ◀ ▶: adelante y atrás
-      if (CONFIG.charge.modes[this.difficulty]) hints.push(t('level.charge'));
-      if (this.jadeFire) hints.push(t('level.jade')); // trae el trío: fuego verde
-      return hints;
-    }
+    // Contra el rival, solo el nombre: sin instrucciones (las flechas a los lados dicen que se puede mover)
+    if (this.level.boss) return [];
     // En el primer nivel, cómo se carga el disparo especial (se puede en todos)
     if (this.levelIndex === 0 && CONFIG.charge.modes[this.difficulty]) return this.level.ground ? [t('level.charge')] : [t('level.sky'), t('level.charge')];
     return this.level.ground ? [] : [t('level.sky')];
@@ -409,8 +405,8 @@ export class Game {
 
     this.player.prevY = this.player.y;
     this.player.update(dt, this.input, this.scroll);
-    // Las flechas de ◀ ▶ se van al moverse (o con el tiempo)
-    if (this.moveHint > 0) this.moveHint = this.player.x !== CONFIG.player.x ? 0 : this.moveHint - dt;
+    // Las flechas de ◀ ▶ se desvanecen al moverse (o con el tiempo)
+    if (this.moveHint > 0) this.moveHint = Math.min(this.moveHint, this.player.x === CONFIG.player.x ? Infinity : HINT_FADE) - dt;
     if (this.player.jumped) this.events.emit('jump');
     if (this.player.flapped) this.events.emit('flap');
     if (this.player.landed) this.events.emit('land');
@@ -615,7 +611,7 @@ export class Game {
   }
 
   hit() {
-    this.lives = Math.max(0, this.lives - 1);
+    if (!CONFIG.bossTest?.invincible) this.lives = Math.max(0, this.lives - 1);
     this.showLives({ hurt: true });
     this.events.emit('hit', { lives: this.lives });
     if (this.combo.break()) {
@@ -686,8 +682,7 @@ export class Game {
     }
     this.addScore(CONFIG.trio.bonus * this.mode.score);
     this.hud.trioDone();
-    const drink = cocktailOf(this.sign);
-    this.showBanner([t('trio.ready', { name: drink?.name ?? '' }).trim(), t('trio.jade')].join('\n'));
+    this.showBanner(t('trio.ready'));
     this.events.emit('trio', { sign: this.sign });
   }
 
@@ -816,7 +811,7 @@ export class Game {
     this.events.emit('highScore', { place });
     // Al escribir su nombre, también su trago (el del bar para su signo)
     const { name, timedOut } = await enterName({ dialogs: this.dialogs, entries, difficulty, score, place, drink: drinkNode(this.sign) });
-    if (name) addScore(difficulty, name, score); // si no escribió nada, no se guarda ninguna fila
+    if (name && !CONFIG.bossTest) addScore(difficulty, name, score); // si no escribió nada, no se guarda ninguna fila
     return { timedOut, asked: true };
   }
 
@@ -886,6 +881,7 @@ export class Game {
     this.checkIdle();
     if (this.stage.dataset.state !== this.fsm.name) this.stage.dataset.state = this.fsm.name;
     this.stage.dataset.ground = String(this.fsm.is('title') || this.level.ground);
+    this.stage.dataset.move = String(this.fsm.is('playing') && this.moveHint > 0 && !this.player.waiting); // ◀ ▶ de la cruceta
     this.stage.dataset.high = String(this.camera.y < -CONFIG.jumpHeight); // volando alto
     this.input.endStep();
   }
@@ -961,7 +957,7 @@ export class Game {
       },
       headY: lerp(this.player.prevY, this.player.y),
       headX: lerp(this.player.prevX, this.player.x),
-      moveHint: this.moveHint > 0 && this.player.alive, // las flechas ◀ ▶ a sus lados
+      moveHint: this.player.alive ? Math.min(1, Math.max(0, this.moveHint) / HINT_FADE) : 0, // las flechas ◀ ▶ a sus lados (0 a 1)
       obstacles: this.obstacles.map((o) => ({
         kind: o.kind,
         height: o.height,

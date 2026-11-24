@@ -9,6 +9,7 @@ import { Events } from './core/events.js';
 import { touch } from './core/activity.js';
 import { VIEW, setViewTop } from './core/view.js';
 import { CONFIG } from './config.js';
+import { rivalOf, signById } from './world/levels.js';
 import { AudioManager, connectAudio, connectMenuAudio } from './audio/Audio.js';
 import { loadImages } from './graphics/assets.js';
 import { HUD } from './ui/HUD.js';
@@ -163,9 +164,22 @@ window.addEventListener('resize', () => {
 });
 updateView();
 
+// El dibujo del animal se va bajando mientras gira la rueda
+document.addEventListener('wheel:sign', ({ detail }) => {
+  game.scene.animalPainter.sheet(detail);
+  game.scene.animalPainter.sheet('cloud');
+});
 document.getElementById('pause-button').addEventListener('click', () => game.pause());
 onLanguageChange(() => game.refreshTexts());
 game.start();
+
+// Para probar a un jefe (?jefe=..., ver config.js y jefes.html): directo a su pelea con el animal del que
+// es rival, y al volver al inicio, a la lista
+if (CONFIG.bossTest) {
+  const { boss, difficulty } = CONFIG.bossTest;
+  if (signById(boss)) game.newGame(difficulty, rivalOf(boss).id);
+  events.on('title', () => { window.location.href = 'jefes.html'; });
+}
 
 // Arrancó: el aviso de error del <head> ya no hace falta
 window.chowReady = true;

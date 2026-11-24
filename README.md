@@ -144,7 +144,7 @@ control cuentan como actividad).
   después del siguiente que toque (`reschedule` en `js/world/trio.js`); en difícil se pierde. Son coleccionables: los rodean dos aros dorados que se encogen una y otra vez
   (`Scene.drawHalo`). Con suelo salen a la altura de un salto: no hace falta la estrella. Cada uno da
   150 puntos y se enciende en el marcador; con los tres se prepara **el cóctel de tu signo**:
-  «¡Cóctel listo!» con su nombre, fuego lleno, un corazón (si cabe) y 500 puntos. Si uno se escapa,
+  «¡Cóctel preparado!», fuego lleno, un corazón (si cabe) y 500 puntos. Si uno se escapa,
   en esa partida ya no se completa; al reintentar un nivel, el trío vuelve a como estaba al empezarlo.
   Con el trío completo, desde ese momento y en cualquier nivel, el **fuego es verde jade** (`CONFIG.trio.jade`,
   `Scene.drawJadeFireball`): los disparos normales se ven más grandes y con estela pero hacen el mismo
@@ -170,10 +170,11 @@ control cuentan como actividad).
   Tigre–Mono, Conejo–Gallo, Dragón–Perro, Serpiente–Cerdo), en su mundo. Todos vuelan, tengan o no
   la estrella, y ahí un golpe no quita el vuelo. Si el rival es el Dragón o el Gallo, la pelea es
   en su cielo, sin suelo (tocar las nubes cuesta un corazón). No hay obstáculos: solo el jefe, que
-  se le gana con bolas de fuego (10 en fácil, 21 en difícil: 30 % más); se le puede pegar desde que se ve.
+  se le gana con bolas de fuego (12 de vida en fácil, 25 en difícil); se le puede pegar desde que se ve.
   - **Ahí también se mueve adelante y atrás** (◀ ▶, A / D, la palanca o la cruceta; `CONFIG.boss.move`),
-    dentro de un rango que no llega al jefe ni sale de la pantalla. El cartel lo dice y, al empezar,
-    dos flechas parpadean a los lados del animal hasta que se mueve. En los mundos no: ahí el ritmo
+    dentro de un rango que no llega al jefe ni sale de la pantalla. Lo indican, sin
+    texto, unas puntas tenues que salen de los lados del animal hasta que se mueve (y, con pantalla táctil,
+    los brazos ◀ ▶ de la cruceta que laten). En los mundos no: ahí el ritmo
     de los obstáculos está calculado con el animal siempre en el mismo lugar.
   - **Mantener FUEGO carga un disparo especial** (`js/core/charge.js`, `CONFIG.charge`), **en todos
     los niveles y en las dos dificultades**: se suelta cargado y sale una bola grande que le quita 3
@@ -217,7 +218,7 @@ control cuentan como actividad).
   cualquier pantalla.
 
 Todo lo que se ajusta (física, vuelo, velocidades, obstáculos, fuego, cócteles, puntos) está en
-`js/config.js`. Para probar un nivel: `?nivel=5` empieza en el 5 (solo en localhost; en el juego publicado no hace nada, para que nadie se salte niveles y entre a HI RECORDS).
+`js/config.js`. Para probar un nivel: `?nivel=5` empieza en el 5; para los jefes, la página `jefes.html` (por ejemplo http://localhost:8000/jefes.html) lista los 12, con la dificultad, el trío y no perder corazones; lleva a `?jefe=rat&dificultad=hard&trio=1&invencible=1`, donde no se guardan récords (solo en localhost o en la red de la casa; `jefes.html` no se publica y en el juego publicado no hace nada, para que nadie se salte niveles y entre a HI RECORDS).
 
 - **Avisos** (`js/core/events.js`): Game cuenta lo que pasa (`jump`, `flap`, `land`, `fire`,
   `burn`, `cocktail`, `food`, `hit`, `levelStart`, `gameOver`...; la lista completa está en ese archivo) y quien
@@ -248,6 +249,18 @@ un fundido al siguiente animal, `state` (el estado del juego) y `cameraY` (qué 
 cámara). Para el HTML, `#stage` tiene `data-state` (el estado), `data-ground` (si el nivel tiene
 suelo) y `data-high` (si se vuela alto), y los colores de `css/styles.css` son variables en
 `:root`.
+
+### Los animales
+
+`npm run animales` (`tools/sprites/animales.mjs`) hornea los 12 animales, la nube y sus retratos. Cada uno
+es un modelo 3D chiquito (`modelo3d.mjs`) con patas articuladas (`rigs.mjs`) y su propia forma de andar
+(`GAITS`): galope de caballo, galope de felino, buey pesado, salto de conejo, brincos de cabra, correteo
+de rata... Se rebana en capas de profundidad (sprite stacking), que `js/graphics/animalPainter.js` apila
+al jugar. La carrera avanza con lo recorrido: los pies no patinan. Cómo se ve cada animal está en
+`especies.mjs` (los de cuatro patas) y `alados.mjs` (gallo, dragón y serpiente); sus poses, en
+`poses.mjs`; la nube, en `nube.mjs`. El dragón y la serpiente se arman al jugar, con vértebras sobre el
+camino de la cabeza. La caja de choque no cambia: es la misma para los 12. Cada hoja se baja solo
+cuando hace falta (mientras gira la rueda).
 
 ### Los jefes
 

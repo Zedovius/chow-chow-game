@@ -1212,3 +1212,43 @@ test('la lluvia de fuego del jefe: una bola cruza justo a la altura de quien jue
     for (let i = 1; i < times.length; i++) assert.ok(times[i] - times[i - 1] > 0.2, 'dos cruzan casi juntas');
   }
 });
+
+test('el arte de los animales: cada signo tiene sus hojas, con todos sus cuadros', async () => {
+  const { ANIMAL_ART } = await import('../js/graphics/animalArt.js');
+  const { decode } = await import('./sprites/png.mjs');
+  const { readFileSync } = await import('node:fs');
+  const root = new URL('../', import.meta.url);
+  for (const id of [...ZODIAC.map((sign) => sign.id), 'cloud']) {
+    const art = ANIMAL_ART[id];
+    assert.ok(art, `falta el arte de ${id}`);
+    const sheet = decode(readFileSync(new URL(art.src, root)));
+    for (const [name, piece] of Object.entries(art.pieces)) {
+      assert.ok(piece.w * piece.frames <= sheet.w && piece.y + piece.h * (2 * piece.depth + 1) <= sheet.h, `${id}.${name} se sale de su hoja`);
+    }
+    if (id === 'cloud') continue;
+    assert.ok(decode(readFileSync(new URL(art.portrait, root))).w === 22, `${id}: su retrato`);
+    assert.ok(art.mouth.length === 2 && art.stride > 0);
+    if (art.long) continue;
+    const frames = art.pieces.body.frames;
+    for (const name of ['run', 'idle', 'jump', 'fall', 'duck', 'ride', 'press', 'hurt', 'dead']) {
+      const [first, count] = art.anims[name];
+      assert.ok(count > 0 && first + count <= frames, `${id}: ${name}`);
+    }
+  }
+});
+
+test('los pies no patinan: apoyados, van hacia atrás justo a la velocidad del suelo', async () => {
+  const { GAITS, foot } = await import('./sprites/rigs.mjs');
+  for (const [name, gait] of Object.entries(GAITS)) {
+    for (const [i, duty] of gait.duty.entries()) {
+      for (let k = 0; k < 10; k++) {
+        const a = foot((duty * k) / 10, duty, gait.stride, gait.lift[i], gait.over);
+        const b = foot((duty * (k + 0.5)) / 10, duty, gait.stride, gait.lift[i], gait.over);
+        assert.ok(a.down && a.y === 0);
+        assert.ok(Math.abs(a.x - b.x - ((duty * 0.5) / 10) * gait.stride) < 1e-6, `${name}: patina`);
+      }
+      const air = foot(duty + (1 - duty) * 0.4, duty, gait.stride, gait.lift[i], gait.over);
+      assert.ok(!air.down && air.y > 0.5, `${name}: no levanta el pie`);
+    }
+  }
+});

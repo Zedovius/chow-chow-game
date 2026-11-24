@@ -14,6 +14,8 @@ import { CONFIG } from '../config.js';
 import { ready } from './assets.js';
 import { BOSS_ART } from './bossArt.js';
 import { BossPainter } from './bossPainter.js';
+import { AnimalPainter } from './animalPainter.js';
+import { ANIMAL_ART } from './animalArt.js';
 import { signById } from '../world/levels.js';
 import { VIEW } from '../core/view.js';
 
@@ -51,6 +53,7 @@ export class Scene {
     this.ctx = canvas.getContext('2d');
     this.images = images;
     this.bossPainter = new BossPainter();
+    this.animalPainter = new AnimalPainter();
     this.fit();
   }
 
@@ -90,7 +93,7 @@ export class Scene {
     this.drawObstacles(view, art);
     this.drawPickups(view);
     if (view.boss) this.drawBoss(view.boss, { x: view.headX, y: view.headY - CONFIG.player.head.h / 2 });
-    if (!view.blink) this.drawPlayer(view);
+    this.drawPlayer(view);
     this.drawFireballs(view);
     ctx.setTransform(1 / P, 0, 0, 1 / P, 0, 0);
     this.drawMarkers(view);
@@ -400,8 +403,15 @@ export class Scene {
   }
 
   /** Las bolas de fuego, del color del animal (fireColor). */
-  drawFireballs({ fireballs, fireColor = COLORS.fire[1] }) {
+  drawFireballs({ fireballs: list, fireColor = COLORS.fire[1], dragon: player }) {
     const ctx = this.ctx;
+    // Salen de la boca del animal y enseguida van a su altura (solo el dibujo)
+    const [mouthX, mouthY] = ANIMAL_ART[player.sign ?? 'dragon']?.mouth ?? [0, 0];
+    const from = [mouthX * P - 13, CONFIG.player.head.h / 2 - mouthY * P * (player.ducking ? 0.45 : 1)];
+    const fireballs = list.map((f) => {
+      const k = Math.max(0, 1 - f.age / 0.16) ** 2;
+      return { ...f, x: f.x + from[0] * k, y: f.y + from[1] * k };
+    });
     const image = ready(this.images?.fireball);
     const colors = [COLORS.fire[0], fireColor, shade(fireColor, 0.65)];
     for (const f of fireballs) {
@@ -520,19 +530,20 @@ export class Scene {
   }
 
   /**
-   * Quien juega: su animal (dragon.sign; null en la pantalla de inicio: el dragón). Los de cuerpo
+   * Quien juega: su animal (dragon.sign; null en la pantalla de inicio: el dragón), con su nube o sus
+   * alas (graphics/animalPainter.js). Mientras su hoja no carga, una figura PROVISIONAL: los de cuerpo
    * largo (el Dragón y la Serpiente) van de la cola a la cabeza, para que la cabeza quede encima.
-   * Cada parte trae su centro, tamaño e inclinación (ver Player.parts). Para animar: dragon.pose
-   * ('run', 'duck', 'jump', 'fall', 'fly', 'hurt', 'dead', 'idle'), runTime (patas), flapTime (alas)
-   * y riding (va en su nubecita). Todo esto es PROVISIONAL hasta que llegue el arte de cada animal
-   * (IMAGES.animals[id] en assets.js).
    */
-  drawPlayer({ dragon: player, headY, headX = player.x, scroll, charge = 0, fireColor, moveHint = false }) {
+  drawPlayer({ dragon: player, headY, headX = player.x, scroll, charge = 0, fireColor, moveHint = 0, state, level, blink }) {
     const sign = signById(player.sign ?? 'dragon');
     const parts = player.parts(headY, scroll, { headX });
     const head = parts[0];
-    if (moveHint) this.drawMoveHint(head);
-    if (charge > 0) this.drawCharge(head, charge, fireColor ?? sign.fire);
+    if (moveHint > 0) this.drawMoveHint(head, moveHint);
+    // El especial se carga en la boca
+    const [mouthX, mouthY] = ANIMAL_ART[sign.id]?.mouth ?? [0, 5];
+    if (charge > 0) this.drawCharge({ x: headX + mouthX * P, y: headY - mouthY * P * (player.ducking ? 0.45 : 1) }, charge, fireColor ?? sign.fire);
+    if (this.animalPainter.draw(this.ctx, { player, headX, headY, scroll, state, blink, dust: shade(level.colors.ground, 1.7) })) return;
+    if (blink) return;
     if (player.riding) this.drawCloud(head.x, head.y + head.h / 2 + 2, player.flapTime);
     if (sign.long) this.drawLong(player, parts, sign);
     else this.drawAnimal(player, head, sign);
@@ -650,24 +661,27 @@ export class Scene {
   }
 
   /**
-   * Contra el jefe, al empezar: dos flechas que parpadean a los lados del animal (◀ ▶), porque ahí se
-   * puede mover adelante y atrás. Se van al moverse (Game.moveHint).
+   * Contra el jefe, al empezar: a cada lado del animal, unas puntas tenues (‹ ›) salen de él y se
+   * desvanecen, porque ahí se puede mover adelante y atrás. Se van al moverse (Game.moveHint; strength:
+   * 1 a 0).
    */
-  drawMoveHint(head) {
+  drawMoveHint(head, strength) {
     const ctx = this.ctx;
-    if (Math.floor(performance.now() / 280) % 2) return;
-    const size = 10;
     const y = Math.round(head.y / P) * P;
-    const gap = head.w / 2 + 12;
     ctx.fillStyle = COLORS.marker;
-    for (const side of [-1, 1]) {
-      const tip = Math.round((head.x + side * (gap + size)) / P) * P;
-      // Un triángulo de pixeles que apunta hacia afuera: la punta lejos del animal
-      for (let i = 0; i < size; i += P) {
-        const h = P + i;
-        ctx.fillRect(tip - side * i - (side > 0 ? P : 0), y - h / 2, P, h);
+    for (const start of [0, 0.5]) {
+      const k = (performance.now() / 1100 + start) % 1; // cada punta sale, avanza y se desvanece
+      ctx.globalAlpha = 0.55 * Math.sin(Math.PI * k) * strength;
+      for (const side of [-1, 1]) {
+        const tip = Math.round((head.x + side * (head.w / 2 + 14 + k * 22)) / P) * P;
+        for (let i = 0; i < 4; i++) {
+          const x = tip - side * i * P;
+          ctx.fillRect(x, y - i * P, P, P);
+          if (i) ctx.fillRect(x, y + i * P, P, P);
+        }
       }
     }
+    ctx.globalAlpha = 1;
   }
 
   /** La nubecita en la que vuelan los animales sin alas. PROVISIONAL. */
