@@ -218,7 +218,7 @@ control cuentan como actividad).
   cualquier pantalla.
 
 Todo lo que se ajusta (física, vuelo, velocidades, obstáculos, fuego, cócteles, puntos) está en
-`js/config.js`. Para probar un nivel: `?nivel=5` empieza en el 5; para los jefes, la página `jefes.html` (por ejemplo http://localhost:8000/jefes.html) lista los 12, con la dificultad, el trío y no perder corazones; lleva a `?jefe=rat&dificultad=hard&trio=1&invencible=1`, donde no se guardan récords (solo en localhost o en la red de la casa; `jefes.html` no se publica y en el juego publicado no hace nada, para que nadie se salte niveles y entre a HI RECORDS).
+`js/config.js`. Para probar un nivel: `?nivel=5` empieza en el 5; la página `jefes.html` (por ejemplo http://localhost:8000/jefes.html) lista los 12 animales y los 12 jefes, con la dificultad, el trío, la estrella y no perder corazones; lleva a `?animal=goat&vuelo=1` o `?jefe=rat&dificultad=hard&trio=1&invencible=1`, donde no se guardan récords (solo en localhost o en la red de la casa; `jefes.html` no se publica y en el juego publicado no hace nada, para que nadie se salte niveles y entre a HI RECORDS).
 
 - **Avisos** (`js/core/events.js`): Game cuenta lo que pasa (`jump`, `flap`, `land`, `fire`,
   `burn`, `cocktail`, `food`, `hit`, `levelStart`, `gameOver`...; la lista completa está en ese archivo) y quien

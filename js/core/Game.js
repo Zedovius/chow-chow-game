@@ -50,7 +50,7 @@ function loadRecord() {
 }
 
 function saveRecord(value) {
-  if (CONFIG.bossTest) return; // probando a un jefe no se guarda nada
+  if (CONFIG.test) return; // probando (?jefe, ?animal) no se guarda nada
   try {
     localStorage.setItem(CONFIG.storageKey, String(Math.floor(value)));
   } catch {
@@ -250,7 +250,7 @@ export class Game {
     this.ammo = Math.min(CONFIG.fire.start, this.fireMax);
     // El trío: en qué tres mundos sale cada ingrediente, y empieza sin ninguno
     this.trioPlan = planTrio(this.levels.filter((level) => !level.boss).length);
-    this.trio = new Set(CONFIG.bossTest?.trio ? INGREDIENTS : []);
+    this.trio = new Set(CONFIG.test?.trio ? INGREDIENTS : []);
     this.levelStartTrio = new Set();
     this.combo.reset();
     this.hud.setCombo(1);
@@ -260,14 +260,14 @@ export class Game {
     this.hud.setHigh(this.record);
     this.titleScreen.root.hidden = true;
     this.player.sign = this.sign;
-    this.player.canFly = false;
+    this.player.canFly = Boolean(CONFIG.test?.fly);
     this.player.reset();
-    this.hud.setFlight(false);
+    this.hud.setFlight(this.player.canFly);
     this.events.emit('start', { difficulty: this.difficulty, sign: this.sign });
     this.startLevel(CONFIG.startLevel); // 0, salvo al probar con ?nivel=N
     // Lo que vale cada cosa que se recoge, hasta el primer salto. Mientras, el cartel solo dice el
     // nivel; el aviso para empezar va debajo de la leyenda, y las pistas salen después del salto.
-    if (this.legend && !CONFIG.bossTest) {
+    if (this.legend && !CONFIG.test) {
       this.showBanner(this.levelLabel(), false);
       this.legend.show({
         score: this.mode.score,
@@ -611,7 +611,7 @@ export class Game {
   }
 
   hit() {
-    if (!CONFIG.bossTest?.invincible) this.lives = Math.max(0, this.lives - 1);
+    if (!CONFIG.test?.invincible) this.lives = Math.max(0, this.lives - 1);
     this.showLives({ hurt: true });
     this.events.emit('hit', { lives: this.lives });
     if (this.combo.break()) {
@@ -811,7 +811,7 @@ export class Game {
     this.events.emit('highScore', { place });
     // Al escribir su nombre, también su trago (el del bar para su signo)
     const { name, timedOut } = await enterName({ dialogs: this.dialogs, entries, difficulty, score, place, drink: drinkNode(this.sign) });
-    if (name && !CONFIG.bossTest) addScore(difficulty, name, score); // si no escribió nada, no se guarda ninguna fila
+    if (name && !CONFIG.test) addScore(difficulty, name, score); // si no escribió nada, no se guarda ninguna fila
     return { timedOut, asked: true };
   }
 

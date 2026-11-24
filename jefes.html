@@ -1,18 +1,19 @@
 <!doctype html>
-<!-- Para probar las peleas contra los jefes. Solo en desarrollo: tools/publicar.mjs no la copia, y el juego
+<!-- Para probar a los animales y las peleas contra los jefes. Solo en desarrollo: tools/publicar.mjs no la copia, y el juego
      publicado ignora ?jefe=... (ver js/config.js). Necesita un servidor local, como el juego. -->
 <html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>Chow Chow: probar jefes</title>
+  <title>Chow Chow: pruebas</title>
   <link rel="icon" href="assets/icons/icon-192.png">
   <style>
     @font-face { font-family: "Press Start 2P"; src: url("assets/fonts/press-start-2p-latin.woff2") format("woff2"); }
     * { box-sizing: border-box; }
     body { margin: 0; padding: 24px 16px 48px; background: #05040a; color: #ece8f6; font: 16px/1.5 system-ui, sans-serif; }
     main { max-width: 960px; margin: 0 auto; }
+    h2 { margin: 24px 0 12px; font: 13px/1.5 "Press Start 2P", monospace; }
     h1 { margin: 0 0 16px; color: #ff9f1c; font: 18px/1.4 "Press Start 2P", monospace; }
     fieldset { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 0 0 20px; padding: 14px 16px; border: 2px solid #262c66; }
     label { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
@@ -23,76 +24,93 @@
     a.is-drawn { border-color: #b5520a; }
     .disc { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--color); color: #05040a; font-size: 26px; }
     .sprite { width: 52px; height: 59px; background-repeat: no-repeat; image-rendering: pixelated; }
+    .face { width: 52px; height: 52px; border-radius: 50%; background: #262c66; image-rendering: pixelated; }
+    .mini { width: 28px; height: 28px; margin-right: 6px; vertical-align: middle; }
     strong { display: block; font: 13px/1.5 "Press Start 2P", monospace; }
     small { color: #c9c4dc; }
   </style>
 </head>
 <body>
   <main>
-    <h1>Probar jefes</h1>
+    <h1>Pruebas</h1>
     <fieldset>
       <label><input type="radio" name="dificultad" value="easy" checked> Fácil</label>
       <label><input type="radio" name="dificultad" value="hard"> Difícil</label>
       <label><input type="checkbox" name="trio"> Fuego jade (trío completo)</label>
       <label><input type="checkbox" name="invencible"> No perder corazones</label>
+      <label><input type="checkbox" name="vuelo"> Empezar con la estrella (volar)</label>
     </fieldset>
-    <ul id="list"><li>Abre esta página desde un servidor local, como el juego.</li></ul>
+    <h2>Jugar con un animal</h2>
+    <ul id="animals"><li>Abre esta página desde un servidor local, como el juego.</li></ul>
+    <h2>Pelear contra un jefe</h2>
+    <ul id="list"></ul>
   </main>
   <script type="module">
     import { ZODIAC, rivalOf } from './js/world/levels.js';
     import { BOSS_ART } from './js/graphics/bossArt.js';
+    import { ANIMAL_ART } from './js/graphics/animalArt.js';
     import { es } from './js/i18n/es.js';
 
-    const list = document.getElementById('list');
     const options = document.querySelector('fieldset');
-    const KEY = 'chowchow.probarJefes';
-    const read = () => ({
-      hard: options.querySelector('[value="hard"]').checked,
-      trio: options.querySelector('[name="trio"]').checked,
-      invencible: options.querySelector('[name="invencible"]').checked,
-    });
+    const KEY = 'chowchow.pruebas';
+    const inputs = { hard: '[value="hard"]', trio: '[name="trio"]', invencible: '[name="invencible"]', vuelo: '[name="vuelo"]' };
+    const input = (key) => options.querySelector(inputs[key]);
+    const read = () => Object.fromEntries(Object.keys(inputs).map((key) => [key, input(key).checked]));
     // Se recuerda lo elegido mientras la pestaña siga abierta
     try {
       const saved = JSON.parse(sessionStorage.getItem(KEY)) ?? {};
-      options.querySelector('[value="hard"]').checked = Boolean(saved.hard);
-      options.querySelector('[name="trio"]').checked = Boolean(saved.trio);
-      options.querySelector('[name="invencible"]').checked = Boolean(saved.invencible);
+      for (const key of Object.keys(inputs)) input(key).checked = Boolean(saved[key]);
     } catch { /* sin almacenamiento, empieza con lo de siempre */ }
 
+    const nameOf = (id) => es[`zodiac.${id}`];
+    function face(id, className) {
+      const img = new Image();
+      img.src = ANIMAL_ART[id].portrait;
+      img.alt = '';
+      img.className = className;
+      return img;
+    }
+    /** Un botón: adónde lleva, su dibujo, su título y los renglones de abajo. */
+    function card(query, icon, title, lines, drawn = false) {
+      const { hard, trio, invencible, vuelo } = read();
+      const params = new URLSearchParams({ ...query, dificultad: hard ? 'hard' : 'easy' });
+      for (const [key, on] of Object.entries({ trio, invencible, vuelo })) if (on) params.set(key, '1');
+      const link = document.createElement('a');
+      link.href = './?' + params;
+      link.classList.toggle('is-drawn', drawn);
+      const text = document.createElement('span');
+      const strong = document.createElement('strong');
+      strong.textContent = title;
+      text.append(strong, ...lines);
+      link.append(icon, text);
+      const li = document.createElement('li');
+      li.append(link);
+      return li;
+    }
+
     function render() {
-      const { hard, trio, invencible } = read();
       try { sessionStorage.setItem(KEY, JSON.stringify(read())); } catch { /* da igual */ }
-      list.replaceChildren(...ZODIAC.map((sign) => {
+      document.getElementById('animals').replaceChildren(...ZODIAC.map((sign) => card({ animal: sign.id }, face(sign.id, 'face'), nameOf(sign.id), [])));
+      document.getElementById('list').replaceChildren(...ZODIAC.map((sign) => {
         const art = BOSS_ART[sign.id];
-        const link = document.createElement('a');
-        const query = new URLSearchParams({ jefe: sign.id, dificultad: hard ? 'hard' : 'easy' });
-        if (trio) query.set('trio', '1');
-        if (invencible) query.set('invencible', '1');
-        link.href = './?' + query;
-        link.classList.toggle('is-drawn', Boolean(art));
-        const icon = document.createElement('span');
+        let icon;
         if (art) {
+          icon = document.createElement('span');
           icon.className = 'sprite';
           const k = 52 / art.w;
           icon.style.backgroundImage = `url(${art.body})`;
           icon.style.backgroundSize = `${art.w * art.frames * k}px ${art.h * art.layers * k}px`;
         } else {
+          icon = document.createElement('span');
           icon.className = 'disc';
           icon.style.setProperty('--color', sign.body);
           icon.textContent = sign.hanzi;
         }
-        const name = document.createElement('strong');
-        name.textContent = es[`zodiac.${sign.id}`];
+        // Con quién se juega: el animal del que ese jefe es rival
         const who = document.createElement('small');
-        who.textContent = `Juegas con: ${es[`zodiac.${rivalOf(sign.id).id}`]}`;
-        const state = document.createElement('small');
-        state.textContent = art ? ' · con dibujo' : '';
-        const text = document.createElement('span');
-        text.append(name, who, state);
-        link.append(icon, text);
-        const li = document.createElement('li');
-        li.append(link);
-        return li;
+        const me = rivalOf(sign.id).id;
+        who.append(face(me, 'face mini'), `Tú eres: ${nameOf(me)}`);
+        return card({ jefe: sign.id }, icon, `Jefe ${nameOf(sign.id)}`, [who], Boolean(art));
       }));
     }
     options.addEventListener('change', render);

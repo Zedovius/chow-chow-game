@@ -433,18 +433,18 @@ export const ANIMAL_ART = {
     pieces: {
       cloud: {
         y: 0,
-        w: 38,
-        h: 13,
-        ax: 20,
-        ay: 4,
-        depth: 8,
+        w: 28,
+        h: 10,
+        ax: 15,
+        ay: 3,
+        depth: 7,
         frames: 9
       },
       wisp: {
-        y: 221,
-        w: 10,
+        y: 150,
+        w: 9,
         h: 6,
-        ax: 6,
+        ax: 5,
         ay: 3,
         depth: 2,
         frames: 6

@@ -17,7 +17,7 @@ import { ANIMAL_ART } from './animalArt.js';
 
 const P = CONFIG.pixel;
 const OUTLINE = '#1b1226';
-const CLOUD_OUTLINE = '#6b7fc0';
+const CLOUD_OUTLINE = '#8a4a16';
 const VIEW = { yaw: 0.45, pitch: 0.28 }; // un poco girado y visto un poco de arriba
 const STEP = 2; // cada cuántos pixeles va una vértebra
 const FLAP_SECONDS = 0.42; // lo que dura un aleteo con alas
@@ -47,6 +47,8 @@ export class AnimalPainter {
     this.headX = null;
     this.onGround = true;
     this.flapped = Infinity;
+    this.flap = Infinity; // segundos desde el último aleteo
+    this.riding = false;
     this.long = { ground: 1, duck: 0 };
   }
 
@@ -83,7 +85,7 @@ export class AnimalPainter {
     const y = Math.round(headY / P);
     this.drawParticles(ctx, vapor);
     const riding = player.riding && vapor.ready;
-    if (riding) this.drawCloud(ctx, vapor.image, x - 3, y, player.flapTime);
+    if (riding) this.drawCloud(ctx, vapor.image, x - 3, y, this.flap);
     if (blink) return true; // recién golpeado: parpadea (la nube no)
     if (art.long && !(riding && id === 'snake')) this.drawLong(ctx, art, sheet.image, { player, headX, headY, scroll, id });
     else {
@@ -94,7 +96,7 @@ export class AnimalPainter {
       this.end(ctx, OUTLINE);
     }
     // Las bolas de vapor de enfrente, encima de las patas: va metido en la nube, no pegado a ella
-    if (riding) this.drawCloud(ctx, vapor.image, x - 3, y, player.flapTime, 3);
+    if (riding) this.drawCloud(ctx, vapor.image, x - 3, y, this.flap, 2);
     return true;
   }
 
@@ -123,18 +125,24 @@ export class AnimalPainter {
     this.onGround = player.onGround;
 
     // La estela de la nube: una voluta cada tanto recorrido; al aletear, un soplo hacia abajo
-    const flapped = player.airborne && player.flapTime < this.flapped;
-    this.flapped = player.flapTime;
+    this.flap = player.flapTime;
+    const flapped = player.airborne && this.flap < this.flapped;
+    this.flapped = player.onGround ? Infinity : this.flap;
+    // Al pisar el suelo, la nube se deshace
+    if (this.riding && !cloud && player.alive) {
+      for (let i = 0; i < 6; i++) this.particles.push({ kind: 'wisp', x: headX - 34 + i * 12, y: headY + 2, vx: (i - 2.5) * 16, vy: -12 - (i % 2) * 14, age: 0, life: 0.32, size: 0.9 });
+    }
+    this.riding = cloud;
     if (cloud) {
       this.emit += moved;
-      while (this.emit > 13) {
-        this.emit -= 13;
-        this.particles.push({ kind: 'wisp', x: headX - 42, y: headY + 6 + Math.sin(this.t * 11) * 3, vx: 0, vy: -4, age: 0, life: 0.66, size: 0 });
+      while (this.emit > 11) {
+        this.emit -= 11;
+        this.particles.push({ kind: 'wisp', x: headX - 34, y: headY + 5 + Math.sin(this.t * 11) * 2, vx: 0, vy: -3, age: 0, life: 0.24, size: 0.8 });
       }
       if (flapped) {
         for (let i = 0; i < 6; i++) {
           const side = (i / 5) * 2 - 1;
-          this.particles.push({ kind: 'wisp', x: headX - 6 + side * 24, y: headY + 12 - Math.abs(side) * 4, vx: side * 34 + Math.random() * 12 - 6, vy: 52 - Math.abs(side) * 26 + Math.random() * 14, age: Math.random() * 0.06, life: 0.46 + Math.random() * 0.14, size: 0.6 });
+          this.particles.push({ kind: 'wisp', x: headX - 6 + side * 18, y: headY + 9 - Math.abs(side) * 3, vx: side * 30 + Math.random() * 12 - 6, vy: 46 - Math.abs(side) * 22 + Math.random() * 12, age: Math.random() * 0.05, life: 0.26 + Math.random() * 0.1, size: 1.2 });
         }
       }
     } else if (flapped && player.winged) {
@@ -144,7 +152,10 @@ export class AnimalPainter {
       p.age += dt;
       p.x += p.vx * dt - moved * (p.kind === 'dust' ? 1 : 0.8);
       p.y += p.vy * dt;
-      if (p.kind === 'wisp') p.vy *= 1 - 3 * dt;
+      if (p.kind === 'wisp') {
+        p.vy *= 1 - 3 * dt;
+        if (player.ground) p.y = Math.min(p.y, CONFIG.groundY - 3); // el vapor no atraviesa el suelo
+      }
     }
     this.particles = this.particles.filter((p) => p.age < p.life && p.x > -40);
   }
@@ -181,7 +192,8 @@ export class AnimalPainter {
   frame(art, player, scroll) {
     const { anims } = art;
     const pick = (name, k) => anims[name][0] + clamp(Math.floor(frac(k) * anims[name][1]), 0, anims[name][1] - 1);
-    const { pose, vy, flapTime } = player;
+    const { pose, vy } = player;
+    const flapTime = this.flap;
     if (pose === 'dead') return pick(player.onGround ? 'dead' : 'hurt', 0);
     if (pose === 'hurt') return pick('hurt', 0);
     if (player.airborne) {
@@ -199,7 +211,7 @@ export class AnimalPainter {
   }
 
   coilFrame(player) {
-    if (player.flapTime < PRESS_SECONDS) return 6 + clamp(Math.floor((player.flapTime / PRESS_SECONDS) * 3), 0, 2);
+    if (this.flap < PRESS_SECONDS) return 6 + clamp(Math.floor((this.flap / PRESS_SECONDS) * 3), 0, 2);
     return Math.floor(frac(this.t * 0.6) * 6);
   }
 
@@ -352,7 +364,7 @@ export class AnimalPainter {
     // Alas: plegadas en el suelo; en el aire, un aleteo completo con cada impulso y luego planea
     const root = at(11);
     let frame = art.flap + art.glide; // plegadas
-    if (player.airborne && !dead) frame = player.flapTime < FLAP_SECONDS ? clamp(Math.floor((player.flapTime / FLAP_SECONDS) * art.flap), 0, art.flap - 1) : art.flap + (Math.floor(this.t * 6) % art.glide);
+    if (player.airborne && !dead) frame = this.flap < FLAP_SECONDS ? clamp(Math.floor((this.flap / FLAP_SECONDS) * art.flap), 0, art.flap - 1) : art.flap + (Math.floor(this.t * 6) % art.glide);
     this.put(image, pieces.wingF, frame, Math.round(root.x), Math.round(root.y - 2), -3);
     this.put(image, pieces.wingN, frame, Math.round(root.x), Math.round(root.y - 2), 3);
   }

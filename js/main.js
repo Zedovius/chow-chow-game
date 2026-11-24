@@ -173,11 +173,12 @@ document.getElementById('pause-button').addEventListener('click', () => game.pau
 onLanguageChange(() => game.refreshTexts());
 game.start();
 
-// Para probar a un jefe (?jefe=..., ver config.js y jefes.html): directo a su pelea con el animal del que
-// es rival, y al volver al inicio, a la lista
-if (CONFIG.bossTest) {
-  const { boss, difficulty } = CONFIG.bossTest;
-  if (signById(boss)) game.newGame(difficulty, rivalOf(boss).id);
+// Para probar (ver config.js y jefes.html): a un jefe, directo a su pelea con el animal del que es rival;
+// a un animal, directo a jugar con él. Al volver al inicio, a la lista
+if (CONFIG.test) {
+  const { boss, animal, difficulty } = CONFIG.test;
+  const sign = signById(boss) ? rivalOf(boss) : signById(animal);
+  if (sign) game.newGame(difficulty, sign.id);
   events.on('title', () => { window.location.href = 'jefes.html'; });
 }
 

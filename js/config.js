@@ -7,7 +7,8 @@
 // entre a HI RECORDS. En las pruebas de Node no hay location.
 //   ?jefe=rat                  directo a la pelea contra ese jefe (la página jefes.html los lista); ahí no
 //                              se guardan récords, y al salir se regresa a la lista. Además:
-//   &dificultad=hard  &trio=1  &invencible=1
+//   ?animal=goat               a jugar con ese animal, sin menú, desde el nivel 1 (o con &nivel=5)
+//   &dificultad=hard  &trio=1  &invencible=1  &vuelo=1 (con la estrella desde el principio)
 const DEV_HOSTS = /^(localhost|127[.]0[.]0[.]1|[[]::1[\]]|192[.]168[.].+|10[.].+|172[.](1[6-9]|2[0-9]|3[01])[.].+|)$/;
 const dev = Boolean(globalThis.location) && DEV_HOSTS.test(globalThis.location.hostname);
 const params = new URLSearchParams(dev ? globalThis.location.search : '');
@@ -48,8 +49,9 @@ export const CONFIG = {
     fastFallMultiplier: 3,
     // Volando (en todos los niveles): en el aire, cada salto es un aleteo que lo impulsa un poco.
     // Desde el primer aleteo y hasta tocar el suelo, la gravedad es más suave y la caída tiene un
-    // máximo. Sin aletear, el salto es el de siempre.
-    flight: { gravity: 900, flap: 300, maxFall: 260, diveMultiplier: 2.5 },
+    // máximo. Sin aletear, el salto es el de siempre. takeOff: el impulso al tomar la estrella (como dos
+    // saltos seguidos).
+    flight: { gravity: 900, flap: 300, takeOff: 430, maxFall: 260, diveMultiplier: 2.5 },
     // Sin suelo (el Dragón y el Gallo): tocar las nubes de abajo quita un corazón y rebota así
     cloudBounce: 460,
     // Al esperar el primer aleteo en un nivel sin suelo, flota a esta altura sobre las nubes
@@ -252,9 +254,11 @@ export const CONFIG = {
 
   startLevel: Number.isFinite(requestedLevel) ? Math.min(12, Math.max(1, requestedLevel)) - 1 : 0,
 
-  // Probando a un jefe (?jefe=...), o null
-  bossTest: params.get('jefe') ? {
+  // Probando a un jefe (?jefe=...) o a un animal (?animal=...), o null
+  test: params.get('jefe') || params.get('animal') ? {
     boss: params.get('jefe'),
+    animal: params.get('animal'),
+    fly: params.has('vuelo'),
     difficulty: params.get('dificultad') === 'hard' ? 'hard' : 'easy',
     trio: params.has('trio'),
     invincible: params.has('invencible'),

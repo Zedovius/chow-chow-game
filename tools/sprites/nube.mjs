@@ -3,9 +3,10 @@
 
 import { Model, add, lerp, TAU } from './modelo3d.mjs';
 
-const VAPOR = '#e9f0ff';
-const SHADE = '#b7c6ee';
-const CURL = '#8fa4dc';
+const VAPOR = '#ffe27a';
+const SHADE = '#e8a53a';
+const CURL = '#c0761f';
+const SIZE = 0.76; // el tamaño de la nube
 
 /** t: de 0 a 1, cómo se mece; press: de 0 a 1, aplastada por un aleteo. */
 export function cloud({ t = 0, press = 0 }) {
@@ -43,13 +44,20 @@ export function cloud({ t = 0, press = 0 }) {
   // La cola: dos puntas que se afilan hacia atrás
   m.limb([-12 * wide, -3, 0], [-19, -2.2 + Math.sin(t * TAU) * 0.8, 0], 2.8, 0.9, { color: coat(-9), group: 'vaporm', blend: 1 });
   m.limb([-10 * wide, -5.4, 1.4], [-15.6, -6 - Math.sin(t * TAU) * 0.5, 1.4], 1.9, 0.7, { color: SHADE, group: 'vaporm', blend: 0.8 });
+  // A su tamaño (los rizos conservan su grosor, para que se sigan viendo)
+  for (const prim of m.prims) {
+    const thin = prim.group.startsWith('curl');
+    for (const key of ['c', 'a', 'b', 'r']) if (Array.isArray(prim[key])) prim[key] = prim[key].map((v) => v * SIZE);
+    for (const key of ['ra', 'rb']) if (prim[key] && !thin) prim[key] *= SIZE;
+    if (thin) for (const key of ['a', 'b']) prim[key][2] = 7;
+  }
   return m;
 }
 
 /** Una voluta de la estela, de grande (0) a deshecha (1). */
 export function wisp(k) {
   const m = new Model();
-  const r = lerp(3.5, 0.8, k);
+  const r = lerp(3, 0.8, k);
   m.ball([0, 0, 0], [r * 1.1, r * 0.9, r * 0.8], { color: (l) => (l[1] < -r * 0.25 ? SHADE : VAPOR), group: 'w' });
   if (k < 0.75) m.ball([-r * 0.95, -r * 0.35, 0], [r * 0.7, r * 0.6, r * 0.6], { color: SHADE, group: 'w', blend: 0.6 });
   if (k < 0.5) m.ball([r * 0.6, r * 0.4, 0], [r * 0.6, r * 0.55, r * 0.5], { color: VAPOR, group: 'w', blend: 0.6 });

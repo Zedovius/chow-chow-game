@@ -42,9 +42,12 @@ export class Player {
     return this.canFly || !this.ground || this.forceFlight;
   }
 
-  /** Está volando (o flotando, sin suelo): en el aire con el poder de volar. */
+  /**
+   * Está volando (va en su nube o con las alas abiertas): desde el segundo salto, en el aire, o al tomar la
+   * estrella. Un solo salto desde el suelo es un salto simple, aunque tenga el poder. Sin suelo, siempre.
+   */
   get airborne() {
-    return this.alive && !this.onGround && (this.flying || !this.ground || this.forceFlight);
+    return this.alive && !this.onGround && (this.flying || !this.ground);
   }
 
   /** Vuela con alas: el Dragón y el Gallo. Los demás, en su nubecita. */
@@ -58,8 +61,8 @@ export class Player {
   }
 
   /**
-   * Tomó la estrella: tiene el poder de volar y despega en ese momento (la nubecita aparece de
-   * inmediato; el Dragón y el Gallo abren las alas).
+   * Tomó la estrella: tiene el poder de volar y despega en ese momento, como si diera dos saltos (la
+   * nubecita aparece de inmediato; el Dragón y el Gallo abren las alas).
    */
   takeOff() {
     // Si ya vuela (con el poder, sin suelo o en la pelea final), otra estrella no cambia nada
@@ -70,7 +73,7 @@ export class Player {
     this.ducking = false;
     this.jumpHeld = false;
     this.flying = true;
-    this.vy = Math.min(this.vy, -CONFIG.player.flight.flap);
+    this.vy = Math.min(this.vy, -CONFIG.player.flight.takeOff);
     this.flapTime = 0;
   }
 
