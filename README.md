@@ -259,7 +259,8 @@ de rata... Se rebana en capas de profundidad (sprite stacking), que `js/graphics
 al jugar. La carrera avanza con lo recorrido: los pies no patinan. Cómo se ve cada animal está en
 `especies.mjs` (los de cuatro patas) y `alados.mjs` (gallo, dragón y serpiente); sus poses, en
 `poses.mjs`; la nube, en `nube.mjs`. El dragón y la serpiente se arman al jugar, con vértebras sobre el
-camino de la cabeza. La caja de choque no cambia: es la misma para los 12. Cada hoja se baja solo
+camino de la cabeza. La caja de choque es la misma para los 12 (`Player.hitboxes`), y también la caja más grande con la que
+recogen las cosas (`Player.reach`, `CONFIG.player.reach`); se ven con `&cajas=1` (en `jefes.html`). Cada hoja se baja solo
 cuando hace falta (mientras gira la rueda).
 
 ### Los jefes

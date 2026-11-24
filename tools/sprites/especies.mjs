@@ -28,19 +28,27 @@ function eye(m, H, [x, y, z], { color = DARK, shine = '#ffffff', closed = false,
   m.dot([p[0], p[1] + 1, p[2]], shine);
 }
 
-/** El listón rojo con su moneda de oro, en el cuello (lo llevan casi todos: son de la misma casa). */
-function scarf(m, s, { at = 0.5, r = 2.4, z = 2.4, coin = true, turn = 0, phase = 0, tails = true } = {}) {
+/**
+ * El pañuelo rojo del cuello, con su nudo, sus puntas al viento y su moneda de oro (lo llevan casi todos:
+ * son de la misma casa). Va pintado sobre la piel (Model.band): se ve en cualquier pose. at: en qué parte
+ * del cuello; width: qué tan ancho; groups: sobre qué piezas.
+ */
+function scarf(m, s, { at = 0.5, width = 1.15, flare = 0.5, coin = true, phase = 0, tails = true, groups = ['body'], reach = 7, length = 5.5 } = {}) {
   const c = lerp(s.neckBase, s.neckTop, at);
-  const a = Math.atan2(s.neckTop[1] - s.neckBase[1], s.neckTop[0] - s.neckBase[0]);
-  m.ball(c, [1.5, r, z], { turn: a + turn, color: RED, group: 'scarf', over: 3, blend: 0 });
+  const axis = [s.neckTop[0] - s.neckBase[0], s.neckTop[1] - s.neckBase[1], 0];
+  const n = Math.hypot(...axis) || 1;
+  // Hacia el pecho y hacia la nuca, atravesados al cuello
+  const down = [axis[1] / n, -axis[0] / n, 0];
+  const up = [-down[0], -down[1], 0];
+  m.band({ center: c, axis: [-axis[0], -axis[1], 0], width, flare, down, reach, color: RED, groups });
+  const knot = add(m.surface(c, up, groups), [up[0] * 0.4, up[1] * 0.4, 0.6]);
+  m.ball(knot, [1.2, 1.1, 1.4], { color: RED, group: 'knot', over: 3.2, blend: 0 });
   if (tails) {
-    const knot = add(c, [-1.4, r * 0.75, 0.5]);
-    m.chain(tailPoints(knot, { n: 4, length: 5.5, angle: 2.8, sway: 0.55, phase, delay: 0.18 }), 0.95, 0.6, { color: RED, group: 'ribbon', over: 2.8 });
+    for (const [z, angle, long] of [[1.4, 2.62, 1], [-0.6, 2.95, 0.8]]) {
+      m.chain(tailPoints(add(knot, [-0.4, 0, z * 0.6]), { n: 4, length: length * long, angle, sway: 0.5, phase: phase + z * 0.1, delay: 0.18 }), 1.05, 0.7, { color: RED, group: `ribbon${z}`, over: 3 });
+    }
   }
-  if (coin) {
-    const g = add(c, [Math.cos(a - 1.4) * r * 0.9, Math.sin(a - 1.4) * r * 0.9, 1]);
-    m.ball(g, [1.1, 1.1, 0.9], { color: GOLD, group: 'coin', over: 4, blend: 0 });
-  }
+  if (coin) m.ball(add(m.surface(c, down, groups), [down[0] * 0.5, down[1] * 0.5, 1.2]), [1.2, 1.2, 1], { color: GOLD, group: 'coin', over: 4, blend: 0 });
 }
 
 const quadruped = (own, dress) => ({
@@ -84,7 +92,7 @@ const rat = quadruped({
   m.dot(H([4.2, -2.6, 1]), '#f4f0ff'); // bigotes
   m.dot(H([3.2, -3.2, 2]), '#f4f0ff');
   m.chain(tailPoints(add(s.hip, [-4, 0.2, 0]), { n: 8, length: 13, angle: 2.86, curl: -0.5, sway: 0.55, phase: pose.phase, delay: 0.11, zSway: 1.2 }), 0.95, 0.5, { color: '#e6a9b8', group: 'tail', over: -1 });
-  scarf(m, s, { at: 0.35, r: 2.6, z: 2.6, phase: pose.phase });
+  scarf(m, s, { at: 0.4, width: 1, phase: pose.phase });
 });
 
 // --- Buey --------------------------------------------------------------------------
@@ -114,7 +122,7 @@ const ox = quadruped({
   const tail = tailPoints(add(s.hip, [-4.6, 2, 0]), { n: 5, length: 8, angle: -1.9, sway: 0.4, phase: pose.phase, delay: 0.14 });
   m.chain(tail, 0.7, 0.6, { color: '#6f4330', group: 'tail', over: -1 });
   m.ball(tail.at(-1), [1.1, 1.5, 1.1], { color: '#2b1a16', group: 'tuft2', over: -1, blend: 0 });
-  scarf(m, s, { at: 0.3, r: 4.6, z: 4, tails: false });
+  scarf(m, s, { at: 0.35, width: 1.5, flare: 0.35, reach: 9, phase: pose.phase });
 });
 
 // --- Tigre -------------------------------------------------------------------------
@@ -142,7 +150,7 @@ const tiger = quadruped({
   eye(m, H, [1.9, 0.9, 3], { color: '#1b1226', white: '#d8f06a', shine: '#f4ffb0', closed: pose.hurt });
   const tail = tailPoints(add(s.hip, [-3.6, 1, 0]), { n: 8, length: 13, angle: pose.flat ? 3.2 : 2.75, curl: pose.flat ? -0.5 : -1.7, sway: pose.flat ? 0.2 : 0.4, phase: pose.phase, delay: 0.1, zSway: 1 });
   m.chain(tail, 1.15, 0.95, { color: (l, p) => (Math.sin(p[0] * 2.4 + p[1] * 1.2) > 0.35 ? '#3a1a0f' : '#f08a24'), group: 'tail', over: -1 });
-  scarf(m, s, { at: 0.25, r: 3.6, z: 3.2, phase: pose.phase });
+  scarf(m, s, { at: 0.35, width: 1.3, phase: pose.phase });
 });
 
 // --- Conejo ------------------------------------------------------------------------
@@ -170,7 +178,7 @@ const rabbit = quadruped({
   }
   eye(m, H, [1.5, 0.6, 2.3], { color: '#8a1f3d', closed: pose.hurt });
   m.ball(add(s.hip, [-4.4, 1.2, 0]), [1.9, 1.8, 1.8], { color: '#ffffff', group: 'tail', over: 0, blend: 0 });
-  scarf(m, s, { at: 0.2, r: 2.9, z: 2.6, phase: pose.phase });
+  scarf(m, s, { at: 0.45, phase: pose.phase });
 });
 
 // --- Caballo -----------------------------------------------------------------------
@@ -202,7 +210,7 @@ const horse = quadruped({
   }
   m.limb(H([-0.4, 2]), H([1.6, 1.9]), 0.9, 0.5, { color: hair, group: 'mane', over: 3 });
   m.chain(tailPoints(add(s.hip, [-4, 1.8, 0]), { n: 6, length: 11, angle: 2.8, curl: 0.5, sway: 0.4, phase: pose.phase, delay: 0.13, zSway: 0.6 }), 1.5, 0.8, { color: hair, group: 'tail', over: -1 });
-  scarf(m, s, { at: 0.02, r: 3.4, z: 3, tails: false });
+  scarf(m, s, { at: 0.3, width: 1.2, flare: 0.6, phase: pose.phase, length: 5 });
 });
 
 // --- Cabra -------------------------------------------------------------------------
@@ -226,7 +234,7 @@ const goat = quadruped({
   m.chain(tailPoints(H([2.6, -2.2]), { n: 3, length: 3.6, angle: -1.9, sway: 0.5, phase: pose.phase, delay: 0.2 }), 1, 0.35, { color: '#ffffff', group: 'beard', over: 2 });
   eye(m, H, [1.3, 0.5, 2], { color: '#1b1226', white: '#ffd23f', closed: pose.hurt });
   m.chain(tailPoints(add(s.hip, [-3.4, 2.2, 0]), { n: 3, length: 3.6, angle: 2.2, sway: 0.4, phase: pose.phase * 2 }), 1.1, 0.7, { color: '#ffffff', group: 'tail', over: -1 });
-  scarf(m, s, { at: 0.4, r: 2.6, z: 2.5, tails: false });
+  scarf(m, s, { at: 0.45, width: 1.1, phase: pose.phase });
 });
 
 // --- Mono --------------------------------------------------------------------------
@@ -252,7 +260,7 @@ const monkey = quadruped({
   m.ball(H([3.2, 1.7, 0.6]), [0.6, 0.7, 0.8], { color: GOLD, group: 'band2', over: 3.2, blend: 0 });
   eye(m, H, [2.5, 0.5, 2.4], { closed: pose.hurt });
   m.chain(tailPoints(add(s.hip, [-3, 0.6, 0]), { n: 9, length: pose.flat ? 11 : 14, angle: pose.flat ? 3.1 : 2.7, curl: pose.flat ? -0.8 : -3.6, sway: 0.25, phase: pose.phase, delay: 0.1, zSway: 0.8 }), 0.95, 0.75, { color: fur, group: 'tail', over: -1 });
-  scarf(m, s, { at: 0.1, r: 2.7, z: 2.8, phase: pose.phase });
+  scarf(m, s, { at: 0.4, phase: pose.phase });
 });
 
 // --- Perro (chow chow) ---------------------------------------------------------------
@@ -279,8 +287,7 @@ const dog = quadruped({
   m.dot(H([2.4, 1.8, 2.9]), '#b5763c'); // el ceño
   // La cola, enroscada sobre el lomo
   m.chain(tailPoints(add(s.hip, [-2.6, pose.flat ? 1.4 : 3, 0]), { n: 7, length: pose.flat ? 7 : 9.5, angle: pose.flat ? 2.9 : 2.2, curl: pose.flat ? -1.4 : -3.5, sway: 0.16, phase: pose.phase, delay: 0.1 }), 1.9, 1.5, { color: '#f0cf9c', group: 'tail', over: 0.5 });
-  m.ball(add(c, [2.6, -3.2, 2.4]), [1.2, 1.2, 0.9], { color: GOLD, group: 'coin', over: 4, blend: 0 });
-  m.ball(add(c, [1.6, -2, 2.6]), [1.3, 0.8, 1], { color: RED, group: 'collar', over: 3.5, blend: 0 });
+  scarf(m, s, { at: 0.35, width: 1.3, flare: 0.35, reach: 9, phase: pose.phase, groups: ['body', 'mane'] });
 });
 
 // --- Cerdo -------------------------------------------------------------------------
@@ -303,7 +310,7 @@ const pig = quadruped({
   for (const z of [-1, 1]) m.chain([H([-0.6, 2.6, z * 1.8]), H([1, 2.8 + flap * 0.4, z * 2.8]), H([2.4, 1.2 + flap * 1.2, z * 3.2])], 1.4, 0.7, { color: '#e98aa3', group: `ear${z}`, over: z > 0 ? 4 : 0 });
   eye(m, H, [2, 0.5, 2.7], { closed: pose.hurt });
   m.chain(tailPoints(add(s.hip, [-4.4, 1.6, 0]), { n: 8, length: 7, angle: 2.4, curl: 6.4, sway: 0.2, phase: pose.phase * 2, delay: 0.06, zSway: 0.8 }), 0.75, 0.5, { color: '#e98aa3', group: 'tail', over: 0.5 });
-  scarf(m, s, { at: 0.3, r: 4, z: 3.8, phase: pose.phase });
+  scarf(m, s, { at: 0.3, width: 1.4, reach: 8, phase: pose.phase });
 });
 
 export const QUADRUPEDS = { rat, ox, tiger, rabbit, horse, goat, monkey, dog, pig };

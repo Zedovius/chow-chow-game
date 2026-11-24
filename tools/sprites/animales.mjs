@@ -144,7 +144,7 @@ async function main() {
   // Cuerpos largos: piezas sueltas que el juego arma sobre el camino de la cabeza
   const TURNS = [-0.7, -0.35, 0, 0.35, 0.7];
   const ANGLES = [-1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2];
-  const spine = (kind, radii) => radii.flatMap((r) => ANGLES.flatMap((angle) => Array.from({ length: kind === 'snake' ? 4 : 6 }, (_, n) => vertebra({ kind, r, angle, n }))));
+  const spine = (kind, radii) => radii.flatMap((r) => ANGLES.flatMap((angle) => Array.from({ length: kind === 'snake' ? 5 : 6 }, (_, n) => vertebra({ kind, r, angle, n }))));
   {
     const radii = [3.6, 3.5, 3.2, 2.9, 2.5, 2, 1.5];
     const head = TURNS.flatMap((turn) => Array.from({ length: 6 }, (_, i) => dragonHead({ turn, t: i / 6 })));
@@ -176,7 +176,7 @@ async function main() {
       head: piece([...head, ...TURNS.map((turn) => snakeHead({ turn, hurt: true }))]),
       spine: piece(spine('snake', radii)),
       coil: piece([...Array.from({ length: 6 }, (_, i) => snakeCoil({ t: i / 6, tongue: i === 4 ? 1 : 0 })), snakeCoil({ t: 0.1, up: -1.6 }), snakeCoil({ t: 0.2, up: 0.4 }), snakeCoil({ t: 0.3, up: 1.4, tongue: 1 })]),
-    }, { long: 'snake', radii, turns: TURNS, angles: ANGLES, patterns: 4, stride: 24 });
+    }, { long: 'snake', radii, turns: TURNS, angles: ANGLES, patterns: 5, skin: 4, stride: 24 });
     await portrait('snake', snakeCoil({ t: 0, tongue: 1 }), [4.5, 10.5]);
   }
   await save('cloud', {

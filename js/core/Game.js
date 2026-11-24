@@ -598,8 +598,8 @@ export class Game {
       this.hit();
       return;
     }
-    // Se recoge con la cabeza (la boca)
-    const taken = this.pickups.filter((p) => anyOverlap([body[0]], p.hitboxes()));
+    // Se recoge con todo el dibujo (Player.reach), no solo con la caja de choque
+    const taken = this.pickups.filter((p) => anyOverlap(this.player.reach(), p.hitboxes()));
     if (!taken.length) return;
     this.pickups = this.pickups.filter((p) => !taken.includes(p));
     for (const pickup of taken) {

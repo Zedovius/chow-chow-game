@@ -58,6 +58,15 @@ function rooster({ p = 0, legs, wings = null, bob = [0, 0], dy = 0, lean = 0, la
   const head = add(B([5.6, 7.4]), [bob[0], bob[1], 0]);
   m.limb(neck, head, 3, 1.9, { color: (l, q) => (Math.sin(q[0] * 2.6 + q[1] * 1.1) > 0.55 ? '#e07a1a' : C.hackle), group: 'neck', over: 1.5 });
   m.ball(head, [2.3, 2.2, 2], { color: C.hackle, group: 'neck', over: 1.5, blend: 1 });
+  // El pañuelo rojo, pintado sobre el cuello, con sus puntas
+  const tie = lerp(neck, head, 0.42);
+  const dir = [head[0] - neck[0], head[1] - neck[1], 0];
+  const back = [-dir[1], dir[0], 0].map((v) => v / (Math.hypot(...dir) || 1));
+  m.band({ center: tie, axis: [-dir[0], -dir[1], 0], width: 1, flare: 0.5, down: back.map((v) => -v), reach: 6, color: RED, groups: ['neck'] });
+  const knot = add(m.surface(tie, back, ['neck']), [0, 0, 0.6]);
+  m.ball(knot, [1.1, 1.1, 1.3], { color: RED, group: 'knot', over: 3.2, blend: 0 });
+  for (const [z, angle] of [[1, 2.6], [-0.5, 2.95]]) m.chain(tailPoints(knot, { n: 4, length: 5, angle, sway: 0.5, phase: p + z * 0.1, delay: 0.18, z: z * 0.6 }), 1, 0.65, { color: RED, group: `ribbon${z}`, over: 3 });
+  m.ball(add(m.surface(tie, back.map((v) => -v), ['neck']), [0.3, -0.2, 1]), [1.1, 1.1, 1], { color: GOLD, group: 'coin', over: 4, blend: 0 });
   m.ball(add(head, [0.9, -0.2, 0]), [1.6, 1.5, 1.9], { color: C.comb, group: 'face', over: 2, blend: 0 });
   m.limb(add(head, [1.8, 0, 0]), add(head, [4.4, -0.7, 0]), 1.05, 0.4, { color: C.beak, group: 'beak', over: 3 });
   for (const [x, y, r] of [[-1.3, 2, 1], [0, 2.7, 1.2], [1.2, 2.3, 1]]) m.ball(add(head, [x - lag * 0.3, y, 0]), [r, r * 1.05, 0.9], { color: C.comb, group: 'comb', over: 2, blend: 0.6 });
@@ -189,6 +198,7 @@ export function vertebra({ kind, r, angle, n }) {
   const coat = (l) => {
     const [u, v] = [l[0] * Math.cos(angle) + l[1] * Math.sin(angle), -l[0] * Math.sin(angle) + l[1] * Math.cos(angle)];
     if (snake) {
+      if (n === 4) return RED; // el pañuelo
       if (v < -r * 0.42) return '#e6efa8';
       if (n % 4 < 2 && v > r * 0.1) return '#2f6b34'; // los rombos del lomo
       if (n % 4 === 2 && v > r * 0.55) return '#2f6b34';

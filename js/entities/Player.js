@@ -368,6 +368,16 @@ export class Player {
     return [{ x: this.x - w / 2 + 2, y: this.y - height + 2, w: w - 4, h: height - 4 }];
   }
 
+  /**
+   * La caja con la que recoge lo que sale: del tamaño del dibujo (la de choque es más chica, para que los
+   * roces perdonen). La misma para todos los animales.
+   */
+  reach() {
+    const { back, front, up, duck, cloud } = CONFIG.player.reach;
+    const height = this.ducking ? duck : up;
+    return [{ x: this.x - back, y: this.y - height, w: back + front, h: height + (this.airborne ? cloud : 0) }];
+  }
+
   /** Una copia independiente (para simular el futuro, como hace el bot de las pruebas). */
   clone() {
     const copy = Object.assign(Object.create(Player.prototype), this);

@@ -38,9 +38,9 @@ export const ANIMAL_ART = {
       body: {
         y: 0,
         w: 35,
-        h: 26,
+        h: 29,
         ax: 20,
-        ay: 22,
+        ay: 25,
         depth: 5,
         frames: 42
       }
@@ -234,9 +234,9 @@ export const ANIMAL_ART = {
       body: {
         y: 0,
         w: 28,
-        h: 19,
+        h: 20,
         ax: 16,
-        ay: 17,
+        ay: 18,
         depth: 4,
         frames: 42
       }
@@ -407,7 +407,7 @@ export const ANIMAL_ART = {
         ax: 3,
         ay: 3,
         depth: 3,
-        frames: 196
+        frames: 245
       },
       coil: {
         y: 154,
@@ -424,7 +424,8 @@ export const ANIMAL_ART = {
     radii: [3.2, 3, 2.7, 2.4, 2, 1.5, 1],
     turns: [-0.7, -0.35, 0, 0.35, 0.7],
     angles: [-1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2],
-    patterns: 4,
+    patterns: 5,
+    skin: 4,
     stride: 24,
     portrait: 'assets/images/animales/snake-retrato.png'
   },

@@ -66,6 +66,10 @@ export const CONFIG = {
       { w: 14, h: 10 },
       { w: 12, h: 8 },
     ],
+    // Con qué recoge (la estrella, comida, cócteles e ingredientes): una caja más grande que la de choque,
+    // del tamaño del dibujo, para que lo que se ve tocado se tome. Es la misma para los 12 animales.
+    // Desde el centro y los pies: hacia atrás, adelante, arriba (duck: agachado) y, volando, abajo (la nube)
+    reach: { back: 30, front: 30, up: 40, duck: 22, cloud: 10 },
     invulnerableSeconds: 1.5,
     hurtBounce: 260, // el saltito al recibir un golpe
     deathSlide: 160, // al morir, qué tan rápido se tiende el cuerpo en el suelo
@@ -262,6 +266,7 @@ export const CONFIG = {
     difficulty: params.get('dificultad') === 'hard' ? 'hard' : 'easy',
     trio: params.has('trio'),
     invincible: params.has('invencible'),
+    boxes: params.has('cajas'), // dibuja las cajas: de choque (rojo) y para recoger (verde)
   } : null,
 
   storageKey: 'chowchow.record',

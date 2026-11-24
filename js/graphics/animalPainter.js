@@ -323,7 +323,7 @@ export class AnimalPainter {
       const behind = path[Math.min(path.length - 1, i + 2)];
       const angle = Math.atan2(behind.y - ahead.y, ahead.x - behind.x);
       const r = clamp(Math.round((i / (path.length - 1)) * (art.radii.length - 1) - 0.1), 0, art.radii.length - 1);
-      const frame = (r * art.angles.length + nearest(art.angles, angle)) * art.patterns + (i % art.patterns);
+      const frame = (r * art.angles.length + nearest(art.angles, angle)) * art.patterns + (snake && (i === 5 || i === 6) ? art.skin : i % (art.skin ?? art.patterns)); // (la serpiente lleva su pañuelo)
       // Con una de cada dos capas basta: las vértebras se enciman
       this.put(image, pieces.spine, frame, Math.round(p.x), Math.round(p.y), Math.round(p.z), -2, 2);
     }

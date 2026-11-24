@@ -39,6 +39,7 @@
       <label><input type="checkbox" name="trio"> Fuego jade (trío completo)</label>
       <label><input type="checkbox" name="invencible"> No perder corazones</label>
       <label><input type="checkbox" name="vuelo"> Empezar con la estrella (volar)</label>
+      <label><input type="checkbox" name="cajas"> Ver cajas (rojo: choque · verde: recoger)</label>
     </fieldset>
     <h2>Jugar con un animal</h2>
     <ul id="animals"><li>Abre esta página desde un servidor local, como el juego.</li></ul>
@@ -53,7 +54,7 @@
 
     const options = document.querySelector('fieldset');
     const KEY = 'chowchow.pruebas';
-    const inputs = { hard: '[value="hard"]', trio: '[name="trio"]', invencible: '[name="invencible"]', vuelo: '[name="vuelo"]' };
+    const inputs = { hard: '[value="hard"]', trio: '[name="trio"]', invencible: '[name="invencible"]', vuelo: '[name="vuelo"]', cajas: '[name="cajas"]' };
     const input = (key) => options.querySelector(inputs[key]);
     const read = () => Object.fromEntries(Object.keys(inputs).map((key) => [key, input(key).checked]));
     // Se recuerda lo elegido mientras la pestaña siga abierta
@@ -72,9 +73,9 @@
     }
     /** Un botón: adónde lleva, su dibujo, su título y los renglones de abajo. */
     function card(query, icon, title, lines, drawn = false) {
-      const { hard, trio, invencible, vuelo } = read();
+      const { hard, trio, invencible, vuelo, cajas } = read();
       const params = new URLSearchParams({ ...query, dificultad: hard ? 'hard' : 'easy' });
-      for (const [key, on] of Object.entries({ trio, invencible, vuelo })) if (on) params.set(key, '1');
+      for (const [key, on] of Object.entries({ trio, invencible, vuelo, cajas })) if (on) params.set(key, '1');
       const link = document.createElement('a');
       link.href = './?' + params;
       link.classList.toggle('is-drawn', drawn);

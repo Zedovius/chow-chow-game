@@ -95,6 +95,7 @@ export class Scene {
     if (view.boss) this.drawBoss(view.boss, { x: view.headX, y: view.headY - CONFIG.player.head.h / 2 });
     this.drawPlayer(view);
     this.drawFireballs(view);
+    if (CONFIG.test?.boxes) this.drawBoxes(view);
     ctx.setTransform(1 / P, 0, 0, 1 / P, 0, 0);
     this.drawMarkers(view);
   }
@@ -643,6 +644,20 @@ export class Scene {
       ctx.fillStyle = blink ? boss.fire : COLORS.fire[0];
       ctx.fillRect(head.x - 4, head.y + 10, 6, 6);
     }
+  }
+
+  /** Para probar (&cajas=1): las cajas de choque (rojo) y para recoger (verde). */
+  drawBoxes({ dragon: player, obstacles, pickups }) {
+    const ctx = this.ctx;
+    ctx.lineWidth = P;
+    const outline = (boxes, color) => {
+      ctx.strokeStyle = color;
+      for (const b of boxes) ctx.strokeRect(b.x + P / 2, b.y + P / 2, b.w - P, b.h - P);
+    };
+    outline(obstacles.map((o) => ({ x: o.x + 1, y: o.y + 1, w: o.w - 2, h: o.h - 2 })), '#ff4d4d');
+    outline(pickups.map((p) => ({ x: p.x - p.r, y: p.y - p.r, w: p.r * 2, h: p.r * 2 })), '#5dff8a');
+    outline(player.reach(), '#5dff8a');
+    outline(player.hitboxes(), '#ff4d4d');
   }
 
   /**

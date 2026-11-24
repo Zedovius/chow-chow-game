@@ -621,7 +621,7 @@ function tryPlan(world, plan, k) {
     b?.update(DT, { playerY: d.y - CONFIG.player.head.h / 2, playerX: d.x, worldSpeed: speed, spawn: (o) => os.push(o) });
     const body = d.hitboxes();
     if (d.bumped || os.some((o) => anyOverlap(body, o.hitboxes())) || (b && anyOverlap(body, b.hitboxes()))) return { lasts: i, got };
-    if (!got && ps.some((p) => anyOverlap([body[0]], p.hitboxes()))) got = true;
+    if (!got && ps.some((p) => anyOverlap(d.reach(), p.hitboxes()))) got = true;
   }
   return { lasts: HORIZON, got, y: d.y };
 }
@@ -711,7 +711,7 @@ function botRun(difficulty, seed, { stars = true } = {}) {
           if (process.env.BOT_DEBUG) console.log(difficulty, 'nivel', level.index + 1, hit?.kind ?? 'nubes', hit?.height, current.plan.name, { y: Math.round(dragon.y) });
           dragon.hurt();
         }
-        const grabbed = pickups.filter((p) => anyOverlap([body[0]], p.hitboxes()));
+        const grabbed = pickups.filter((p) => anyOverlap(dragon.reach(), p.hitboxes()));
         collected += grabbed.filter((p) => p.type !== 'star').length;
         trio.got += grabbed.filter((p) => p.type === 'ingredient').length;
         if (grabbed.some((p) => p.type === 'star')) dragon.canFly = true;
@@ -916,7 +916,7 @@ function bossRun(difficulty, seed, sign = 'pig') {
         if (process.env.BOT_DEBUG) console.log('jefe', difficulty, struck === boss ? 'cuerpo' : 'disparo', boss.state, boss.attack, current.plan.name, { y: Math.round(dragon.y), boss: Math.round(boss.y) });
         dragon.hurt();
       }
-      const grabbed = pickups.filter((p) => anyOverlap([body[0]], p.hitboxes()));
+      const grabbed = pickups.filter((p) => anyOverlap(dragon.reach(), p.hitboxes()));
       for (const p of grabbed) {
         if (p.type === 'cocktail') ammo = Math.min(fireMax, ammo + CONFIG.cocktails.perCocktail);
         if (p.type === 'cocktail') cocktails++;
@@ -1251,4 +1251,77 @@ test('los pies no patinan: apoyados, van hacia atrás justo a la velocidad del s
       assert.ok(!air.down && air.y > 0.5, `${name}: no levanta el pie`);
     }
   }
+});
+
+test('la caja para recoger es la misma para los 12, cubre la de choque y el dibujo de cada animal', async () => {
+  const { ANIMAL_ART } = await import('../js/graphics/animalArt.js');
+  const { decode } = await import('./sprites/png.mjs');
+  const { readFileSync } = await import('node:fs');
+  const player = new Player();
+  player.reset(true);
+  const size = JSON.stringify([player.hitboxes(), player.reach()]);
+  for (const { id } of ZODIAC) {
+    player.sign = id;
+    assert.equal(JSON.stringify([player.hitboxes(), player.reach()]), size, `${id}: otra caja`);
+  }
+  for (const ducking of [false, true]) {
+    player.ducking = ducking;
+    const [hit] = player.hitboxes();
+    const [reach] = player.reach();
+    assert.ok(reach.x <= hit.x && reach.y <= hit.y && reach.x + reach.w >= hit.x + hit.w && reach.y + reach.h >= hit.y + hit.h);
+  }
+  player.ducking = false;
+  // De cada dibujo corriendo, casi todo (sin la cola ni las puntas) queda dentro
+  const { back, front, up } = CONFIG.player.reach;
+  for (const [id, art] of Object.entries(ANIMAL_ART)) {
+    if (!art.anims) continue;
+    const sheet = decode(readFileSync(new URL('../' + art.src, import.meta.url)));
+    const { w, h, ax, ay, y: top, depth } = art.pieces.body;
+    const [first, count] = art.anims.run;
+    let [inside, total] = [0, 0];
+    for (let f = first; f < first + count; f++) {
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          let solid = false;
+          for (let layer = 0; layer <= depth * 2 && !solid; layer++) solid = sheet.data[((top + layer * h + y) * sheet.w + f * w + x) * 4 + 3] > 0;
+          if (!solid) continue;
+          total++;
+          const [wx, wy] = [(x - ax) * 2, (ay - y) * 2];
+          if (wx >= -back && wx <= front && wy <= up) inside++;
+        }
+      }
+    }
+    assert.ok(inside / total > 0.75, `${id}: solo el ${Math.round((100 * inside) / total)} % del dibujo alcanza a recoger`);
+    if (process.env.CAJAS) console.log(id, Math.round((100 * inside) / total) + ' %');
+  }
+});
+
+test('el pañuelo rojo se ve en todos los cuadros de todos los animales que lo llevan', async () => {
+  const { ANIMAL_ART } = await import('../js/graphics/animalArt.js');
+  const { decode } = await import('./sprites/png.mjs');
+  const { readFileSync } = await import('node:fs');
+  const worst = {};
+  for (const [id, art] of Object.entries(ANIMAL_ART)) {
+    if (!art.anims) continue;
+    const sheet = decode(readFileSync(new URL('../' + art.src, import.meta.url)));
+    const { w, h, y: top, depth, frames } = art.pieces.body;
+    for (let f = 0; f < frames; f++) {
+      // Apilado como en el juego: lo que queda a la vista
+      const seen = new Map();
+      for (let layer = 0; layer <= depth * 2; layer++) {
+        const [dx, dy] = [Math.round((layer - depth) * 0.45), Math.round((layer - depth) * 0.28)];
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const i = ((top + layer * h + y) * sheet.w + f * w + x) * 4;
+            if (sheet.data[i + 3]) seen.set((y + dy) * 1000 + x + dx, [...sheet.data.subarray(i, i + 3)]);
+          }
+        }
+      }
+      // El rojo del pañuelo y sus tonos (el gallo es rojo de por sí: ahí no se puede distinguir)
+      const red = [...seen.values()].filter(([r, g, b]) => r > 120 && g < 120 && b < 120 && r - g > 80 && b >= g - 6).length;
+      if (id !== 'rooster') worst[id] = Math.min(worst[id] ?? Infinity, red);
+    }
+  }
+  if (process.env.CAJAS) console.log(JSON.stringify(worst));
+  for (const [id, red] of Object.entries(worst)) assert.ok(red >= 6, `${id}: en algún cuadro solo se ven ${red} pixeles de pañuelo`);
 });

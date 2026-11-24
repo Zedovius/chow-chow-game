@@ -44,6 +44,33 @@ export class Model {
   constructor() {
     this.prims = [];
     this.dots = [];
+    this.bands = [];
+  }
+
+  /**
+   * Una franja pintada sobre la piel (un pañuelo, un collar): lo que esté a menos de width del plano que
+   * pasa por center y mira hacia axis. Como va en la superficie de las piezas (groups), ninguna capa la
+   * tapa. flare: cuánto se ensancha hacia down (el pico del pañuelo); reach: hasta dónde llega.
+   */
+  band({ center, axis, width = 1, flare = 0, down = [0, -1, 0], reach = 8, color, groups = ['body'] }) {
+    const n = Math.hypot(...axis) || 1;
+    this.bands.push({ center, axis: mul(axis, 1 / n), width, flare, down, reach, color, groups });
+    return this;
+  }
+
+  /** El punto donde, saliendo de from hacia dir, se acaba la piel de esos grupos. */
+  surface(from, dir, groups = ['body']) {
+    const prims = this.prims.filter((p) => groups.includes(p.group));
+    let p = from;
+    for (let i = 0; i < 80; i++) {
+      const next = add(p, mul(dir, 0.25));
+      if (!prims.some((prim) => {
+        distance(prim, ...next);
+        return D.dist < 0;
+      })) return p;
+      p = next;
+    }
+    return p;
   }
 
   /**
@@ -120,7 +147,7 @@ export class Model {
         hits.length = 0;
         for (const n of row) if (x >= n.x0 && x <= n.x1) hits.push(n.prim);
         if (!hits.length) continue;
-        const color = field(hits, x, y, z);
+        const color = field(hits, x, y, z, this.bands);
         if (!color) continue;
         const i = (py * w + px) * 4;
         data[i] = color[0];
@@ -183,7 +210,7 @@ function distance(prim, x, y, z) {
 }
 
 /** El color de un punto, o null si está afuera de todo. */
-function field(prims, x, y, z) {
+function field(prims, x, y, z, bands = []) {
   const groups = [];
   for (const prim of prims) {
     distance(prim, x, y, z);
@@ -208,7 +235,15 @@ function field(prims, x, y, z) {
   if (!best) return null;
   let top = best.hits[0];
   for (const hit of best.hits) if (hit.dist < top.dist) top = hit;
-  const color = typeof top.prim.color === 'function' ? top.prim.color(top.local, [x, y, z]) : top.prim.color;
+  let color = typeof top.prim.color === 'function' ? top.prim.color(top.local, [x, y, z]) : top.prim.color;
+  for (const band of bands) {
+    if (!band.groups.includes(best.group)) continue;
+    const v = [x - band.center[0], y - band.center[1], z - (band.center[2] ?? 0)];
+    if (Math.hypot(...v) > band.reach) continue;
+    const along = v[0] * band.axis[0] + v[1] * band.axis[1] + v[2] * (band.axis[2] ?? 0);
+    const low = Math.max(0, v[0] * band.down[0] + v[1] * band.down[1]);
+    if (along > -band.width && along < band.width + low * band.flare) color = band.color;
+  }
   const tones = ramp(color);
   if (top.prim.flat !== null) return tones[top.prim.flat];
   let [nx, ny, nz] = [0, 0, 0];
