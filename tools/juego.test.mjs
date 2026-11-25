@@ -1427,6 +1427,17 @@ test('los obstáculos: cada tipo tiene su dibujo, dentro de su hoja y sin salirs
   }
 });
 
+test('la rejilla: más fina en pantallas grandes; armar un mundo se puede cortar en pedazos', async () => {
+  const { GRID, fine, fineFor, snap } = await import('../js/graphics/grid.js');
+  for (const [width, k] of [[0, 1], [1170, 1], [1200, 2], [3136, 2], [5056, 2]]) assert.equal(fineFor(width), k, `${width} px`);
+  assert.deepEqual([fine(2.3), snap(5)], [2, 6]);
+  GRID.fine = 2;
+  assert.deepEqual([fine(2.3), fine(-0.2), snap(5)], [2.5, -0, 5]);
+  GRID.fine = 1;
+  const floors = await import('../js/graphics/floors.js');
+  for (const make of ['makeSky', 'makeFloor', 'makeFace', 'makeStorm']) assert.equal(floors[make].constructor.name, 'GeneratorFunction', make);
+});
+
 test('valores: el fondo va más oscuro que los animales, los obstáculos y lo que se recoge', async () => {
   const { WORLD_ART } = await import('../js/graphics/worldArt.js');
   const { OBSTACLE_ART } = await import('../js/graphics/obstacleArt.js');

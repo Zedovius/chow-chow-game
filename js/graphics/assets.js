@@ -86,13 +86,25 @@ function loadImage(src) {
   if (typeof Image === 'undefined') return slot;
   const image = new Image();
   image.decoding = 'async';
-  image.addEventListener('load', () => {
+  whenDecoded(image, () => {
     slot.image = image;
     slot.ready = true;
   });
   image.addEventListener('error', () => console.warn(`[Chow Chow] No se pudo cargar la imagen ${src}.`));
   image.src = src;
   return slot;
+}
+
+/** Avisa cuando la imagen ya bajó y está decodificada: dibujarla por primera vez no traba el juego. */
+export function whenDecoded(image, done) {
+  image.addEventListener('load', async () => {
+    try {
+      await image.decode();
+    } catch {
+      // Se decodifica al dibujarla
+    }
+    done();
+  });
 }
 
 /** La imagen de un lugar del mapa si ya cargó, si no null. */

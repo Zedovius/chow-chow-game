@@ -9,9 +9,10 @@
 
 import { CONFIG } from '../config.js';
 import { ready } from './assets.js';
+import { snap } from './grid.js';
 
 const P = CONFIG.pixel;
-const snap = (v) => Math.round(v / P) * P;
+const whole = (v) => Math.round(v / P) * P; // medidas: pixeles del juego, enteros
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 const SOCKET = '#120b1c';
 const RED = '#ff2b2b';
@@ -23,8 +24,8 @@ const THROW = 0.28; // segundos que dura el brazo lanzando
 
 /** Un círculo de pixeles. */
 function disc(ctx, x, y, r) {
-  for (let dy = -snap(r); dy <= r; dy += P) {
-    const half = snap(Math.sqrt(Math.max(0, r * r - dy * dy)));
+  for (let dy = -whole(r); dy <= r; dy += P) {
+    const half = whole(Math.sqrt(Math.max(0, r * r - dy * dy)));
     ctx.fillRect(snap(x) - half, snap(y) + dy, half * 2 + P, P);
   }
 }
@@ -261,7 +262,7 @@ export class BossPainter {
   glow(ctx, [x, y], radius, color, strength) {
     ctx.fillStyle = color;
     for (const k of [1, 0.66, 0.36]) {
-      const r = snap(radius * k * P / 2);
+      const r = whole(radius * k * P / 2);
       ctx.globalAlpha = strength * (1.15 - k) * 0.7;
       ctx.fillRect(x - r, y - r / 2, r * 2 + P, r + P);
       ctx.fillRect(x - r / 2, y - r, r + P, r * 2 + P);

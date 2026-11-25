@@ -923,8 +923,17 @@ export class Game {
     }
   }
 
+  /** El juego cambió de tamaño en la pantalla: el canvas se ajusta en el siguiente cuadro, justo antes de dibujarlo. */
+  resized() {
+    this.refit = true;
+  }
+
   /** Dibuja entre el paso anterior y el actual (alpha), para que el movimiento sea suave. */
   render(alpha = 1) {
+    if (this.refit) {
+      this.refit = false;
+      this.scene.fit();
+    }
     const moving = this.fsm.is('playing', 'dying', 'title');
     const lerp = (from, to) => (moving ? blend(from, to, alpha) : to);
     this.scene.draw({

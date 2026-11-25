@@ -158,11 +158,14 @@ tallView.addEventListener('change', updateView);
 // desaparece al desplazarse cambia el alto y no debe mover el juego
 let lastWidth = window.innerWidth;
 window.addEventListener('resize', () => {
+  game.resized(); // también si solo cambió el zoom o la pantalla
   if (window.innerWidth === lastWidth) return;
   lastWidth = window.innerWidth;
   updateView();
 });
 updateView();
+// Según cuánto mide en la pantalla, todo se mueve más fino (graphics/grid.js)
+new ResizeObserver(() => game.resized()).observe(canvas);
 
 // El dibujo del animal se va bajando mientras gira la rueda
 document.addEventListener('wheel:sign', ({ detail }) => {

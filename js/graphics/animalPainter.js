@@ -14,6 +14,8 @@
 
 import { CONFIG } from '../config.js';
 import { ANIMAL_ART } from './animalArt.js';
+import { whenDecoded } from './assets.js';
+import { fine, snap } from './grid.js';
 
 const P = CONFIG.pixel;
 const OUTLINE = '#1b1226';
@@ -26,7 +28,6 @@ const PRESS_SECONDS = 0.3; // y el de la nube
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 const lerp = (a, b, k) => a + (b - a) * k;
 const frac = (v) => ((v % 1) + 1) % 1;
-const snap = (v) => Math.round(v / P) * P;
 
 function canvas(w, h) {
   const el = document.createElement('canvas');
@@ -61,7 +62,7 @@ export class AnimalPainter {
       if (art && typeof Image !== 'undefined') {
         const image = new Image();
         image.decoding = 'async';
-        image.addEventListener('load', () => {
+        whenDecoded(image, () => {
           entry.image = image;
           entry.ready = true;
         });
@@ -81,8 +82,8 @@ export class AnimalPainter {
     if (!art || !sheet.ready) return false;
     this.tick({ player, headX, headY, scroll, state, dust, cloud: player.riding });
 
-    const x = Math.round(headX / P);
-    const y = Math.round(headY / P);
+    const x = fine(headX / P);
+    const y = fine(headY / P);
     this.drawParticles(ctx, vapor);
     const riding = player.riding && vapor.ready;
     if (riding) this.drawCloud(ctx, vapor.image, x - 3, y, this.flap);

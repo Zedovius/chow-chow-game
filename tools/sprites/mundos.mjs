@@ -8,7 +8,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tone, VALUES, viewOf } from '../../js/graphics/aerial.js';
-import { BANKS, DEPTHS, SCENERY, sizeAt } from '../../js/world/scenery.js';
+import { ASTRO, BANKS, DEPTHS, SCENERY, sizeAt } from '../../js/world/scenery.js';
 import { dragonHead, roosterFrames, snakeCoil } from './alados.mjs';
 import { CITY, skyline } from './ciudad.mjs';
 import { QUADRUPEDS } from './especies.mjs';
@@ -157,8 +157,9 @@ function silhouette(id, k) {
 
 /** El sol o la luna, con su resplandor y la silueta del animal recortada, como en el papel picado chino. */
 function astro(id, scenery) {
-  const { kind, r, color, shade } = scenery.astro;
-  const size = Math.ceil(r * 2 + 26) + (kind === 'threeSuns' ? 22 : 0);
+  const { kind, color, shade } = scenery.astro;
+  const { r } = ASTRO;
+  const size = Math.ceil(r * (kind === 'threeSuns' ? 3.6 : 2) + 26);
   const img = image(size, size);
   const [dark, glow] = [shade, scenery.glow].map(rgb);
   const base = mix(rgb(color), glow, 0.16); // del color de su cielo
@@ -184,9 +185,8 @@ function astro(id, scenery) {
     }
   };
   if (kind === 'threeSuns') {
-    disc(c, c - 4, r, true);
-    disc(c - 19, c + 10, r * 0.46, false);
-    disc(c + 19, c + 10, r * 0.46, false);
+    disc(c, c, r, true);
+    for (const side of [-1, 1]) disc(c + side * r * 1.36, c + r, r * 0.46, false);
   } else disc(c, c, r, true);
   if (kind === 'eclipse') { // el perro del cielo se come la luna
     for (let y = 0; y < size; y++) {

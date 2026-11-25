@@ -13,7 +13,9 @@
 import { CONFIG } from '../config.js';
 import { VIEW } from '../core/view.js';
 import { ASTRO, BANKS, DEPTHS, HORIZON, SCENERY } from '../world/scenery.js';
+import { whenDecoded } from './assets.js';
 import { CREST, EDGE, makeFace, makeFloor, makeSky, makeStorm, periodOf, rowOf, scaleOf } from './floors.js';
+import { GRID, fine } from './grid.js';
 import { hash } from './noise.js';
 import { WORLD_ART } from './worldArt.js';
 
@@ -21,70 +23,113 @@ const P = CONFIG.pixel;
 const W = CONFIG.width / P;
 // El ojo enojado de la nube de tormenta (el otro, al revés)
 const GLARE = ['bb.....', 'bbbb...', 'byybbb.', 'byrybbb', '.byyyb.', '..bbb..'];
+const BUDGET = { calm: 2.5, urgent: 10 }; // milisegundos por cuadro para armar mundos: los que vienen y el de ahora
 const DISTANCE = 170; // a qué distancia está quien mira de los objetos: más chica, más giran sus capas
 const frac = (v) => v - Math.floor(v);
 const rgb = (hex) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
 const mixHex = (a, b, k) => rgb(a).map((v, i) => v + (rgb(b)[i] - v) * k);
 const css = (c) => `rgb(${c.map(Math.round).join(', ')})`;
 const mod = (v, n) => ((v % n) + n) % n;
+const skyHeight = () => Math.ceil(HORIZON.y + VIEW.top / P + 6);
 
 export class WorldPainter {
   constructor() {
     this.worlds = new Map(); // id → { image, ready, floor, sky }
+    this.jobs = []; // lo que falta armar: { id, gen }
+    this.shown = null; // el último mundo que se dibujó
     this.t = 0;
     this.last = 0;
   }
 
-  /** El mundo id: baja su hoja y arma su suelo y su cielo (la primera vez que se pide). */
+  /** El mundo id: la primera vez que se pide, baja su hoja y deja su suelo y su cielo por armar (work). */
   world(id) {
     if (!this.worlds.has(id)) {
-      const entry = { image: null, ready: false, floor: null, face: null, storm: null, sky: null };
+      const entry = { image: null, ready: false, failed: !WORLD_ART[id], floor: null, face: null, storm: null, sky: null };
       this.worlds.set(id, entry);
       const art = WORLD_ART[id];
       if (art && typeof Image !== 'undefined') {
         const image = new Image();
         image.decoding = 'async';
-        image.addEventListener('load', () => {
-          // Se arma en un momento libre, para no trabar el juego
-          const build = () => {
-            if (SCENERY[id].floor.kind !== 'clouds') {
-              entry.floor = makeFloor(SCENERY[id]);
-              entry.face = makeFace(SCENERY[id]);
-            } else entry.storm = makeStorm();
-            entry.image = image;
-            entry.ready = true;
-          };
-          if (globalThis.requestIdleCallback) requestIdleCallback(build, { timeout: 800 });
-          else setTimeout(build, 30);
+        whenDecoded(image, () => this.jobs.push({ id, gen: this.build(id, entry, image) }));
+        image.addEventListener('error', () => {
+          entry.failed = true;
+          console.warn(`[Chow Chow] No se pudo cargar la imagen ${art.src}.`);
         });
-        image.addEventListener('error', () => console.warn(`[Chow Chow] No se pudo cargar la imagen ${art.src}.`));
         image.src = art.src;
       }
     }
     return this.worlds.get(id);
   }
 
-  /** El fondo del nivel (y el del anterior, que se desvanece encima). false si aún no carga. */
+  /** Arma un mundo de a poco (cada yield, un renglón) y lo dibuja una vez aparte: así ya está en la tarjeta de video. */
+  *build(id, entry, image) {
+    const scenery = SCENERY[id];
+    entry.sky = yield* makeSky(scenery, W, skyHeight());
+    if (scenery.floor.kind !== 'clouds') {
+      entry.floor = yield* makeFloor(scenery);
+      entry.face = yield* makeFace(scenery);
+    } else entry.storm = yield* makeStorm();
+    entry.image = image;
+    this.paint(this.buffer(), id, entry, { scroll: 0, cameraY: 0 });
+    this.warm = true;
+    entry.ready = true;
+  }
+
+  /** Otro cielo, al cambiar la medida de la vista (mientras, se estira el de antes). */
+  *buildSky(id, entry) {
+    entry.sky = yield* makeSky(SCENERY[id], W, skyHeight());
+  }
+
+  /** Unos milisegundos por cuadro para lo que falta armar. busy: a medio cambio de nivel no, salvo que urja. */
+  work(current, busy) {
+    const urgent = this.worlds.get(current).ready ? null : this.jobs.find((job) => job.id === current);
+    const job = urgent ?? (busy ? null : this.jobs[0]);
+    if (!job) return;
+    const end = performance.now() + (urgent ? BUDGET.urgent : BUDGET.calm);
+    while (performance.now() < end) {
+      if (!job.gen.next().done) continue;
+      this.jobs.splice(this.jobs.indexOf(job), 1);
+      return;
+    }
+  }
+
+  /** Un lienzo aparte, de la medida del canvas. */
+  buffer() {
+    const [w, h] = [W * GRID.fine, (VIEW.height / P) * GRID.fine];
+    this.back ??= document.createElement('canvas');
+    if (this.back.width !== w || this.back.height !== h) {
+      this.back.width = w;
+      this.back.height = h;
+    }
+    const brush = this.back.getContext('2d');
+    brush.imageSmoothingEnabled = false;
+    brush.setTransform(GRID.fine, 0, 0, GRID.fine, 0, 0);
+    return brush;
+  }
+
+  /**
+   * El fondo del nivel (y el del anterior, que se desvanece encima). Si el suyo aún no está, el último que se vio;
+   * false si no hay ninguno.
+   */
   draw(ctx, view) {
     const now = performance.now() / 1000;
     if (view.state !== 'paused') this.t += Math.min(0.05, Math.max(0, now - this.last));
     this.last = now;
-    const world = this.world(view.level.id);
-    if (!world.ready) return false;
-    this.paint(ctx, view.level.id, world, view);
-    const before = view.previous && view.previousAlpha > 0 ? this.world(view.previous.id) : null;
+    const fading = Boolean(view.previous) && view.previousAlpha > 0;
+    const wanted = this.world(view.level.id);
+    this.work(view.level.id, fading);
+    if (this.warm) {
+      ctx.drawImage(this.back, 0, 0, 1, 1, 0, 0, 1, 1); // obliga a subir a la tarjeta de video lo recién armado
+      this.warm = false;
+    }
+    if (wanted.ready) this.shown = view.level.id;
+    if (!this.shown || (wanted.failed && !wanted.ready)) return false;
+    this.paint(ctx, this.shown, this.worlds.get(this.shown), view);
+    const before = fading && view.previous.id !== this.shown ? this.world(view.previous.id) : null;
     if (before?.ready) {
-      const height = VIEW.height / P;
-      this.back ??= document.createElement('canvas');
-      if (this.back.width !== W || this.back.height !== height) {
-        this.back.width = W;
-        this.back.height = height;
-      }
-      const brush = this.back.getContext('2d');
-      brush.imageSmoothingEnabled = false;
-      this.paint(brush, view.previous.id, before, view);
+      this.paint(this.buffer(), view.previous.id, before, view);
       ctx.globalAlpha = view.previousAlpha;
-      ctx.drawImage(this.back, 0, 0);
+      ctx.drawImage(this.back, 0, 0, W, VIEW.height / P);
       ctx.globalAlpha = 1;
     }
     return true;
@@ -102,9 +147,9 @@ export class WorldPainter {
     this.image = world.image;
 
     // El cielo (se arma a la medida de la vista) y el astro, que no se mueve: ni al volar ni de un mundo a otro
-    const skyHeight = Math.ceil(eye.horizon + 6);
-    if (!world.sky || world.sky.height !== skyHeight) world.sky = makeSky(scenery, W, skyHeight);
-    ctx.drawImage(world.sky, 0, 0);
+    const tall = skyHeight();
+    if (world.sky.height !== tall && !this.jobs.some((job) => job.id === id)) this.jobs.push({ id, gen: this.buildSky(id, world) });
+    ctx.drawImage(world.sky, 0, 0, W, tall);
     this.sprite('astro', ASTRO.x, ASTRO.y + (VIEW.top / P) * 0.6);
     this.each({ ...DEPTHS.sky, salt: 91 }, (cx, i) => this.sprite(`cloud${mod(i, 3)}`, cx, eye.horizon - 62 + hash(i, 4, 91) * 34 + eye.cam * 0.03));
 
@@ -142,7 +187,7 @@ export class WorldPainter {
       const { ctx, eye } = this;
       if (y - 40 > eye.height) return;
       ctx.fillStyle = layer.fill;
-      ctx.fillRect(0, Math.round(y) - 1, W, eye.height - Math.round(y) + 2);
+      ctx.fillRect(0, fine(y) - 1, W, eye.height - fine(y) + 2);
       this.each({ s, every, salt, drift: -this.t * 3 * s }, (x, i) => {
         this.stack(`${tag}-${mod(i * 2 + Math.floor(hash(i, 1, salt) * 2), 3)}`, x, y + 2 + hash(i, 3, salt) * 4 * s + Math.sin(this.t * 0.7 + i * 1.9 + row) * 1.2 * s, 1 / DISTANCE);
       });
@@ -176,7 +221,7 @@ export class WorldPainter {
    */
   storm(canvas, scenery) {
     const { ctx, eye, t } = this;
-    const y = Math.round(this.base(1)) - CREST;
+    const y = fine(this.base(1)) - CREST;
     if (y >= eye.height) return;
     ctx.fillStyle = scenery.banks.near.low;
     for (let i = 0; i < 9; i++) {
@@ -184,7 +229,7 @@ export class WorldPainter {
       ctx.fillRect(0, y - 20 + i * 2.5, W, 30);
     }
     ctx.globalAlpha = 1;
-    const left = -Math.floor(mod(eye.x, canvas.width));
+    const left = -fine(mod(eye.x, canvas.width));
     for (let x = left; x < W; x += canvas.width) {
       ctx.drawImage(canvas, x, y);
       // Los ojos: parpadean de vez en cuando
@@ -194,7 +239,7 @@ export class WorldPainter {
           GLARE.forEach((row, r) => [...row].forEach((pixel, c) => {
             if (pixel === '.') return;
             ctx.fillStyle = { b: '#1b1226', y: '#ffe88a', r: '#d8203c' }[pixel];
-            ctx.fillRect(Math.round(x + dx + shift) + (eye ? row.length - 1 - c : c), y + 10 + r, 1, 1);
+            ctx.fillRect(x + dx + shift + (eye ? row.length - 1 - c : c), y + 10 + r, 1, 1);
           }));
         }
       }
@@ -203,7 +248,7 @@ export class WorldPainter {
         const clock = t * 1.6 + j * 0.37;
         const turn = Math.floor(clock);
         if (frac(clock) > 0.32) continue;
-        let sx = Math.round(x + hash(turn, j, 8) * canvas.width);
+        let sx = x + Math.round(hash(turn, j, 8) * canvas.width);
         let sy = y + 6 + Math.round(hash(turn, j, 9) * 4);
         ctx.fillStyle = frac(clock * 12) > 0.5 ? '#fffbe0' : '#ffd84a';
         for (let k = 0; k < 7; k++) {
@@ -218,9 +263,9 @@ export class WorldPainter {
   /** La cara de la orilla donde se corre: va justo a la velocidad del juego. */
   face(canvas) {
     const { ctx, eye } = this;
-    const y = Math.round(this.base(EDGE));
+    const y = fine(this.base(EDGE));
     if (y >= eye.height) return;
-    for (let x = -Math.floor(mod(eye.x, canvas.width)); x < W; x += canvas.width) ctx.drawImage(canvas, x, y);
+    for (let x = -fine(mod(eye.x, canvas.width)); x < W; x += canvas.width) ctx.drawImage(canvas, x, y);
   }
 
   /** Lo que hay en un mundo, de lejos a cerca: montañas, objetos, gente, autos y bancos de nubes. */
@@ -260,7 +305,7 @@ export class WorldPainter {
     const piece = this.art[name];
     if (!piece) return;
     const [sx, sy, w, h, ax, ay] = piece;
-    this.ctx.drawImage(this.image, sx, sy, w, h, Math.round(x) - ax, Math.round(y) - ay, w, h);
+    this.ctx.drawImage(this.image, sx, sy, w, h, fine(x) - ax, fine(y) - ay, w, h);
   }
 
   /** Una pieza en capas, de pie en (x, y): cada capa, corrida según qué tan cerca está. */
@@ -274,13 +319,13 @@ export class WorldPainter {
     const tilt = (y - this.eye.horizon) * turn * 0.5;
     if (flip) { // camina hacia el otro lado
       this.ctx.save();
-      this.ctx.translate(Math.round(x), 0);
+      this.ctx.translate(fine(x), 0);
       this.ctx.scale(-1, 1);
       x = 0;
     }
     for (let layer = 0; layer < n; layer++) {
       const z = z0 + layer * step * (z0 || step > 1 ? 1 : 8); // las montañas son más gruesas
-      this.ctx.drawImage(this.image, sx, sy + layer * h, w, h, Math.round(x + side * z) - ax, Math.round(y + tilt * z) - ay, w, h);
+      this.ctx.drawImage(this.image, sx, sy + layer * h, w, h, fine(x + side * z) - ax, fine(y + tilt * z) - ay, w, h);
     }
     if (flip) this.ctx.restore();
   }
@@ -293,8 +338,8 @@ export class WorldPainter {
     const { ctx } = this;
     ctx.globalAlpha = 0.34;
     ctx.fillStyle = ink;
-    ctx.fillRect(Math.round(x) - half, Math.round(y) - 1, half * 2 + 4, 2);
-    ctx.fillRect(Math.round(x) - half + 4, Math.round(y) + 1, half * 2 + 4, 1);
+    ctx.fillRect(fine(x) - half, fine(y) - 1, half * 2 + 4, 2);
+    ctx.fillRect(fine(x) - half + 4, fine(y) + 1, half * 2 + 4, 1);
     ctx.globalAlpha = 1;
   }
 
@@ -303,12 +348,13 @@ export class WorldPainter {
     const { ctx, eye } = this;
     const depth = HORIZON.lane + eye.cam;
     const first = Math.max(0, Math.round(eye.horizon) + 2);
-    const last = Math.min(eye.height, Math.round(this.base(EDGE)));
+    const last = Math.min(eye.height, Math.ceil(fine(this.base(EDGE))));
     for (let y = first; y < last; y++) {
       const row = rowOf((y + 0.5 - eye.horizon) / depth);
       const period = periodOf(row);
-      const from = Math.floor(mod(eye.x * scaleOf(row) - HORIZON.center, period));
-      ctx.drawImage(floor, from, row, W, 1, 0, y, W, 1);
+      const at = fine(mod(eye.x * scaleOf(row) - HORIZON.center, period));
+      const from = Math.floor(at);
+      ctx.drawImage(floor, from, row, W + 1, 1, from - at, y, W + 1, 1);
     }
   }
 
@@ -317,7 +363,7 @@ export class WorldPainter {
     const [sx, sy, w, h] = this.art.mist;
     const { ctx } = this;
     ctx.globalAlpha = alpha;
-    for (let x = -Math.round(mod(this.eye.x * s + this.t * 5, w)); x < W; x += w) ctx.drawImage(this.image, sx, sy, w, h, x, Math.round(y) - 13, w, h);
+    for (let x = -fine(mod(this.eye.x * s + this.t * 5, w)); x < W; x += w) ctx.drawImage(this.image, sx, sy, w, h, x, fine(y) - 13, w, h);
     ctx.globalAlpha = 1;
   }
 
@@ -335,8 +381,8 @@ export class WorldPainter {
       const sway = kind === 'rain' || kind === 'dust' ? 0 : Math.sin(t * (1 + hash(i, 2, 3)) + i * 1.7) * 7;
       const x = mod(hash(i, 3, 3) * 440 - eye.x * near - t * wind * near + sway, 440) - 20;
       const y = mod(hash(i, 4, 3) * 260 + t * fall * (0.6 + near * 0.5) + eye.cam * near + (kind === 'firefly' ? Math.cos(t * 0.8 + i) * 8 : 0), eye.height + 24) - 12;
-      const px = Math.round(x);
-      const py = Math.round(y);
+      const px = fine(x);
+      const py = fine(y);
       const size = side ? 2 : 1;
       ctx.fillStyle = colors[i % colors.length];
       if (kind === 'rain') {

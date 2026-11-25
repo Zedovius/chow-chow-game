@@ -5,8 +5,8 @@
 // PROVISIONAL. Para poner el arte basta con escribir las rutas en assets.js; para cambiar cómo se
 // usa (animaciones, capas, parallax), se cambia la función de esa parte.
 //
-// El canvas mide la mitad de la pantalla del mundo (CONFIG.pixel) y el navegador lo amplía sin
-// suavizar. El mundo es más alto que la pantalla: todo se dibuja corrido por la cámara (cameraY,
+// El canvas mide la mitad de la pantalla del mundo (CONFIG.pixel), o lo mismo en pantallas grandes
+// (graphics/grid.js), y el navegador lo amplía sin suavizar. El mundo es más alto que la pantalla: todo se dibuja corrido por la cámara (cameraY,
 // graphics/Camera.js), salvo el cielo del fondo, que va pegado a la pantalla. En la vista alta del
 // celular (core/view.js) el canvas es más alto: arriba se ve VIEW.top de cielo más.
 
@@ -17,6 +17,7 @@ import { BossPainter } from './bossPainter.js';
 import { AnimalPainter } from './animalPainter.js';
 import { ANIMAL_ART } from './animalArt.js';
 import { ObstaclePainter } from './obstaclePainter.js';
+import { GRID, fineFor, snap } from './grid.js';
 import { WorldPainter } from './worldPainter.js';
 import { signById } from '../world/levels.js';
 import { VIEW } from '../core/view.js';
@@ -62,12 +63,16 @@ export class Scene {
     this.fit();
   }
 
-  /** El canvas a la medida de la vista (VIEW): al empezar y cuando cambia (al girar el celular). */
+  /**
+   * El canvas a la medida de la vista (VIEW) y de la pantalla (graphics/grid.js): al empezar y cuando cambian (al
+   * girar el celular o cambiar el tamaño de la ventana).
+   */
   fit() {
     const { canvas } = this;
-    const height = VIEW.height / P;
-    if (canvas.width !== W / P || canvas.height !== height) {
-      canvas.width = W / P;
+    GRID.fine = fineFor(canvas.clientWidth * (globalThis.devicePixelRatio ?? 1));
+    const [width, height] = [(W / P) * GRID.fine, (VIEW.height / P) * GRID.fine];
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
       canvas.height = height; // cambiar la medida borra el canvas y su configuración
     }
     canvas.style.aspectRatio = `${W} / ${VIEW.height}`;
@@ -89,15 +94,16 @@ export class Scene {
    */
   draw(view) {
     const ctx = this.ctx;
+    const K = GRID.fine;
     const art = this.images?.levels?.[view.level.id] ?? null;
     // El escenario del mundo (graphics/worldPainter.js); mientras carga, un cielo y un suelo sencillos
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.setTransform(K, 0, 0, K, 0, 0);
     const painted = this.worldPainter.draw(ctx, view);
-    ctx.setTransform(1 / P, 0, 0, 1 / P, 0, 0);
+    ctx.setTransform(K / P, 0, 0, K / P, 0, 0);
     if (!painted) this.drawSky(view, art);
     else this.drawHeight(view, 0.3);
     // Lo demás, corrido por la cámara (y, en la vista alta, debajo de la franja de cielo extra)
-    ctx.setTransform(1 / P, 0, 0, 1 / P, 0, (VIEW.top - Math.round(view.cameraY)) / P);
+    ctx.setTransform(K / P, 0, 0, K / P, 0, ((VIEW.top - snap(view.cameraY)) * K) / P);
     if (!painted) this.drawGround(view, art);
     this.drawCeiling();
     if (view.level.ground) this.drawShadows(view);
@@ -108,10 +114,10 @@ export class Scene {
     this.drawFireballs(view);
     if (CONFIG.test?.boxes) this.drawBoxes(view);
     if (painted) {
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.setTransform(K, 0, 0, K, 0, 0);
       this.worldPainter.front(ctx, view);
     }
-    ctx.setTransform(1 / P, 0, 0, 1 / P, 0, 0);
+    ctx.setTransform(K / P, 0, 0, K / P, 0, 0);
     this.drawMarkers(view);
   }
 
@@ -186,7 +192,7 @@ export class Scene {
       const k = 1 - height / reach;
       if (k <= 0) return;
       const w = Math.max(P, Math.round((half * (0.55 + 0.45 * k)) / P) * P);
-      const left = Math.round(x / P) * P - w;
+      const left = snap(x) - w;
       ctx.globalAlpha = 0.6 * k;
       ctx.fillRect(left + P, groundY - P, (w - P) * 2, P);
       ctx.fillRect(left, groundY, w * 2, P);
@@ -258,13 +264,14 @@ export class Scene {
     const ctx = this.ctx;
     const { level, obstacles } = view;
     const world = ctx.getTransform();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const K = GRID.fine;
+    ctx.setTransform(K, 0, 0, K, 0, 0);
     const painted = this.obstaclePainter.draw(ctx, view, (cloud) => {
       // El rayo de una nube: antes, se ve tenue el zigzag donde va a caer
       ctx.setTransform(world);
       if (cloud.bolt) this.drawBolt(cloud.x + cloud.w / 2, cloud.y + cloud.h, cloud.bolt, 1);
       else if (cloud.warning && cloud.boltLength) this.drawBolt(cloud.x + cloud.w / 2, cloud.y + cloud.h, cloud.boltLength, 0.45);
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.setTransform(K, 0, 0, K, 0, 0);
     });
     ctx.setTransform(world);
     if (painted) return;
@@ -366,7 +373,7 @@ export class Scene {
       // Un pixel de la imagen = un pixel del canvas, centrada
       const w = image.width * P;
       const h = image.height * P;
-      ctx.drawImage(image, Math.round((p.x - w / 2) / P) * P, Math.round((p.y - h / 2) / P) * P, w, h);
+      ctx.drawImage(image, snap(p.x - w / 2), snap(p.y - h / 2), w, h);
       return;
     }
     const x = Math.round(p.x - p.r);
@@ -418,8 +425,8 @@ export class Scene {
   drawHalo({ x, y, t }) {
     const ctx = this.ctx;
     const { rate, from, to } = CONFIG.trio.halo;
-    const cx = Math.round(x / P) * P;
-    const cy = Math.round(y / P) * P;
+    const cx = snap(x);
+    const cy = snap(y);
     // Dos aros, medio ciclo uno del otro, del más lejano al más cercano
     for (const offset of [0, 0.5]) {
       const k = (t * rate + offset) % 1;
@@ -445,8 +452,8 @@ export class Scene {
       if (phase > 0.7) continue;
       const size = phase < 0.25 || phase > 0.55 ? 1 : 2; // brazos de la cruz, en pixeles
       const angle = i * 2.1 + Math.floor(cycle) * 2.4;
-      const sx = Math.round((x + Math.cos(angle) * (r + 8)) / P) * P;
-      const sy = Math.round((y + Math.sin(angle) * (r + 6)) / P) * P;
+      const sx = snap(x + Math.cos(angle) * (r + 8));
+      const sy = snap(y + Math.sin(angle) * (r + 6));
       ctx.fillRect(sx, sy - size * P, P, (size * 2 + 1) * P);
       ctx.fillRect(sx - size * P, sy, (size * 2 + 1) * P, P);
     }
@@ -468,7 +475,7 @@ export class Scene {
         const leg = Math.floor(dy / turn);
         const along = (dy % turn) / turn;
         const offset = (leg % 2 ? 1 - along : along) * swing - swing / 2;
-        ctx.fillRect(Math.round((mid + offset) / P) * P - P - wide, Math.round(top / P) * P + dy - tall, 2 * P + wide * 2, P + tall * 2);
+        ctx.fillRect(snap(mid) + Math.round(offset / P) * P - P - wide, snap(top) + dy - tall, 2 * P + wide * 2, P + tall * 2);
       }
     };
     // El contorno oscuro lo despega del fondo; el rayo que golpea va más claro que su aviso
@@ -559,7 +566,7 @@ export class Scene {
     for (let i = 4; i >= 1; i--) {
       const s = Math.max(P, Math.round((size * (1 - i * 0.18)) / P) * P);
       ctx.globalAlpha = 0.55 - i * 0.11;
-      ctx.fillRect(Math.round((f.x - size - i * gap) / P) * P, Math.round((f.y - s / 2) / P) * P, s, s);
+      ctx.fillRect(snap(f.x - size - i * gap), snap(f.y - s / 2), s, s);
     }
     ctx.globalAlpha = 1;
     if (f.special) {
@@ -584,7 +591,7 @@ export class Scene {
     ctx.fillStyle = JADE_FIRE[0];
     for (let i = 0; i < 2; i++) {
       const angle = f.age * 9 + i * Math.PI;
-      ctx.fillRect(Math.round((f.x + Math.cos(angle) * (size + 4)) / P) * P, Math.round((f.y + Math.sin(angle) * (size + 4)) / P) * P, P, P);
+      ctx.fillRect(snap(f.x + Math.cos(angle) * (size + 4)), snap(f.y + Math.sin(angle) * (size + 4)), P, P);
     }
   }
 
@@ -595,12 +602,12 @@ export class Scene {
     const seen = new Set();
     for (let i = 0; i < steps; i++) {
       const angle = (i / steps) * Math.PI * 2;
-      const px = Math.round((x + Math.cos(angle) * r) / P);
-      const py = Math.round((y + Math.sin(angle) * r) / P);
+      const px = Math.round((Math.cos(angle) * r) / P);
+      const py = Math.round((Math.sin(angle) * r) / P);
       const key = px * 4096 + py;
       if (seen.has(key)) continue;
       seen.add(key);
-      ctx.fillRect(px * P, py * P, P, P);
+      ctx.fillRect(snap(x) + px * P, snap(y) + py * P, P, P);
     }
   }
 
@@ -756,13 +763,13 @@ export class Scene {
    */
   drawMoveHint(head, strength) {
     const ctx = this.ctx;
-    const y = Math.round(head.y / P) * P;
+    const y = snap(head.y);
     ctx.fillStyle = COLORS.marker;
     for (const start of [0, 0.5]) {
       const k = (performance.now() / 1100 + start) % 1; // cada punta sale, avanza y se desvanece
       ctx.globalAlpha = 0.55 * Math.sin(Math.PI * k) * strength;
       for (const side of [-1, 1]) {
-        const tip = Math.round((head.x + side * (head.w / 2 + 14 + k * 22)) / P) * P;
+        const tip = snap(head.x + side * (head.w / 2 + 14 + k * 22));
         for (let i = 0; i < 4; i++) {
           const x = tip - side * i * P;
           ctx.fillRect(x, y - i * P, P, P);

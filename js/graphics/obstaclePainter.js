@@ -7,6 +7,8 @@
 
 import { CONFIG } from '../config.js';
 import { VIEW } from '../core/view.js';
+import { whenDecoded } from './assets.js';
+import { fine } from './grid.js';
 import { OBSTACLE_ART } from './obstacleArt.js';
 
 const P = CONFIG.pixel;
@@ -18,7 +20,7 @@ const PITCH = 0.28;
 const INK = '#1b1226';
 
 const mod = (v, n) => ((v % n) + n) % n;
-const snap = (v) => Math.round(v / P);
+const snap = (v) => fine(v / P);
 
 export class ObstaclePainter {
   constructor() {
@@ -35,7 +37,7 @@ export class ObstaclePainter {
       if (typeof Image !== 'undefined') {
         const image = new Image();
         image.decoding = 'async';
-        image.addEventListener('load', () => Object.assign(entry, { image, ready: true }));
+        whenDecoded(image, () => Object.assign(entry, { image, ready: true }));
         image.addEventListener('error', () => console.warn(`[Chow Chow] No se pudo cargar la imagen ${art.src}.`));
         image.src = art.src;
       }

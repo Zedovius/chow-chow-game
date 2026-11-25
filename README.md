@@ -166,7 +166,7 @@ control cuentan como actividad).
   que se llevaba a la del nuevo nivel (también al llegar al jefe, que va más despacio). El animal sigue donde iba y
   haciendo lo que hacía, con su disparo cargado si lo tenía (`Player.setGround`): solo si corría y ya no hay suelo salta
   solo. Si ya iba en el aire no le pasa nada y, mientras el suelo se vuelve nubes, tocarlas no quita corazón: ahí salta
-  solo. El sol o la luna están en el mismo lugar en todos los mundos (`ASTRO`). Después de tu mundo (el 11) viene el
+  solo. El sol o la luna están en el mismo lugar y miden lo mismo en todos los mundos (`ASTRO`). Después de tu mundo (el 11) viene el
   nivel 12.
 - **Nivel 12: tu rival** (`bossLevel` en `js/world/levels.js`, `js/entities/Boss.js`), en las dos
   dificultades: el animal de enfrente en la rueda (`rivalOf`: Rata–Caballo, Buey–Cabra,
@@ -292,6 +292,11 @@ picado), su suelo, sus objetos, su gente y lo que flota en el aire.
 - **La profundidad:** cada cosa tiene su distancia `s` (0 en el horizonte, 1 en el camino; `DEPTHS`). Se
   mueve a `s` veces la velocidad del camino, y el suelo se dibuja renglón por renglón con la misma regla
   (`js/graphics/floors.js`): por eso nada patina y al volar el suelo se abre.
+- **Sin congelones:** el cielo y el suelo de cada mundo se arman de a poco (`WorldPainter.work`, unos milisegundos por
+  cuadro), durante el nivel anterior y nunca a medio cambio; las imágenes se decodifican antes de usarse
+  (`whenDecoded`).
+- **Pantallas grandes:** el juego llena la pantalla. Donde cada pixel del juego mide 3 o más de los de verdad, el canvas
+  lleva el doble y todo se mueve de medio en medio pixel (`js/graphics/grid.js`); el arte se ve igual.
 - **El plano del juego:** el suelo se acaba en la orilla donde se corre (`EDGE`) y su cara se ve de lado
   (`makeFace`). Nada pasa delante: los animales, los obstáculos y lo que se recoge son lo más cercano, con la misma
   vista, el mismo acabado y la misma sombra (`Scene.drawShadows`).

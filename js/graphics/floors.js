@@ -1,6 +1,7 @@
 // El suelo de cada mundo, con perspectiva: una hoja con una fila por cada distancia (ver ROWS), ya a su
 // escala. worldPainter.js dibuja cada renglón de la pantalla con su fila, corrida a su velocidad: lo de
-// cerca pasa más rápido, y las líneas se juntan en el horizonte. Se arma al cargar el mundo (no pesa).
+// cerca pasa más rápido, y las líneas se juntan en el horizonte. Se arma al cargar el mundo (no pesa): make… son
+// generadores que hacen un renglón por vuelta, para armarlo de a poco sin trabar el juego (WorldPainter.work).
 
 import { aerial, tone, VALUES, viewOf } from './aerial.js';
 import { fbm, hash, tiled } from './noise.js';
@@ -171,7 +172,7 @@ const PATH = (u, q, lane, dark, light) => {
 };
 
 /** La hoja de un suelo: un canvas con una fila por distancia. */
-export function makeFloor(scenery) {
+export function* makeFloor(scenery) {
   const { kind, ...hex } = scenery.floor;
   const c = Object.fromEntries(Object.entries(hex).map(([name, value]) => [name, rgb(value)]));
   const [ink, lane] = [rgb(scenery.rock.ink), rgb(scenery.lane)];
@@ -218,6 +219,7 @@ export function makeFloor(scenery) {
       img.data[to + 2] = line[from + 2];
       img.data[to + 3] = 255;
     }
+    yield;
   }
   ctx.putImageData(img, 0, 0);
   return canvas;
@@ -271,7 +273,7 @@ const FACES = {
 const FACE_OF = { stone: 'blocks', rings: 'blocks', paddy: 'soil', leaves: 'soil', sand: 'soil', grass: 'soil', moss: 'soil', lake: 'pier', street: 'curb', plaza: 'lacquer' };
 
 /** La cara de la orilla, que se repite a lo ancho. */
-export function makeFace(scenery) {
+export function* makeFace(scenery) {
   const { kind, ...hex } = scenery.floor;
   const c = Object.fromEntries(Object.entries(hex).map(([name, value]) => [name, rgb(value)]));
   if (kind === 'lake') c.accent = rgb(scenery.lane);
@@ -291,6 +293,7 @@ export function makeFace(scenery) {
       if (y < 1) col = rim;
       img.data.set([col[0], col[1], col[2], 255], (y * w + x) * 4);
     }
+    yield;
   }
   ctx.putImageData(img, 0, 0);
   return canvas;
@@ -302,7 +305,7 @@ export function makeFace(scenery) {
  * choca con ella (y = CREST). Se repite a lo ancho.
  */
 export const CREST = 3;
-export function makeStorm() {
+export function* makeStorm() {
   const [w, h] = [PERIOD, 64];
   const canvas = document.createElement('canvas');
   canvas.width = w;
@@ -334,6 +337,7 @@ export function makeStorm() {
           set(x, y, wash(clamp(t)));
         }
       }
+      yield;
     }
   }
   // El contorno
@@ -346,7 +350,7 @@ export function makeStorm() {
 }
 
 /** El cielo, pintado a brochazos, de arriba al horizonte (w × h). */
-export function makeSky(scenery, w, h) {
+export function* makeSky(scenery, w, h) {
   const [top, mid, low] = scenery.sky.map(rgb);
   const glow = rgb(scenery.glow);
   const view = viewOf(scenery);
@@ -374,6 +378,7 @@ export function makeSky(scenery, w, h) {
       img.data[i + 2] = c[2];
       img.data[i + 3] = 255;
     }
+    yield;
   }
   for (let n = 0; n < scenery.stars; n++) {
     const [x, y] = [Math.floor(hash(n, 1, 5) * w), Math.floor(hash(n, 2, 5) ** 1.4 * h * 0.7)];

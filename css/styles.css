@@ -95,8 +95,11 @@ textarea {
 
 /* ---------- Escenario ---------- */
 
+/* El juego llena la pantalla. Los textos de adentro crecen con él: su tope es el de 1600 px de ancho y, más allá, en
+   proporción (1cqw = 16 px a ese ancho) */
+
 .game {
-  width: min(100%, calc((100dvh - 2 * var(--gutter)) * 8 / 3), 1600px);
+  width: min(100%, calc((100dvh - 2 * var(--gutter)) * 8 / 3));
   padding: var(--gutter);
 }
 
@@ -183,7 +186,7 @@ textarea {
   padding: 2.2% 2.4%;
   pointer-events: none;
   font-family: var(--font-pixel);
-  font-size: clamp(7px, 1.3cqw, 26px);
+  font-size: clamp(7px, 1.3cqw, max(26px, 1.625cqw));
   line-height: 1;
   color: var(--c-moon);
   text-shadow: var(--text-outline);
@@ -431,6 +434,7 @@ textarea {
   pointer-events: auto;
   position: relative;
   flex: none;
+  font-size: max(13px, 1em);
   width: 1.6em;
   height: 1.6em;
   padding: 0;
@@ -494,7 +498,7 @@ textarea {
   margin: 0;
   transform: translateX(-50%);
   font-family: var(--font-pixel);
-  font-size: clamp(9px, 2.2cqw, 36px);
+  font-size: clamp(9px, 2.2cqw, max(36px, 2.25cqw));
   color: var(--c-gold-soft);
   text-shadow: var(--text-outline);
   pointer-events: none;
@@ -515,7 +519,7 @@ textarea {
   top: 13%;
   left: 50%;
   width: 34%;
-  height: clamp(5px, 1cqw, 16px);
+  height: clamp(5px, 1cqw, max(16px, 1cqw));
   translate: -50% 0; /* (no transform: la animación del golpe lo usa y la barra se corría a la derecha) */
   background: var(--c-night-800);
   box-shadow: 0 0 0 var(--px) var(--c-black), 0 0 0 calc(var(--px) * 2) var(--c-moon-dim);
@@ -546,7 +550,7 @@ textarea {
   gap: 0.55em;
   transform: translateX(-50%);
   font-family: var(--font-pixel);
-  font-size: clamp(8px, 1.8cqw, 30px);
+  font-size: clamp(8px, 1.8cqw, max(30px, 1.875cqw));
   line-height: 1;
   color: var(--c-moon);
   text-shadow: var(--shadow) var(--shadow) 0 var(--c-black);
@@ -631,7 +635,7 @@ textarea {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: clamp(10px, 4cqh, 36px) 0 clamp(10px, 4cqh, 30px);
+  padding: clamp(10px, 4cqh, max(36px, 2.25cqw)) 0 clamp(10px, 4cqh, max(30px, 1.875cqw));
   text-align: center;
   background: rgba(5, 6, 15, 0.45);
   text-shadow: var(--shadow) var(--shadow) 0 var(--c-black);
@@ -645,13 +649,13 @@ textarea {
   margin: 0;
   font-family: var(--font-pixel);
   /* «CHOW-CHOW HOUSE» en una línea: 15 letras de la fuente pixel (cada una mide 1em) en ~80 % del ancho */
-  font-size: clamp(12px, 5.2cqw, 96px);
+  font-size: clamp(12px, 5.2cqw, max(96px, 6cqw));
   font-weight: 400;
   line-height: 1;
   color: var(--c-gold-soft);
   white-space: nowrap;
   /* Debajo de los botones de las esquinas (HI RECORDS, «< Cambiar idioma»): el nombre es ancho */
-  margin-top: max(0px, calc(clamp(8px, 1.6cqw, 30px) + clamp(6px, 1.1cqw, 20px) + 14px - clamp(10px, 4cqh, 36px)));
+  margin-top: max(0px, calc(clamp(8px, 1.6cqw, max(30px, 1.875cqw)) + clamp(6px, 1.1cqw, max(20px, 1.25cqw)) + 14px - clamp(10px, 4cqh, max(36px, 2.25cqw))));
 }
 
 .title-screen__steps {
@@ -661,7 +665,7 @@ textarea {
 .title-screen__step {
   display: grid;
   justify-items: center;
-  gap: clamp(6px, 1cqw, 20px);
+  gap: clamp(6px, 1cqw, max(20px, 1.25cqw));
 }
 
 .title-screen__step[hidden] {
@@ -671,7 +675,7 @@ textarea {
 .title-screen__prompt {
   margin: 0;
   font-family: var(--font-pixel);
-  font-size: clamp(7px, 1.15cqw, 22px);
+  font-size: clamp(7px, 1.15cqw, max(22px, 1.375cqw));
   line-height: 1.6;
   color: var(--c-moon-dim);
 }
@@ -681,13 +685,13 @@ textarea {
 .birth {
   display: flex;
   align-items: center;
-  gap: clamp(8px, 2cqw, 36px);
+  gap: clamp(8px, 2cqw, max(36px, 2.25cqw));
   font-family: var(--font-pixel);
 }
 
 .birth__fields {
   display: flex;
-  gap: clamp(6px, 1.4cqw, 26px);
+  gap: clamp(6px, 1.4cqw, max(26px, 1.625cqw));
 }
 
 .birth__field {
@@ -706,7 +710,7 @@ textarea {
   background: none;
   color: var(--c-moon-dim);
   font: inherit;
-  font-size: clamp(7px, 1.1cqw, 18px);
+  font-size: clamp(7px, 1.1cqw, max(18px, 1.125cqw));
   cursor: pointer;
 }
 
@@ -717,7 +721,7 @@ textarea {
   background: var(--c-night-700);
   color: var(--c-moon);
   font: inherit;
-  font-size: clamp(10px, 2.2cqw, 36px);
+  font-size: clamp(10px, 2.2cqw, max(36px, 2.25cqw));
   box-shadow: 0 0 0 var(--px) var(--c-night-600);
   cursor: pointer;
 }
@@ -734,14 +738,14 @@ textarea {
 }
 
 .birth__label {
-  font-size: clamp(6px, 0.9cqw, 14px);
+  font-size: clamp(6px, 0.9cqw, max(14px, 0.875cqw));
   color: var(--c-muted);
   text-transform: uppercase;
 }
 
 .birth__ok,
 .wheel__ok {
-  font-size: clamp(9px, 1.6cqw, 26px);
+  font-size: clamp(9px, 1.6cqw, max(26px, 1.625cqw));
   padding: 0.5em 0.9em;
 }
 
@@ -752,7 +756,7 @@ textarea {
   display: grid;
   align-items: center;
   justify-items: center;
-  gap: clamp(8px, 3cqw, 48px);
+  gap: clamp(8px, 3cqw, max(48px, 3cqw));
   font-family: var(--font-pixel);
   --u: 1cqh; /* la medida de la rueda y la tarjeta: en el celular en vertical, más chica */
   /* La tarjeta nunca más ancha que la pantalla: lo largo (el nombre del cóctel) baja de línea */
@@ -771,7 +775,7 @@ textarea {
 .wheel__card {
   display: grid;
   justify-items: center;
-  gap: clamp(2px, calc(0.7 * var(--u)), 10px);
+  gap: clamp(2px, calc(0.7 * var(--u)), max(10px, 0.625cqw));
   min-width: calc(40 * var(--u));
   animation: ammo-pop 0.5s steps(5) both;
 }
@@ -783,7 +787,7 @@ textarea {
 .wheel__top {
   display: flex;
   align-items: center;
-  gap: clamp(6px, calc(2 * var(--u)), 20px);
+  gap: clamp(6px, calc(2 * var(--u)), max(20px, 1.25cqw));
 }
 
 .wheel__portrait {
@@ -821,7 +825,7 @@ textarea {
 
 .wheel__chinese {
   margin: 0;
-  font-size: clamp(9px, 2cqw, 32px);
+  font-size: clamp(9px, 2cqw, max(32px, 2cqw));
   color: var(--c-moon);
 }
 
@@ -838,7 +842,7 @@ textarea {
   padding: 0;
   list-style: none;
   font-family: var(--font-text);
-  font-size: clamp(8px, 1.5cqw, 24px);
+  font-size: clamp(8px, 1.5cqw, max(24px, 1.5cqw));
   color: var(--c-moon-dim);
 }
 
@@ -857,7 +861,7 @@ textarea {
   padding: 0;
   list-style: none;
   font-family: var(--font-text);
-  font-size: clamp(8px, 1.5cqw, 24px);
+  font-size: clamp(8px, 1.5cqw, max(24px, 1.5cqw));
   color: var(--c-moon-dim);
 }
 
@@ -871,7 +875,7 @@ textarea {
   display: grid;
   justify-items: center;
   gap: 0.3em;
-  font-size: clamp(8px, 1.5cqw, 24px);
+  font-size: clamp(8px, 1.5cqw, max(24px, 1.5cqw));
 }
 
 .wheel__cocktail[hidden],
@@ -923,7 +927,7 @@ textarea {
   gap: 0.5em;
   padding-top: 0.4em;
   border-top: var(--px) solid var(--c-night-600);
-  font-size: clamp(8px, 1.5cqw, 24px);
+  font-size: clamp(8px, 1.5cqw, max(24px, 1.5cqw));
 }
 
 .wheel__rival-label {
@@ -962,7 +966,7 @@ textarea {
 .wheel__why {
   margin: 0;
   font-family: var(--font-text);
-  font-size: clamp(7px, 1.25cqw, 20px);
+  font-size: clamp(7px, 1.25cqw, max(20px, 1.25cqw));
   line-height: 1.4;
   color: var(--c-muted);
   text-align: center;
@@ -1068,7 +1072,7 @@ textarea {
 .wheel__name {
   min-height: 1em;
   margin: 0;
-  font-size: clamp(10px, 2.4cqw, 40px);
+  font-size: clamp(10px, 2.4cqw, max(40px, 2.5cqw));
   color: var(--c-gold-soft);
   text-transform: uppercase;
 }
@@ -1094,14 +1098,14 @@ textarea {
 .title-screen__back,
 .title-screen__board {
   position: absolute;
-  top: clamp(8px, 1.6cqw, 30px);
+  top: clamp(8px, 1.6cqw, max(30px, 1.875cqw));
   left: var(--gutter);
   padding: 6px 10px;
   border: 0;
   background: none;
   color: var(--c-muted);
   font-family: var(--font-pixel);
-  font-size: clamp(6px, 1.1cqw, 20px);
+  font-size: clamp(6px, 1.1cqw, max(20px, 1.25cqw));
   cursor: pointer;
 }
 
@@ -1129,10 +1133,10 @@ textarea {
 .title-screen__record {
   position: absolute;
   right: calc(var(--gutter) + 8px);
-  bottom: clamp(10px, 1.8cqw, 32px);
+  bottom: clamp(10px, 1.8cqw, max(32px, 2cqw));
   margin: 0;
   font-family: var(--font-pixel);
-  font-size: clamp(7px, 1.2cqw, 22px);
+  font-size: clamp(7px, 1.2cqw, max(22px, 1.375cqw));
   color: var(--c-muted);
 }
 
@@ -1262,7 +1266,7 @@ textarea {
   min-width: 8.5em;
   min-height: 0;
   padding: 0.85em 1.4em;
-  font-size: clamp(8px, 1.25cqw, 20px);
+  font-size: clamp(8px, 1.25cqw, max(20px, 1.25cqw));
   text-transform: none;
 }
 
@@ -1287,6 +1291,21 @@ textarea {
   background: linear-gradient(180deg, var(--c-night-600), var(--c-night-800));
   color: var(--c-moon);
   box-shadow: inset 0 0 0 2px var(--c-black), 0 0 0 var(--px) var(--c-moon);
+}
+
+/* En pantallas muy grandes, los cuadros crecen con el juego. zoom también agranda sus topes, que van contra la pantalla */
+@media (min-width: 2200px) and (min-height: 1200px) {
+  .story {
+    --zoom: 1.6;
+    zoom: var(--zoom);
+    max-height: calc((100dvh - 2 * var(--gutter)) / var(--zoom));
+  }
+}
+
+@media (min-width: 3200px) and (min-height: 1700px) {
+  .story {
+    --zoom: 2.2;
+  }
 }
 
 .story::backdrop {
@@ -1426,7 +1445,7 @@ textarea {
 }
 
 .title-boards {
-  --board-font: clamp(8px, 1.5cqw, 26px);
+  --board-font: clamp(8px, 1.5cqw, max(26px, 1.625cqw));
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -1937,7 +1956,7 @@ textarea {
 
   /* Debajo del juego caben la cruceta y FIRE */
   .game {
-    width: min(100%, calc((100dvh - 2 * var(--gutter) - 210px) * 8 / 3), 1600px);
+    width: min(100%, calc((100dvh - 2 * var(--gutter) - 210px) * 8 / 3));
   }
 
   /* Vista alta (celular en vertical): el juego arriba y los controles abajo, donde llegan los pulgares */

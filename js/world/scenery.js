@@ -4,8 +4,8 @@
 //   sky        el cielo, de arriba al horizonte; glow: el resplandor junto al horizonte; stars: cuántas
 //   rock       los colores de las montañas: ink (la sombra más honda), shade, rock, light, rim (el filo de
 //              luz), moss (lo verde), haze (la bruma); bands: franjas de color; fall: cascadas; trees
-//   astro      el sol o la luna, con la silueta del animal recortada; r, su radio. Está en el mismo lugar en todos
-//              los mundos (ASTRO): de un nivel a otro no se mueve
+//   astro      el sol o la luna, con la silueta del animal recortada. Está en el mismo lugar y mide lo mismo en todos
+//              los mundos (ASTRO): de un nivel a otro no se mueve ni cambia de tamaño
 //   floor      el suelo (graphics/floors.js): kind y sus colores; lane: el camino por donde se corre
 //   props      qué hay a cada distancia (tools/sprites/piezas.mjs; los animales, vivos y en el suelo, en
 //              fauna.mjs): land (los grandes, al fondo), back, mid y near (justo detrás del camino)
@@ -39,7 +39,7 @@ export const SCENERY = {
       ],
     },
     rock: { ink: '#090820', shade: '#1b1a44', rock: '#383b74', light: '#7f86c4', rim: '#c7c0ff', moss: '#1f4650', haze: '#2c3670' },
-    astro: { kind: 'moon', r: 21, color: '#f3ecd2', shade: '#b7b4d8' },
+    astro: { kind: 'moon', color: '#f3ecd2', shade: '#b7b4d8' },
     floor: { kind: 'stone', base: '#2b2f5a', light: '#474c86', dark: '#171a3a', accent: '#7f86c4' }, lane: '#5a5fb0',
     people: folk(['rebozo'], -4, ['sereno'], 6),
     props: { land: ['granary', 'palanquin'], back: ['granary', 'sacks', 'post'], mid: ['coins', 'lamp', 'post', 'sacks'], near: ['lamp', 'palanquin', 'rats', 'coins'] },
@@ -57,7 +57,7 @@ export const SCENERY = {
       ],
     },
     rock: { ink: '#160c18', shade: '#3a2230', rock: '#6f4a48', light: '#c48f6a', rim: '#ffd9a0', moss: '#4a5a34', haze: '#8a5a52' },
-    astro: { kind: 'sun', r: 17, color: '#ffe0a0', shade: '#f0a050' },
+    astro: { kind: 'sun', color: '#ffe0a0', shade: '#f0a050' },
     floor: { kind: 'paddy', base: '#4f7a34', light: '#9cb84a', dark: '#3a2440', accent: '#f08a70' }, lane: '#a86840',
     people: folk(['arrocera'], 0, ['campesino'], 6),
     props: { land: ['wheel', 'hut'], back: ['hut', 'hay', 'plow'], mid: ['hay', 'plow', 'oxen'], near: ['wheel', 'oxen', 'hay', 'plow'] },
@@ -75,7 +75,7 @@ export const SCENERY = {
       ],
     },
     rock: { ink: '#1a0a08', shade: '#45200f', rock: '#85491c', light: '#d08a3c', rim: '#ffd07a', moss: '#4a5a1e', haze: '#a8581e' },
-    astro: { kind: 'sun', r: 24, color: '#ffd88a', shade: '#ff9a3c' },
+    astro: { kind: 'sun', color: '#ffd88a', shade: '#ff9a3c' },
     floor: { kind: 'leaves', base: '#7a3a14', light: '#b8641c', dark: '#3c1a18', accent: '#f0a838' }, lane: '#9a5a28',
     people: folk(['guerrera'], 0, ['tecuan'], 0),
     props: { land: ['pine', 'bamboo'], back: ['bamboo', 'pine'], mid: ['bamboo', 'stele', 'banner', 'drum'], near: ['stele', 'drum', 'tigers', 'banner'] },
@@ -93,7 +93,7 @@ export const SCENERY = {
       ],
     },
     rock: { ink: '#14153a', shade: '#33356c', rock: '#6a6ca6', light: '#b9b8e6', rim: '#ffffff', moss: '#4a6a78', haze: '#7f80bc' },
-    astro: { kind: 'moon', r: 38, color: '#fff8e0', shade: '#d8d0e8' },
+    astro: { kind: 'moon', color: '#fff8e0', shade: '#d8d0e8' },
     floor: { kind: 'rings', base: '#6f70a8', light: '#a9a8d8', dark: '#43447a', accent: '#ffe9a8' }, lane: '#8484d4',
     people: folk(['tehuana'], -4, ['dama'], 6),
     props: { land: ['pavilion', 'moonGate'], back: ['osmanthus', 'pavilion', 'moonGate'], mid: ['osmanthus', 'rabbits', 'mortar'], near: ['mortar', 'rabbits', 'cakes', 'osmanthus'] },
@@ -111,7 +111,7 @@ export const SCENERY = {
       ],
     },
     rock: { ink: '#041614', shade: '#0f3a3a', rock: '#2a716a', light: '#7fc9b0', rim: '#e0fff0', moss: '#2f7a4a', haze: '#3f9a8c', fall: true },
-    astro: { kind: 'sun', r: 22, color: '#f0ffe0', shade: '#8fe0c0' },
+    astro: { kind: 'sun', color: '#f0ffe0', shade: '#8fe0c0' },
     floor: { kind: 'clouds', base: '#a9dccf', light: '#e8fbf4', dark: '#6fb3a8', accent: '#ffffff' }, lane: '#c9ece2',
     banks: {
       far: { top: '#3a9a98', mid: '#267484', low: '#1a5c74' },
@@ -133,7 +133,7 @@ export const SCENERY = {
       ],
     },
     rock: { ink: '#08160e', shade: '#173a26', rock: '#3a6a40', light: '#8ab464', rim: '#e6ffb0', moss: '#3f7a34', haze: '#5a8f5a' },
-    astro: { kind: 'sun', r: 18, color: '#f6ffc8', shade: '#c0d878' },
+    astro: { kind: 'sun', color: '#f6ffc8', shade: '#c0d878' },
     floor: { kind: 'lake', base: '#1f6a5c', light: '#7cc87a', dark: '#0f3c40', accent: '#ff8ab8' }, lane: '#a0703c',
     people: folk(['remero'], -3, ['sombrilla'], 4),
     props: { land: ['pagoda', 'bridge'], back: ['willow', 'pagoda', 'bridge'], mid: ['boat', 'willow', 'lotus'], near: ['lotus', 'snakes', 'boat'] },
@@ -151,7 +151,7 @@ export const SCENERY = {
       ],
     },
     rock: { ink: '#2a0c0c', shade: '#5f1f16', rock: '#a8482a', light: '#e8935a', rim: '#ffd9a0', moss: '#5f5a2e', haze: '#c8663a', bands: ['#a8482a', '#c8743a', '#8a3226', '#d89a5a', '#7a2a28'], trees: 1 },
-    astro: { kind: 'sun', r: 25, color: '#fff0c0', shade: '#ffc04a' },
+    astro: { kind: 'sun', color: '#fff0c0', shade: '#ffc04a' },
     floor: { kind: 'sand', base: '#a8562c', light: '#dc8f4e', dark: '#6e3018', accent: '#ffd08a' }, lane: '#c87038',
     props: { land: ['wall', 'beacon'], back: ['beacon', 'wall', 'stupa'], mid: ['banner', 'stupa', 'agaves'], near: ['horses', 'agaves', 'banner'] },
     people: folk(['caravanero'], -4, ['charro'], 6),
@@ -169,7 +169,7 @@ export const SCENERY = {
       ],
     },
     rock: { ink: '#1a2428', shade: '#3d5054', rock: '#748a86', light: '#b9c9b8', rim: '#ffffff', moss: '#5a7a4a', haze: '#a5b5b0' },
-    astro: { kind: 'threeSuns', r: 14, color: '#fffce8', shade: '#f0d890' },
+    astro: { kind: 'threeSuns', color: '#fffce8', shade: '#f0d890' },
     floor: { kind: 'grass', base: '#3f8a4a', light: '#7ac05a', dark: '#1f5a44', accent: '#ffb0d0' }, lane: '#8aa84a',
     props: { land: ['yurt', 'flags'], back: ['yurt', 'plum', 'fence'], mid: ['flags', 'wheat', 'plum'], near: ['goats', 'wheat', 'fence', 'plum'] },
     people: folk(['estepa'], 4, ['pastora'], -6),
@@ -187,7 +187,7 @@ export const SCENERY = {
       ],
     },
     rock: { ink: '#1c1006', shade: '#4a300e', rock: '#8f6a2a', light: '#d8b460', rim: '#fff0b0', moss: '#5a7a24', haze: '#b98f40', fall: true, trees: 3 },
-    astro: { kind: 'sun', r: 22, color: '#fff6d0', shade: '#ffd060' },
+    astro: { kind: 'sun', color: '#fff6d0', shade: '#ffd060' },
     floor: { kind: 'moss', base: '#3f7a3c', light: '#86b048', dark: '#1a4a34', accent: '#a8d048' }, lane: '#b8803c',
     people: folk(['cargador'], -4, ['frutera'], 6),
     props: { land: ['cave', 'peach'], back: ['peach', 'pine', 'cave'], mid: ['peach', 'gourd', 'scroll'], near: ['gourd', 'staff', 'monkeys', 'peach'] },
@@ -205,7 +205,7 @@ export const SCENERY = {
       ],
     },
     rock: { ink: '#24080f', shade: '#5a1a24', rock: '#9a3f40', light: '#e08a6a', rim: '#ffe0b0', moss: '#8a4a3a', haze: '#c45f50' },
-    astro: { kind: 'sun', r: 40, color: '#fff0b8', shade: '#ff9a4a' },
+    astro: { kind: 'sun', color: '#fff0b8', shade: '#ff9a4a' },
     floor: { kind: 'clouds', base: '#e8a894', light: '#ffe0d0', dark: '#b8686a', accent: '#fff2e0' }, lane: '#f6c8b4',
     banks: {
       far: { top: '#d4584a', mid: '#a83a50', low: '#8c2a52' },
@@ -228,7 +228,7 @@ export const SCENERY = {
       ],
     },
     rock: { ink: '#0c1420', shade: '#22303f', rock: '#46586a', light: '#a89a8c', rim: '#ffd9b4', moss: '#35524c', haze: '#7a6a70' },
-    astro: { kind: 'eclipse', r: 22, color: '#ffe6b0', shade: '#e0a070' },
+    astro: { kind: 'eclipse', color: '#ffe6b0', shade: '#e0a070' },
     floor: { kind: 'street', base: '#3c4152', light: '#7a7c8c', dark: '#262a38', accent: '#d8b04a' }, lane: '#8a84a4',
     city: true,
     mountains: [{ s: 0.06, every: 72, skip: 0.2 }, { s: 0.13, every: 86, skip: 0.06 }, { s: 0.24, every: 104, skip: 0.12 }],
@@ -258,7 +258,7 @@ export const SCENERY = {
       ],
     },
     rock: { ink: '#150a20', shade: '#3a1c48', rock: '#743f74', light: '#c880a8', rim: '#ffd0e0', moss: '#5a4a6a', haze: '#96548a' },
-    astro: { kind: 'moon', r: 17, color: '#ffe6ec', shade: '#e0a0c0' },
+    astro: { kind: 'moon', color: '#ffe6ec', shade: '#e0a0c0' },
     floor: { kind: 'plaza', base: '#5a1f3c', light: '#963a56', dark: '#331026', accent: '#e8b84a' }, lane: '#c03a54',
     people: folk(['mariachi'], 0, ['festejo'], 6),
     props: { land: ['arch', 'moneyTree'], back: ['arch', 'jars', 'moneyTree'], mid: ['crackers', 'drum', 'moneyTree'], near: ['ingots', 'pigs', 'drum', 'crackers'] },
@@ -290,8 +290,8 @@ export const BANKS = [
   { s: 0.54, size: 1.02, every: 98, drop: 16 },
 ];
 
-// Dónde está el sol o la luna, en todos los mundos (pixeles del juego; en la vista alta, más abajo)
-export const ASTRO = { x: 256, y: 42 };
+// Dónde está el sol o la luna y su radio, en todos los mundos (pixeles del juego; en la vista alta, más abajo)
+export const ASTRO = { x: 256, y: 42, r: 26 };
 
 /** El tamaño de la gente y los autos a una distancia. */
 export const sizeAt = (s) => 1.24 * s;
