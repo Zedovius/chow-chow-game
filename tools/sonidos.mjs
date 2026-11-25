@@ -316,17 +316,17 @@ add('jump-1', 0.1, (t) => leap(t, { from: 'G4', to: 'D6', curve: 0.8, dur: 0.16,
 add('jump-2', 0.11, (t) => leap(t, { from: 'D4', to: 'G5', curve: 1.1, dur: 0.19, duty: 0.4, weight: 0.8 }));
 add('jump-3', 0.12, (t) => leap(t, { from: 'D3', to: 'D5', curve: 1.5, dur: 0.22, duty: 0.5, weight: 1.6 }));
 
-// Aletear: una ráfaga suave de viento, sin nota ni golpe (los mismos tres tipos: más ligero, más alto
+// Aletear: una ráfaga suave de viento, sin nota ni golpe (los mismos tres tipos: más ligero, más agudo
 // y corto). Entra y sale poco a poco, y cruza apenas de un lado al otro.
 const gust = (t, { dur, low, high, peak }) => {
   const breeze = swell(peak);
-  t.add({ dur, wave: 'noise', cut: (k) => low + (high - low) * breeze(k), res: 0.6, vol: (k) => breeze(k) ** 1.5, attack: 0.02 })
+  t.add({ dur, wave: 'noise', cut: (k) => low + (high - low) * breeze(k), res: 0.8, mode: 'bp', vol: (k) => breeze(k) ** 1.5, attack: 0.02 })
     .add({ dur: dur * 0.9, wave: 'noise', cut: (k) => (low + high) * (0.35 + 0.4 * breeze(k)), res: 1.1, mode: 'bp', flutter: 0.25, vol: (k) => 0.4 * breeze(k) ** 1.5, attack: 0.02, pan: -0.5 })
     .add({ dur: dur * 0.9, wave: 'noise', cut: (k) => (low + high) * (0.45 + 0.4 * breeze(k)), res: 1.1, mode: 'bp', flutter: 0.25, vol: (k) => 0.4 * breeze(k) ** 1.5, attack: 0.02, pan: 0.5 }, dur * 0.1);
 };
-add('flap-1', 0.045, (t) => gust(t, { dur: 0.24, low: 400, high: 1900, peak: 0.36 }), STEREO);
-add('flap-2', 0.045, (t) => gust(t, { dur: 0.28, low: 300, high: 1400, peak: 0.38 }), STEREO);
-add('flap-3', 0.045, (t) => gust(t, { dur: 0.32, low: 220, high: 950, peak: 0.4 }), STEREO);
+add('flap-1', 0.022, (t) => gust(t, { dur: 0.13, low: 750, high: 2400, peak: 0.36 }), STEREO);
+add('flap-2', 0.022, (t) => gust(t, { dur: 0.145, low: 640, high: 2000, peak: 0.38 }), STEREO);
+add('flap-3', 0.022, (t) => gust(t, { dur: 0.16, low: 540, high: 1650, peak: 0.4 }), STEREO);
 
 // Disparar: una llamarada corta
 add('fire', 0.1, (t) => t

@@ -47,6 +47,7 @@ export class Obstacle {
     this.launchAge = 0;
     this.bob = spec.ground ? 0 : SKY_BOB;
     this.t = Math.random() * Math.PI * 2;
+    this.skin = (this.t * 37) % 1; // cuál de sus dibujos le toca (0 a 1; graphics/obstaclePainter.js)
     // Las criaturas y lo que rueda van más rápido que el suelo
     this.speedBonus = kind === 'flyer' ? CONFIG.obstacles.flyerSpeedBonus : motion === 'roll' ? CONFIG.obstacles.motion.roll.speed : 0;
     // Cómo lo va pasando el dragón: qué tan cerca lo saltó, si pasó agachado (core/closeCalls.js)

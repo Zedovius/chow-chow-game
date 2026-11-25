@@ -163,8 +163,11 @@ control cuentan como actividad).
   sube un poco. Van seguidos; al terminar uno se cobran los corazones. El paso de uno al otro es
   suave (`CONFIG.transition`, 1.6 s): el cielo y el suelo del anterior se desvanecen sobre los del
   nuevo (el suelo se vuelve nubes, o al revés, poco a poco) y la velocidad pasa sin frenones de la
-  que se llevaba a la del nuevo nivel (también al llegar al jefe, que va más despacio). Después de tu mundo (el 11)
-  viene el nivel 12.
+  que se llevaba a la del nuevo nivel (también al llegar al jefe, que va más despacio). El animal sigue donde iba y
+  haciendo lo que hacía, con su disparo cargado si lo tenía (`Player.setGround`): solo si corría y ya no hay suelo salta
+  solo. Si ya iba en el aire no le pasa nada y, mientras el suelo se vuelve nubes, tocarlas no quita corazón: ahí salta
+  solo. El sol o la luna están en el mismo lugar en todos los mundos (`ASTRO`). Después de tu mundo (el 11) viene el
+  nivel 12.
 - **Nivel 12: tu rival** (`bossLevel` en `js/world/levels.js`, `js/entities/Boss.js`), en las dos
   dificultades: el animal de enfrente en la rueda (`rivalOf`: Rata–Caballo, Buey–Cabra,
   Tigre–Mono, Conejo–Gallo, Dragón–Perro, Serpiente–Cerdo), en su mundo. Todos vuelan, tengan o no
@@ -210,8 +213,8 @@ control cuentan como actividad).
     9 bolas de fuego.
   - **Difícil:** 2 corazones (la comida da más, hasta 3, y se conservan de un nivel al otro); al perder se vuelve al
     primer mundo. El cielo más lleno (oleadas más grandes, más seguido y más formaciones), más cosas
-    que no se queman, la velocidad sube más dentro de cada nivel, cócteles cada 7–11 s, comida cada
-    15–24 s y hasta 6 bolas de fuego. Los puntos valen ×1.5.
+    que no se queman, más rápido (70 px/s más en todos los niveles, `boost`, y sube más dentro de cada uno; duran lo
+    mismo que en fácil), cócteles cada 7–11 s, comida cada 15–24 s y hasta 6 bolas de fuego. Los puntos valen ×1.5.
 - **HI RECORDS:** quien vence a su rival (nivel 12) y entra al top 5 de su dificultad escribe un nombre
   de hasta 6 caracteres. Las tablas se alternan con el menú de inicio.
 - **Bucle de juego** (`js/core/Loop.js`): paso fijo de 1/60 s con interpolación, igual en
@@ -233,10 +236,6 @@ Todo lo que se ajusta (física, vuelo, velocidades, obstáculos, fuego, cóctele
   centrada en su lugar y girada según `angle`, que apunta hacia la parte de adelante. Para
   animarlo: `dragon.pose` (`run`, `duck`, `jump`, `fall`, `fly`, `hurt`, `dead`, `idle`),
   `dragon.runTime` (las patas) y `dragon.flapTime` (las alas).
-- **Cada animal:** el cielo (pegado a la pantalla, se repite a lo ancho, con parallax), el suelo o
-  las nubes de abajo (se repite) y un dibujo por tipo de obstáculo (poste, caja, grupo, muro,
-  criatura, linterna, nube de tormenta), del tamaño de su caja de choque. Las nubes reciben
-  `warning` (viene un rayo) y `bolt` (el largo del rayo, si está cayendo).
 - **La bola de fuego, cada cóctel y cada comida** (sus nombres están en
   `js/entities/Pickup.js`). Los cócteles y la comida (la caja blanca para llevar con su pagoda roja
   y el tazón de arroz) ya están hechos: los dibuja `tools/sprites/pickups.mjs` como cuadrículas de texto en pixel
@@ -274,6 +273,50 @@ juega. Todo va en capas de profundidad (sprite stacking de lado): al girar hacia
 corre un poco más que la de atrás. El punto débil (la moneda; `CONFIG.boss.weak`, en el mismo lugar para
 los 12) se enciende en rojo mientras avisa un ataque, y darle ahí quita el doble. Para otro jefe, agrega su ilustración y sus puntos en `BOSSES`. Los que no tienen arte se ven con
 figuras. Todos chocan con las mismas cajas (`CONFIG.boss.boxes`). Ya está la Rata (la rival del Caballo).
+
+### Los mundos
+
+`npm run mundos` (`tools/sprites/mundos.mjs`; `npm run mundos rat` para uno solo) hornea los 12 mundos: una
+hoja por mundo en `assets/images/mundos/` y sus medidas en `js/graphics/worldArt.js`. Cada mundo se
+describe en `js/world/scenery.js`: su cielo, su piedra, su astro (con la silueta del animal, como papel
+picado), su suelo, sus objetos, su gente y lo que flota en el aire.
+
+- **Las montañas** (`montanas.mjs`) son de pintura china antigua (shan shui): pilares muy verticales de
+  punta redonda, con pinos y cascadas, y bruma entre una fila y la otra.
+- **Los objetos** (`piezas.mjs` y `piezas2.mjs`) son modelos 3D chiquitos (`modelo3d.mjs`) rebanados en
+  capas (sprite stacking), que giran al cruzar la pantalla. **Los animales** (`fauna.mjs`) van vivos y en el
+  suelo: nunca colgados ni tirados.
+- **La gente** (`gente.mjs`), mexicana y china, va vestida según el mundo, y camina.
+- **El Perro** es el barrio chino de una ciudad mexicana en los ochenta (`ciudad.mjs`): fachadas, puestos de
+  tacos y tortas, autos de la época y edificios al fondo.
+- **La profundidad:** cada cosa tiene su distancia `s` (0 en el horizonte, 1 en el camino; `DEPTHS`). Se
+  mueve a `s` veces la velocidad del camino, y el suelo se dibuja renglón por renglón con la misma regla
+  (`js/graphics/floors.js`): por eso nada patina y al volar el suelo se abre.
+- **El plano del juego:** el suelo se acaba en la orilla donde se corre (`EDGE`) y su cara se ve de lado
+  (`makeFace`). Nada pasa delante: los animales, los obstáculos y lo que se recoge son lo más cercano, con la misma
+  vista, el mismo acabado y la misma sombra (`Scene.drawShadows`).
+- **Los mundos sin suelo** (Dragón y Gallo): bancos de nubes a cinco distancias (`nubes.mjs`, `BANKS`), más oscuros
+  mientras más cerca, y adelante, en el plano del juego, la nube de tormenta que no se debe tocar (`makeStorm`):
+  violeta, clara, con contorno, ojos y chispas, con sus crestas justo donde golpea.
+- **Los valores** (`js/graphics/aerial.js`): el fondo va siempre más oscuro que lo que se juega. Al oscurecer, los
+  colores viran hacia el tono de las sombras de su mundo (`dusk`) y se saturan, así no se ensucian.
+- **La perspectiva aérea:** entre más lejos, menos contraste y más se parece todo al aire del horizonte, que tiene
+  color. Cada cordillera lleva su gradiente, de la cima a la base (`gradient`), como en el paisaje azul y verde chino.
+
+`js/graphics/worldPainter.js` los dibuja. Cada hoja se baja cuando hace falta (la del mundo y la del que
+sigue); mientras llega se ve un cielo sencillo. El fondo no lleva contorno oscuro, para que nunca se
+confunda con lo que golpea.
+
+### Los obstáculos
+
+`npm run obstaculos` (`tools/sprites/obstaculos.mjs`) hornea los obstáculos en capas (sprite stacking), a
+`assets/images/obstaculos/`, con sus medidas en `js/graphics/obstacleArt.js`. Hay un juego común (lo del aire, y
+lo que un mundo no tenga) y uno por mundo, hecho con sus propios objetos (`obstaculosMundos.mjs`, que los junta de
+`obstaculosMundos1.mjs`, `obstaculosMundos2.mjs` y `obstaculosCaballo.mjs`; lo que comparten, en
+`obstaculosPiezas.mjs`). Los del mismo tipo miden y se esquivan igual en todos los mundos.
+`js/graphics/obstaclePainter.js` los dibuja igual que a los animales: misma vista, mismos tonos, valores claros y
+contorno oscuro. Los bordes claros y los destellos son solo de lo que se recoge. Pueden sobresalir un poco de su
+caja de choque, que es la de siempre (`js/world/obstacles.js`).
 
 ## Sonido
 

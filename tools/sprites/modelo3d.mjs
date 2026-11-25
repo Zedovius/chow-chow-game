@@ -45,6 +45,7 @@ export class Model {
     this.prims = [];
     this.dots = [];
     this.bands = [];
+    this.farShade = true; // lo del otro lado, en sombra (los animales; los objetos de los mundos, no)
   }
 
   /**
@@ -84,6 +85,35 @@ export class Model {
     return this;
   }
 
+  /**
+   * Una caja. half: la mitad de sus medidas [x, y, z]; turn: giro en el plano; round: orillas redondeadas.
+   */
+  box(center, half, { turn = 0, round = 0, color, group = 0, over = 0, flat = null, blend = 0 } = {}) {
+    this.prims.push({ type: 'box', c: [center[0], center[1], center[2] ?? 0], half, round, cos: Math.cos(-turn), sin: Math.sin(-turn), color, group, over, flat, blend, wide: Math.hypot(half[0], half[1]), deep: half[2] });
+    return this;
+  }
+
+  /** Un tambor (o un cono): de pie, centro en center, radio r0 abajo y r1 arriba, medio alto h. flatten: qué tan aplastado de fondo. */
+  drum(center, r0, r1, h, { color, group = 0, over = 0, flat = null, blend = 0, flatten = 1 } = {}) {
+    this.prims.push({ type: 'drum', c: [center[0], center[1], center[2] ?? 0], r0, r1, h, flatten, color, group, over, flat, blend, wide: Math.hypot(Math.max(r0, r1), h), deep: Math.max(r0, r1) * flatten });
+    return this;
+  }
+
+  /** Todo el modelo, k veces más grande. */
+  scale(k) {
+    for (const p of this.prims) {
+      for (const key of ['c', 'a', 'b', 'r', 'half']) if (Array.isArray(p[key])) p[key] = p[key].map((v) => v * k);
+      for (const key of ['ra', 'rb', 'r0', 'r1', 'h', 'wide', 'deep', 'round']) if (p[key] !== undefined) p[key] *= k;
+      if (typeof p.color === 'function') {
+        const paint = p.color;
+        const limb = p.type === 'limb';
+        p.color = (l, at) => paint(limb ? l : l.map((v) => v / k), at.map((v) => v / k));
+      }
+    }
+    for (const d of this.dots) for (const key of ['x', 'y', 'z']) d[key] *= k;
+    return this;
+  }
+
   /** Una extremidad: de a (radio ra) a b (radio rb). */
   limb(a, b, ra, rb, { color, group = 0, over = 0, flat = null, blend = 0.8 } = {}) {
     const p = [a[0], a[1], a[2] ?? 0];
@@ -108,11 +138,11 @@ export class Model {
   }
 
   /** Las capas: un arreglo de imágenes RGBA (w × h), de z = -depth a depth. anchor: dónde cae el punto (0, 0). */
-  slices({ w, h, anchor, depth }) {
+  slices({ w, h, anchor, depth, step = 1 }) {
     const out = [];
-    for (let z = -depth; z <= depth; z++) out.push(this.slice(w, h, anchor, z));
+    for (let z = -depth; z <= depth; z += step) out.push(this.slice(w, h, anchor, z));
     for (const d of this.dots) {
-      const layer = out[clamp(Math.round(d.z) + depth, 0, out.length - 1)];
+      const layer = out[clamp(Math.round((d.z + depth) / step), 0, out.length - 1)];
       const x = Math.floor(anchor[0] + d.x);
       const y = Math.floor(anchor[1] - d.y);
       if (x >= 0 && y >= 0 && x < w && y < h) layer.data.set([...rgb(d.color), 255], (y * w + x) * 4);
@@ -126,7 +156,11 @@ export class Model {
     const near = [];
     for (const p of this.prims) {
       let box;
-      if (p.type === 'ball') {
+      if (p.wide !== undefined) {
+        if (Math.abs(p.c[2] - z) > p.deep + SKIN) continue;
+        const r = p.wide + SKIN;
+        box = [p.c[0] - r, p.c[0] + r, p.c[1] - r, p.c[1] + r];
+      } else if (p.type === 'ball') {
         if (Math.abs(p.c[2] - z) > p.r[2] + SKIN) continue;
         const r = Math.max(p.r[0], p.r[1]) + SKIN;
         box = [p.c[0] - r, p.c[0] + r, p.c[1] - r, p.c[1] + r];
@@ -147,7 +181,7 @@ export class Model {
         hits.length = 0;
         for (const n of row) if (x >= n.x0 && x <= n.x1) hits.push(n.prim);
         if (!hits.length) continue;
-        const color = field(hits, x, y, z, this.bands);
+        const color = field(hits, x, y, z, this.bands, this.farShade);
         if (!color) continue;
         const i = (py * w + px) * 4;
         data[i] = color[0];
@@ -188,6 +222,54 @@ function distance(prim, x, y, z) {
     D.l2 = l2;
     return;
   }
+  if (prim.type === 'box') {
+    const { c, half, round, cos, sin } = prim;
+    const dx = x - c[0];
+    const dy = y - c[1];
+    const l0 = dx * cos - dy * sin;
+    const l1 = dx * sin + dy * cos;
+    const l2 = z - c[2];
+    const q = [Math.abs(l0) - half[0] + round, Math.abs(l1) - half[1] + round, Math.abs(l2) - half[2] + round];
+    const out = Math.hypot(Math.max(q[0], 0), Math.max(q[1], 0), Math.max(q[2], 0));
+    D.dist = out + Math.min(Math.max(q[0], q[1], q[2]), 0) - round;
+    // La normal: la de la cara más cercana
+    const k = q[0] >= q[1] && q[0] >= q[2] ? 0 : q[1] >= q[2] ? 1 : 2;
+    const n0 = k === 0 ? Math.sign(l0) : 0;
+    const n1 = k === 1 ? Math.sign(l1) : 0;
+    D.nx = n0 * cos + n1 * sin;
+    D.ny = -n0 * sin + n1 * cos;
+    D.nz = k === 2 ? Math.sign(l2) : 0;
+    D.l0 = l0;
+    D.l1 = l1;
+    D.l2 = l2;
+    return;
+  }
+  if (prim.type === 'drum') {
+    const { c, r0, r1, h, flatten } = prim;
+    const dx = x - c[0];
+    const dy = y - c[1];
+    const dz = (z - c[2]) / flatten;
+    const r = r0 + (r1 - r0) * clamp((dy + h) / (2 * h), 0, 1);
+    const len = Math.hypot(dx, dz) || 1e-6;
+    const side = len - r;
+    const cap = Math.abs(dy) - h;
+    D.dist = Math.max(side, cap);
+    if (side >= cap) {
+      const tilt = (r0 - r1) / (2 * h);
+      const n = Math.hypot(1, tilt);
+      D.nx = dx / len / n;
+      D.ny = tilt / n;
+      D.nz = dz / len / n;
+    } else {
+      D.nx = 0;
+      D.ny = Math.sign(dy);
+      D.nz = 0;
+    }
+    D.l0 = dx;
+    D.l1 = dy;
+    D.l2 = z - c[2];
+    return;
+  }
   const { a, b, ra, rb } = prim;
   const bx = b[0] - a[0];
   const by = b[1] - a[1];
@@ -210,7 +292,7 @@ function distance(prim, x, y, z) {
 }
 
 /** El color de un punto, o null si está afuera de todo. */
-function field(prims, x, y, z, bands = []) {
+function field(prims, x, y, z, bands = [], farShade = true) {
   const groups = [];
   for (const prim of prims) {
     distance(prim, x, y, z);
@@ -255,7 +337,7 @@ function field(prims, x, y, z, bands = []) {
   }
   const light = (nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2]) / (Math.hypot(nx, ny, nz) || 1);
   // Lo del otro lado (z negativa), en sombra: así las patas de atrás se distinguen de las de enfrente
-  const shade = light - (z < -1.5 ? 0.4 : z < 0 ? 0.14 : 0);
+  const shade = light - (!farShade ? 0 : z < -1.5 ? 0.4 : z < 0 ? 0.14 : 0);
   return tones[shade < -0.2 ? 0 : shade < 0.26 ? 1 : shade < 0.8 ? 2 : shade < 0.955 ? 3 : 4];
 }
 

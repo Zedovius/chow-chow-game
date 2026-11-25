@@ -225,6 +225,57 @@ test('sin suelo: empieza flotando, rebota en las nubes (y avisa) y nunca las atr
   assert.ok(!runner.onGround && runner.vy < 0);
 });
 
+test('de un nivel a otro el animal sigue donde iba: solo salta solo si corría y ya no hay suelo', () => {
+  const state = ({ x, y, vy, onGround, ducking, flying, jumpHeld }) => ({ x, y, vy, onGround, ducking, flying, jumpHeld });
+  // Cómo puede ir al cambiar de nivel, y cuántos pasos lleva así
+  const ways = {
+    corriendo: { steps: 20, input: () => NOTHING },
+    agachado: { steps: 20, input: () => inputOf({ down: ['duck'] }) },
+    'a medio salto': { steps: 14, input: (i) => inputOf({ press: i === 0 ? ['jump'] : [], down: ['jump'] }) },
+    'cayendo del salto': { steps: 28, input: (i) => inputOf({ press: i === 0 ? ['jump'] : [], down: ['jump'] }) },
+    volando: { fly: true, steps: 40, input: (i) => inputOf({ press: i % 13 === 0 ? ['jump'] : [] }) },
+  };
+  for (const [name, { steps, input, fly = false }] of Object.entries(ways)) {
+    const ready = () => {
+      const { dragon, scroll } = runningDragon();
+      dragon.canFly = fly;
+      return { dragon, scroll: run(dragon, steps, input, { scroll }) };
+    };
+    // A otro nivel con suelo: igual
+    const same = ready().dragon;
+    const before = state(same);
+    same.setGround(true);
+    assert.deepEqual(state(same), before, `${name}: cambió al pasar a un nivel con suelo`);
+
+    // A uno sin suelo
+    const { dragon, scroll } = ready();
+    const grounded = dragon.onGround;
+    dragon.setGround(false);
+    if (grounded) assert.ok(!dragon.onGround && dragon.flying && dragon.vy === -CONFIG.player.jumpVelocity && dragon.y === groundY, `${name}: no saltó solo`);
+    else assert.deepEqual(state(dragon), state(ready().dragon), `${name}: iba en el aire y le pasó algo`);
+    // Sin tocar nada, mientras el suelo se vuelve nubes nunca lo golpean: si cae en ellas, salta solo
+    run(dragon, Math.floor(CONFIG.transition.seconds / DT), () => NOTHING, { scroll, each: (d) => assert.ok(!d.bumped && d.y <= groundY, `${name}: lo golpearon las nubes al llegar`) });
+    // Y después, sí
+    let bumps = 0;
+    run(dragon, 300, () => NOTHING, { scroll: scroll + 2000, each: (d) => (bumps += d.bumped ? 1 : 0) });
+    assert.ok(bumps > 0, `${name}: las nubes ya no golpean`);
+  }
+
+  // A medio salto, el salto sigue tal cual (sin nube ni gravedad de vuelo) hasta que aletea
+  const a = runningDragon();
+  const b = runningDragon();
+  const jump = (i) => inputOf({ press: i === 0 ? ['jump'] : [], down: ['jump'] });
+  run(a.dragon, 12, jump, { scroll: a.scroll });
+  run(b.dragon, 12, jump, { scroll: b.scroll });
+  b.dragon.setGround(false);
+  run(a.dragon, 12, () => inputOf({ down: ['jump'] }), { scroll: a.scroll + 200 });
+  run(b.dragon, 12, () => inputOf({ down: ['jump'] }), { scroll: b.scroll + 200 });
+  assert.equal(b.dragon.y, a.dragon.y);
+  assert.ok(!b.dragon.airborne && !b.dragon.riding);
+  run(b.dragon, 1, () => inputOf({ press: ['jump'], down: ['jump'] }), { scroll: b.scroll + 400 });
+  assert.ok(b.dragon.flapped && b.dragon.airborne);
+});
+
 test('un golpe le quita el poder de volar y cae al suelo; sin suelo, nunca lo pierde', () => {
   const { dragon, scroll } = runningDragon();
   dragon.canFly = true;
@@ -1324,4 +1375,77 @@ test('el pañuelo rojo se ve en todos los cuadros de todos los animales que lo l
   }
   if (process.env.CAJAS) console.log(JSON.stringify(worst));
   for (const [id, red] of Object.entries(worst)) assert.ok(red >= 6, `${id}: en algún cuadro solo se ven ${red} pixeles de pañuelo`);
+});
+
+test('el escenario de los mundos: cada uno tiene sus montañas, sus objetos y su hoja', async () => {
+  const { SCENERY, DEPTHS } = await import('../js/world/scenery.js');
+  const { WORLD_ART } = await import('../js/graphics/worldArt.js');
+  const { ROWS, periodOf, rowOf, scaleOf } = await import('../js/graphics/floors.js');
+  const { decode } = await import('./sprites/png.mjs');
+  const { readFileSync } = await import('node:fs');
+  for (const { id, noGround } of ZODIAC) {
+    const scenery = SCENERY[id];
+    assert.ok(scenery, `falta el escenario de ${id}`);
+    assert.equal(scenery.floor.kind === 'clouds', Boolean(noGround), `${id}: sin suelo, un mar de nubes`);
+    const { src, pieces } = WORLD_ART[id];
+    const sheet = decode(readFileSync(new URL('../' + src, import.meta.url)));
+    for (const [name, [x, y, w, h, , , n, , , frames = 1]] of Object.entries(pieces)) assert.ok(x + w * frames <= sheet.w && y + h * n <= sheet.h, `${id}.${name} se sale de su hoja`);
+    for (const place of ['land', 'back', 'mid', 'near']) for (const name of scenery.props[place]) assert.ok(pieces[`${place}-${name}`], `${id}: falta ${place}-${name}`);
+    // Gente en todos los mundos (y autos en la ciudad), con sus cuadros para caminar
+    assert.ok(scenery.people.length, `${id}: falta la gente`);
+    scenery.people.forEach(({ names, v }, i) => { for (const name of names) assert.equal(pieces[`people${i}-${name}`]?.[9], v ? 6 : 4, `${id}: falta people${i}-${name}`); });
+    scenery.traffic?.forEach(({ names }, i) => { for (const name of names) assert.ok(pieces[`traffic${i}-${name}`], `${id}: falta traffic${i}-${name}`); });
+    for (const name of ['m00', 'm10', 'm20', 'mist', 'astro', 'cloud0']) assert.ok(pieces[name], `${id}: falta ${name}`);
+  }
+  // Más cerca, más rápido; y el camino va justo a la velocidad de los obstáculos
+  const order = [...DEPTHS.mountains, DEPTHS.land, DEPTHS.back, DEPTHS.mid, DEPTHS.near].map(({ s }) => s);
+  assert.deepEqual(order, [...order].sort((a, b) => a - b));
+  assert.ok(DEPTHS.near.s < 1);
+  assert.ok(Math.abs(scaleOf(rowOf(1)) - 1) < 0.02);
+  for (let row = 1; row < ROWS; row++) assert.ok(scaleOf(row) > scaleOf(row - 1) && periodOf(row) >= periodOf(row - 1));
+});
+
+test('los obstáculos: cada tipo tiene su dibujo, dentro de su hoja y sin salirse mucho de su caja', async () => {
+  const { OBSTACLE_ART } = await import('../js/graphics/obstacleArt.js');
+  const { KINDS } = await import('../js/world/obstacles.js');
+  const { decode } = await import('./sprites/png.mjs');
+  const { readFileSync } = await import('node:fs');
+  for (const [set, { src, skins, pieces }] of Object.entries(OBSTACLE_ART)) {
+    const sheet = decode(readFileSync(new URL('../' + src, import.meta.url)));
+    for (const [kind, spec] of Object.entries(KINDS)) {
+      if (kind === 'shot') continue; // se dibuja al jugar, del color del fuego del jefe
+      // Los comunes los tienen todos; los de un mundo, los que quiera
+      if (set === 'comun') assert.ok(skins[kind] >= 1, `falta el dibujo de ${kind}`);
+      for (let i = 0; i < (skins[kind] ?? 0); i++) {
+        const { y, w, h, n, frames } = pieces[`${kind}${i}`];
+        assert.ok(y + h * n <= sheet.h && w * frames * 2 <= sheet.w, `${set}.${kind}${i} se sale de su hoja`);
+        // Sin contar el contorno: nunca más chico que su caja (no golpea lo que no se ve), y apenas más grande
+        const over = [w - 2 - spec.w / 2, h - 2 - spec.h / 2];
+        assert.ok(over[0] >= -1 && over[0] <= 8 && over[1] >= -1 && over[1] <= 7, `${set}.${kind}${i}: ${over}`);
+      }
+    }
+  }
+});
+
+test('valores: el fondo va más oscuro que los animales, los obstáculos y lo que se recoge', async () => {
+  const { WORLD_ART } = await import('../js/graphics/worldArt.js');
+  const { OBSTACLE_ART } = await import('../js/graphics/obstacleArt.js');
+  const { ANIMAL_ART } = await import('../js/graphics/animalArt.js');
+  const { decode } = await import('./sprites/png.mjs');
+  const { readFileSync } = await import('node:fs');
+  // La claridad promedio (0 a 100) de una hoja, sin sus contornos
+  const value = (src, dark = 0) => {
+    const { data } = decode(readFileSync(new URL('../' + src, import.meta.url)));
+    let [sum, n] = [0, 0];
+    for (let i = 0; i < data.length; i += 4) {
+      const l = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 2.55;
+      if (data[i + 3] < 200 || l < dark) continue;
+      sum += l;
+      n++;
+    }
+    return sum / n;
+  };
+  for (const [id, { src }] of Object.entries(WORLD_ART)) assert.ok(value(src) < 30, `el fondo de ${id}: ${value(src).toFixed(1)}`);
+  for (const [id, { src }] of Object.entries(ANIMAL_ART)) if (id !== 'cloud') assert.ok(value(src, 14) > 28, `${id}: ${value(src, 14).toFixed(1)}`);
+  for (const [id, { src }] of Object.entries(OBSTACLE_ART)) assert.ok(value(src, 14) > 40, `los obstáculos de ${id}: ${value(src, 14).toFixed(1)}`);
 });

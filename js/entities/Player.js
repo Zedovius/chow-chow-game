@@ -10,6 +10,7 @@
 //     alas; los demás, en una nubecita (solo el dibujo).
 //   · en los niveles sin suelo (ground = false) siempre puede volar, tenga o no el poder: tocar las
 //     nubes de abajo lo hace rebotar (bumped) y Game le quita un corazón.
+//   · al pasar de un nivel a otro no se detiene ni se mueve de donde estaba (setGround).
 //
 // Los animales de cuerpo largo (el Dragón y la Serpiente) dibujan un cuerpo que sigue el camino
 // exacto de la cabeza: se guarda la altura de los pies según lo recorrido (la estela) y cada parte
@@ -44,10 +45,11 @@ export class Player {
 
   /**
    * Está volando (va en su nube o con las alas abiertas): desde el segundo salto, en el aire, o al tomar la
-   * estrella. Un solo salto desde el suelo es un salto simple, aunque tenga el poder. Sin suelo, siempre.
+   * estrella. Un solo salto desde el suelo es un salto simple, aunque tenga el poder (o aunque, a medio
+   * salto, el suelo se haya vuelto nubes). Sin suelo, siempre.
    */
   get airborne() {
-    return this.alive && !this.onGround && (this.flying || !this.ground);
+    return this.alive && !this.onGround && this.flying;
   }
 
   /** Vuela con alas: el Dragón y el Gallo. Los demás, en su nubecita. */
@@ -90,7 +92,8 @@ export class Player {
     this.onGround = ground;
     this.ducking = false;
     this.jumpHeld = false; // el botón sigue presionado desde que saltó (salto variable)
-    this.flying = false; // ya aleteó en este vuelo (gravedad suave hasta tocar el suelo)
+    this.flying = !ground; // ya aleteó en este vuelo (gravedad suave hasta tocar el suelo); sin suelo, siempre
+    this.arriving = 0; // segundos en que las nubes aún no golpean: el suelo apenas se está volviendo nubes (setGround)
     this.fastFall = false;
     this.invulnerable = 0;
     this.alive = true;
@@ -166,6 +169,7 @@ export class Player {
 
     this.physics(dt);
     this.invulnerable = Math.max(0, this.invulnerable - dt);
+    this.arriving = Math.max(0, this.arriving - dt);
     this.runTime = this.onGround ? this.runTime + dt : 0;
     this.remember(scroll);
   }
@@ -177,7 +181,7 @@ export class Player {
   physics(dt) {
     if (this.onGround) return;
     const { gravity, fastFallMultiplier, flight, head } = CONFIG.player;
-    const gliding = this.flying || !this.ground;
+    const gliding = this.flying;
     const pull = gliding ? flight.gravity * (this.fastFall ? flight.diveMultiplier : 1) : gravity * (this.fastFall ? fastFallMultiplier : 1);
     this.vy += pull * dt;
     if (gliding && !this.fastFall) this.vy = Math.min(this.vy, flight.maxFall);
@@ -193,6 +197,11 @@ export class Player {
     this.jumpHeld = false;
     this.fastFall = false;
     if (!this.ground) {
+      // Viene de un nivel con suelo y cae donde estaba el suelo: salta solo, como quien iba corriendo
+      if (!this.flying || this.arriving > 0) {
+        this.launch();
+        return;
+      }
       // Sin suelo: rebota en las nubes
       this.vy = -CONFIG.player.cloudBounce;
       this.flying = true;
@@ -205,12 +214,22 @@ export class Player {
     this.landed = true;
   }
 
-  /** Pasa a un nivel con o sin suelo sin detenerse: si se queda sin suelo, lo lanza a volar. */
+  /**
+   * Pasa a un nivel con o sin suelo sin detenerse: sigue donde estaba y haciendo lo que hacía. Solo si corría y
+   * se queda sin suelo salta solo, a volar. Si ya iba en el aire no le pasa nada: sigue su salto o su vuelo, y
+   * mientras el suelo se vuelve nubes (CONFIG.transition), tocarlas no es un golpe: ahí salta solo.
+   */
   setGround(ground) {
+    if (this.ground && !ground) this.arriving = CONFIG.transition.seconds;
     this.ground = ground;
-    if (ground || !this.onGround) return;
+    if (!ground && this.onGround) this.launch();
+  }
+
+  /** Salta solo, a volar: se quedó sin suelo. */
+  launch() {
     this.onGround = false;
     this.ducking = false;
+    this.jumpHeld = false;
     this.flying = true;
     this.vy = -CONFIG.player.jumpVelocity;
   }

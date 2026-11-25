@@ -34,7 +34,7 @@ test('cada efecto existe, no satura y no empieza ni termina con un chasquido', (
     const { data, samples, seconds } = read(file);
     assert.equal(data.toString('latin1', 0, 4), 'RIFF', file);
     const peak = samples.reduce((m, y) => Math.max(m, Math.abs(y)), 0) / 32768;
-    assert.ok(peak > 0.1 && peak <= 0.86, `${file}: pico ${peak}`);
+    assert.ok(peak > 0.05 && peak <= 0.86, `${file}: pico ${peak}`);
     assert.ok(Math.abs(samples[0]) < 300, file);
     if (file !== SOUNDS.sfx.charge) assert.ok(Math.abs(samples.at(-1)) < 300, file);
     total += seconds;

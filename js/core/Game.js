@@ -285,7 +285,10 @@ export class Game {
     this.fireballs = [];
   }
 
-  /** Empieza un nivel. continued: viene del anterior sin detenerse (el dragón sigue donde iba). */
+  /**
+   * Empieza un nivel. continued: viene del anterior sin detenerse: el animal sigue donde iba y haciendo lo que
+   * hacía, con su disparo cargado si lo tenía (solo si corría y ya no hay suelo salta solo, ver Player.setGround).
+   */
   startLevel(index, { continued = false } = {}) {
     // Si viene volando de un mundo sin suelo, sigue volando: no se le quita la nubecita (o las alas)
     // al llegar a un mundo con suelo, ni le sale una estrella que ya no necesita
@@ -337,9 +340,9 @@ export class Game {
     }
     this.hud.setScore(this.score);
     this.hud.setLevel(this.levelLabel());
-    this.cancelCharge();
+    if (!continued) this.cancelCharge();
     this.hud.setAmmo(this.ammo, this.fireMax, { infinite: this.infiniteFire });
-    this.hud.setCharge(false, 0);
+    this.hud.setCharge(continued && this.canCharge, this.fireButton.progress);
     this.showLives();
     // Si el dragón espera el primer salto, el cartel se queda con el aviso hasta que empiece
     const lines = [this.levelLabel(), ...this.levelHints()];
@@ -349,6 +352,7 @@ export class Game {
     }
     this.showBanner(lines.join('\n'), !this.player.waiting);
     this.fsm.set('playing');
+    this.scene.preload([this.level.id, this.levels[index + 1]?.id]); // el escenario que sigue, para no esperar
     this.events.emit('levelStart', { index, id: this.level.id, continued, ground: this.level.ground, boss: Boolean(this.boss) });
     if (this.boss) this.events.emit('bossStart', { sign: this.level.id });
   }
@@ -968,6 +972,7 @@ export class Game {
         w: o.w,
         h: o.h,
         t: o.t,
+        skin: o.skin,
         warning: o.warning, // la nube de tormenta avisa que viene un rayo
         bolt: o.striking ? o.lightning.length : 0, // el rayo, si está cayendo (su largo)
         boltLength: o.lightning?.length ?? 0, // el largo de sus rayos (para dibujar el aviso)

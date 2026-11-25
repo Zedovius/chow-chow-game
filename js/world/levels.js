@@ -8,7 +8,7 @@ import { CONFIG } from '../config.js';
 import { groundLane, skyLane } from './obstacles.js';
 
 // Las reglas de cada dificultad:
-//   speed            × la velocidad de los niveles
+//   boost            px/s de más en todos los niveles (miden otro tanto más: duran lo mismo)
 //   ramp             cuánto más rápido va al final de cada nivel que al empezarlo
 //   density          × cuántos obstáculos salen por segundo (las dos filas)
 //   sky              el cielo: × su ritmo (density) y obstáculos de más en cada oleada (extraPerWave)
@@ -23,7 +23,7 @@ import { groundLane, skyLane } from './obstacles.js';
 //   score            multiplica todos los puntos
 export const DIFFICULTIES = {
   easy: {
-    speed: 1,
+    boost: 0,
     ramp: 0.12,
     density: 1,
     sky: { density: 1, extraPerWave: 0 },
@@ -40,7 +40,7 @@ export const DIFFICULTIES = {
     score: 1,
   },
   hard: {
-    speed: 1.05,
+    boost: 70,
     ramp: 0.17,
     density: 1.1,
     sky: { density: 1.25, extraPerWave: 1 },
@@ -124,14 +124,16 @@ export function levelsFor(difficulty = 'easy', sign = 'pig') {
   const rules = DIFFICULTIES[difficulty];
   return worldOrder(sign).map((world, index) => {
     const ground = !world.noGround;
+    const pace = CONFIG.speed.start + CONFIG.speed.perLevel * index;
+    const speed = pace + rules.boost;
     return {
       index,
       id: world.id,
       nameKey: `zodiac.${world.id}`,
       ground,
       colors: world,
-      length: CONFIG.levelLength,
-      speed: (CONFIG.speed.start + CONFIG.speed.perLevel * index) * rules.speed,
+      length: Math.round((CONFIG.levelLength * speed) / pace),
+      speed,
       ramp: rules.ramp,
       density: rules.density,
       pickups: { cocktail: rules.cocktailEvery, food: rules.foodEvery },
@@ -157,7 +159,7 @@ export function bossLevel(difficulty = 'easy', sign = 'pig') {
     ground: !rival.noGround, // contra el Dragón o el Gallo, en su cielo: sin suelo, como su mundo
     colors: rival,
     length: Infinity,
-    speed: CONFIG.boss.speed * rules.speed,
+    speed: CONFIG.boss.speed + rules.boost,
     ramp: 0,
     density: rules.density,
     pickups: { ...CONFIG.boss.pickups[difficulty] },

@@ -127,14 +127,24 @@ textarea {
    quedaban diminutos */
 [data-view="tall"] .hud {
   flex-wrap: wrap;
-  row-gap: 1em;
+  row-gap: 0.5em; /* son dos: el renglón vacío que parte el marcador (::after) tiene el suyo */
   font-size: 2.6cqw;
 }
 
-/* El nombre del nivel, en su propia línea debajo del marcador (sobra cielo arriba) */
-[data-view="tall"] .hud__level {
+/* En dos renglones (sobra cielo arriba): corazones, fuego, estrella, puntos y la pausa, siempre en su esquina;
+   debajo, el nombre del nivel, el trío y la racha. Todo junto no cabía y la pausa se bajaba */
+[data-view="tall"] .hud::after {
+  content: "";
   order: 1;
   flex-basis: 100%;
+}
+
+[data-view="tall"] .hud :is(.hud__level, .hud__trio, .hud__combo) {
+  order: 2;
+}
+
+[data-view="tall"] .hud__level {
+  margin-right: auto;
 }
 
 [data-view="tall"] .legend {
@@ -153,6 +163,17 @@ textarea {
 
 /* ---------- HUD ---------- */
 
+/* El marcador y el cartel del nivel llevan contorno: detrás puede pasar la luna */
+.hud,
+.level-banner {
+  --text-outline:
+    -1px 0 0 var(--c-black),
+    1px 0 0 var(--c-black),
+    0 -1px 0 var(--c-black),
+    0 1px 0 var(--c-black),
+    var(--shadow) var(--shadow) 0 var(--c-black);
+}
+
 .hud {
   position: absolute;
   inset: 0 0 auto;
@@ -165,7 +186,7 @@ textarea {
   font-size: clamp(7px, 1.3cqw, 26px);
   line-height: 1;
   color: var(--c-moon);
-  text-shadow: var(--shadow) var(--shadow) 0 var(--c-black);
+  text-shadow: var(--text-outline);
 }
 
 .stage:has(> .title-screen:not([hidden])) .hud {
@@ -241,6 +262,13 @@ textarea {
 .hud__level {
   margin: 0;
   color: var(--c-moon-dim);
+}
+
+/* Muy angosto (un celular acostado): el nombre del nivel no cabe en el marcador; ya lo dice el cartel al empezar */
+@container (max-width: 560px) {
+  [data-view="wide"] .hud__level {
+    display: none;
+  }
 }
 
 /* Bolas de fuego que quedan. PROVISIONAL: un rombo de color y el número; el arte irá después.
@@ -402,6 +430,7 @@ textarea {
 .hud__pause {
   pointer-events: auto;
   position: relative;
+  flex: none;
   width: 1.6em;
   height: 1.6em;
   padding: 0;
@@ -421,6 +450,13 @@ textarea {
   height: 1em;
   background: currentColor;
   box-shadow: 0.65em 0 0 currentColor;
+}
+
+/* Se dibuja chica, pero se toca como un botón de 44 px */
+.hud__pause::after {
+  content: "";
+  position: absolute;
+  inset: min(0px, calc((1.6em - 44px) / 2));
 }
 
 .hud__pause:hover,
@@ -460,7 +496,7 @@ textarea {
   font-family: var(--font-pixel);
   font-size: clamp(9px, 2.2cqw, 36px);
   color: var(--c-gold-soft);
-  text-shadow: var(--shadow) var(--shadow) 0 var(--c-black);
+  text-shadow: var(--text-outline);
   pointer-events: none;
   white-space: pre;
   text-align: center;

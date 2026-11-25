@@ -10,8 +10,6 @@ import { BOSS_ART } from './bossArt.js';
 const levelArt = () => ({
   sky: null, // el fondo, pegado a la pantalla (se repite a lo ancho, con parallax)
   ground: null, // el suelo, o las nubes de abajo en los niveles sin suelo (se repite)
-  // Un dibujo por tipo de obstáculo (world/obstacles.js), del tamaño de su caja de choque
-  obstacles: { post: null, crate: null, group: null, wall: null, barrel: null, hopper: null, flyer: null, lantern: null, cloud: null },
 });
 
 export const IMAGES = {

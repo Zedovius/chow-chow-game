@@ -16,6 +16,8 @@ import { BOSS_ART } from './bossArt.js';
 import { BossPainter } from './bossPainter.js';
 import { AnimalPainter } from './animalPainter.js';
 import { ANIMAL_ART } from './animalArt.js';
+import { ObstaclePainter } from './obstaclePainter.js';
+import { WorldPainter } from './worldPainter.js';
 import { signById } from '../world/levels.js';
 import { VIEW } from '../core/view.js';
 
@@ -33,7 +35,8 @@ const COLORS = {
   lantern: ['#e8452c', '#ffd166'],
   storm: ['#3a3a52', '#ffe066', '#6a6a8e'], // nube, rayo, nube avisando
   food: { box: '#f4efe6', lid: '#c8102e', rice: '#fff8e7', plate: '#3b6fb6' },
-  ceiling: 'rgba(255, 255, 255, 0.08)',
+  ceiling: 'rgba(255, 255, 255, 0.05)',
+  shadow: '#0c0614',
   sparkle: '#fff4c2',
   warning: 'rgba(255, 240, 160, 0.3)', // dónde va a pegar el jefe (claro: se lee sobre cualquier cielo)
   star: '#ffd23f',
@@ -54,6 +57,8 @@ export class Scene {
     this.images = images;
     this.bossPainter = new BossPainter();
     this.animalPainter = new AnimalPainter();
+    this.worldPainter = new WorldPainter();
+    this.obstaclePainter = new ObstaclePainter();
     this.fit();
   }
 
@@ -85,17 +90,27 @@ export class Scene {
   draw(view) {
     const ctx = this.ctx;
     const art = this.images?.levels?.[view.level.id] ?? null;
+    // El escenario del mundo (graphics/worldPainter.js); mientras carga, un cielo y un suelo sencillos
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const painted = this.worldPainter.draw(ctx, view);
     ctx.setTransform(1 / P, 0, 0, 1 / P, 0, 0);
-    this.drawSky(view, art);
+    if (!painted) this.drawSky(view, art);
+    else this.drawHeight(view, 0.3);
     // Lo demás, corrido por la cámara (y, en la vista alta, debajo de la franja de cielo extra)
     ctx.setTransform(1 / P, 0, 0, 1 / P, 0, (VIEW.top - Math.round(view.cameraY)) / P);
-    this.drawGround(view, art);
-    this.drawObstacles(view, art);
+    if (!painted) this.drawGround(view, art);
+    this.drawCeiling();
+    if (view.level.ground) this.drawShadows(view);
     this.drawPickups(view);
+    this.drawObstacles(view);
     if (view.boss) this.drawBoss(view.boss, { x: view.headX, y: view.headY - CONFIG.player.head.h / 2 });
     this.drawPlayer(view);
     this.drawFireballs(view);
     if (CONFIG.test?.boxes) this.drawBoxes(view);
+    if (painted) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      this.worldPainter.front(ctx, view);
+    }
     ctx.setTransform(1 / P, 0, 0, 1 / P, 0, 0);
     this.drawMarkers(view);
   }
@@ -113,11 +128,15 @@ export class Scene {
       this.skyLayer(previous, this.images?.levels?.[previous.id] ?? null, scroll);
       ctx.globalAlpha = 1;
     }
+    this.drawHeight({ cameraY }, 0.45);
+  }
+
+  /** Más arriba, un poco más oscuro: así se nota la altura. */
+  drawHeight({ cameraY }, amount) {
     const height = Math.min(1, Math.max(0, -cameraY / (groundY - ceilingY)));
-    if (height > 0) {
-      ctx.fillStyle = `rgba(0, 0, 0, ${(height * 0.45).toFixed(3)})`;
-      ctx.fillRect(0, 0, W, VIEW.height);
-    }
+    if (height <= 0) return;
+    this.ctx.fillStyle = `rgba(0, 0, 0, ${(height * amount).toFixed(3)})`;
+    this.ctx.fillRect(0, 0, W, VIEW.height);
   }
 
   /** El cielo de un nivel: su imagen si ya cargó; si no, su degradado. */
@@ -154,9 +173,52 @@ export class Scene {
       this.groundLayer(previous, this.images?.levels?.[previous.id] ?? null, scroll);
       ctx.globalAlpha = 1;
     }
-    // El techo del cielo: una franja tenue
+  }
+
+  /**
+   * Las sombras en el camino de quien juega, los obstáculos y lo que se recoge: todos en el mismo suelo y con la
+   * misma sombra, más chica y tenue mientras más alto van.
+   */
+  drawShadows({ headX, headY, obstacles, pickups, state }) {
+    const { ctx } = this;
+    const reach = 150; // desde qué altura ya no hay
+    const shadow = (x, half, height) => {
+      const k = 1 - height / reach;
+      if (k <= 0) return;
+      const w = Math.max(P, Math.round((half * (0.55 + 0.45 * k)) / P) * P);
+      const left = Math.round(x / P) * P - w;
+      ctx.globalAlpha = 0.6 * k;
+      ctx.fillRect(left + P, groundY - P, (w - P) * 2, P);
+      ctx.fillRect(left, groundY, w * 2, P);
+      ctx.fillRect(left + P * 2, groundY + P, w * 2 - P * 2, P);
+    };
+    ctx.fillStyle = COLORS.shadow;
+    for (const p of pickups) shadow(p.x, p.r * 0.9, groundY - p.y - p.r);
+    for (const o of obstacles) if (o.kind !== 'shot') shadow(o.x + o.w / 2, o.w / 2 + 4, groundY - (o.y + o.h));
+    if (state !== 'title') shadow(headX, 22, Math.max(0, groundY - headY));
+    ctx.globalAlpha = 1;
+  }
+
+  /** El techo del cielo: una bruma que se va aclarando hasta él y se apaga enseguida. */
+  drawCeiling() {
+    const { ctx } = this;
     ctx.fillStyle = COLORS.ceiling;
-    ctx.fillRect(0, ceilingY - 40, W, 40);
+    const rise = 60;
+    const fade = 14;
+    for (let y = -rise; y < fade; y += P) {
+      ctx.globalAlpha = y < 0 ? (1 + y / rise) ** 2 : 1 - y / fade;
+      ctx.fillRect(0, ceilingY + y, W, P);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /** Va cargando los mundos que siguen. */
+  preload(ids) {
+    for (const id of ids) {
+      if (!id) continue;
+      this.worldPainter.world(id);
+      this.obstaclePainter.sheet(id);
+    }
   }
 
   /** El suelo de un nivel (o sus nubes, si no tiene): su imagen si ya cargó; si no, figuras. */
@@ -191,17 +253,24 @@ export class Scene {
     }
   }
 
-  /** Obstáculos del suelo y criaturas que vuelan. Lo que no se quema lleva una sombra encima. */
-  drawObstacles({ level, obstacles }, art) {
+  /** Los obstáculos (graphics/obstaclePainter.js); mientras carga su hoja, figuras sencillas. */
+  drawObstacles(view) {
     const ctx = this.ctx;
+    const { level, obstacles } = view;
+    const world = ctx.getTransform();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const painted = this.obstaclePainter.draw(ctx, view, (cloud) => {
+      // El rayo de una nube: antes, se ve tenue el zigzag donde va a caer
+      ctx.setTransform(world);
+      if (cloud.bolt) this.drawBolt(cloud.x + cloud.w / 2, cloud.y + cloud.h, cloud.bolt, 1);
+      else if (cloud.warning && cloud.boltLength) this.drawBolt(cloud.x + cloud.w / 2, cloud.y + cloud.h, cloud.boltLength, 0.45);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    });
+    ctx.setTransform(world);
+    if (painted) return;
     for (const o of obstacles) {
-      const image = ready(art?.obstacles?.[o.kind]);
       const x = Math.round(o.x);
       const y = Math.round(o.y);
-      if (image) {
-        ctx.drawImage(image, x, y, o.w, o.h);
-        continue;
-      }
       if (o.kind === 'flyer') {
         // Un cuerpo y dos alas que suben y bajan
         ctx.fillStyle = COLORS.flyer;
@@ -393,13 +462,18 @@ export class Scene {
     const swing = width - 2 * P; // cuánto va de un lado al otro
     const turn = 4 * P; // cada cuánto cambia de dirección
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = COLORS.storm[1];
-    for (let dy = 0; dy < length; dy += P) {
-      const leg = Math.floor(dy / turn);
-      const along = (dy % turn) / turn;
-      const offset = (leg % 2 ? 1 - along : along) * swing - swing / 2;
-      ctx.fillRect(Math.round((mid + offset) / P) * P - P, Math.round(top / P) * P + dy, 2 * P, P);
-    }
+    const zigzag = (color, wide, tall) => {
+      ctx.fillStyle = color;
+      for (let dy = 0; dy < length; dy += P) {
+        const leg = Math.floor(dy / turn);
+        const along = (dy % turn) / turn;
+        const offset = (leg % 2 ? 1 - along : along) * swing - swing / 2;
+        ctx.fillRect(Math.round((mid + offset) / P) * P - P - wide, Math.round(top / P) * P + dy - tall, 2 * P + wide * 2, P + tall * 2);
+      }
+    };
+    // El contorno oscuro lo despega del fondo; el rayo que golpea va más claro que su aviso
+    zigzag('#160a1c', P, P);
+    zigzag(alpha < 1 ? COLORS.storm[1] : '#fffbe0', 0, 0);
     ctx.globalAlpha = 1;
   }
 
