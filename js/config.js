@@ -75,23 +75,26 @@ export const CONFIG = {
     deathSlide: 160, // al morir, qué tan rápido se tiende el cuerpo en el suelo
   },
 
-  // Velocidad de avance: la del primer nivel, cuánto sube en cada nivel y la de la pantalla de
-  // inicio. Cuánto más rápido va al final de cada nivel que al empezarlo depende de la dificultad
-  // (ramp en world/levels.js)
-  speed: { start: 240, perLevel: 10, title: 120 },
-  levelLength: 5200, // unidades del mundo por nivel (unos 20 s)
+  // Velocidad de avance: la de la pantalla de inicio. La de los niveles depende de la dificultad y sube pareja del
+  // primero al último (speed en world/levels.js)
+  speed: { title: 120 },
+  levelSeconds: { first: 20, last: 14.5 }, // lo que dura el primer mundo y el último
 
   // Los obstáculos (los tipos están en world/obstacles.js). La separación se piensa en segundos de
   // reacción, como en Chispas: entre minGapSeconds y minGapSeconds + gapVarianceSeconds, más junta
   // con la densidad de la dificultad y a lo largo del nivel (densityRamp), sin bajar nunca de
   // minGapFloorSeconds: el salto dura 0,58 s y hace falta margen para aterrizar.
   obstacles: {
-    firstDistance: 640,
+    firstDistance: 640, // al empezar a jugar
+    nextDistance: 60, // al venir de otro nivel: el hueco entre los dos no debe sentirse vacío
     minGapSeconds: 0.9,
     gapVarianceSeconds: 0.9,
-    minGapFloorSeconds: 0.82,
+    minGapFloorSeconds: 0.78,
+    // Más rápido, lo mismo en segundos queda más separado en la pantalla: para que no se vea vacía, el tiempo entre uno
+    // y otro se acorta con la velocidad (÷ (velocidad / speed) elevado a power)
+    crowd: { speed: 240, power: 0.4 },
     densityRamp: { start: 1.15, end: 0.85 },
-    clearDistance: 700, // deja de poner obstáculos esta distancia antes del final del nivel
+    clearDistance: 560, // deja de poner obstáculos esta distancia antes del final del nivel
     flyerSpeedBonus: 30, // las criaturas que vuelan van un poco más rápido que el suelo
     // Altura del centro de una criatura del suelo:
     //   low  hay que saltarla · mid  hay que agacharse (o saltarla) · high  golpea si saltas
@@ -139,7 +142,7 @@ export const CONFIG = {
   // aparece si no acaba de salir un obstáculo cerca de su altura (clearBefore) y después esperan
   // los obstáculos de la fila de su altura (clearAfter, en segundos); la otra fila sigue igual. Entre
   // una cosa y la siguiente pasan al menos apart segundos: nunca salen juntas.
-  pickups: { clearBefore: 220, clearAfter: 0.9, apart: 3.5, bob: 10 },
+  pickups: { clearBefore: 180, clearAfter: 0.72, apart: 2.7, bob: 10 },
   // Qué tan seguido sale cada cosa depende de la dificultad (world/levels.js). Más de la mitad
   // salen en la mitad de arriba del cielo (skew: más chico, más arriba): para tomarlas hay que volar.
   pickupSkew: 0.6,
@@ -193,6 +196,7 @@ export const CONFIG = {
     // de ahí y en launch segundos se abre hasta su altura, lejos todavía de quien juega (move.max)
     mouth: { x: -23, y: -23 },
     arm: { x: 9, y: 4, reach: 38, min: -70, max: 45, wall: -74 },
+    armless: ['snake', 'dragon'], // sin brazos: todo les sale de la boca
     launch: { volley: 0.2, aimed: 0.16, wall: 0.28 },
     homeX: 640, // donde se queda (su centro)
     // Contra el jefe quien juega se mueve adelante y atrás (◀ ▶): su cabeza, entre min y max (lejos
@@ -230,6 +234,7 @@ export const CONFIG = {
       easy: { cocktail: null, food: [24, 32] },
       hard: { cocktail: [3, 4.5], food: [14, 20] },
     },
+    pickupsApart: 3.5, // segundos entre una cosa y otra (en los mundos, pickups.apart)
     infiniteFire: { easy: true, hard: false },
     speed: 260, // el mundo sigue corriendo, más despacio
   },

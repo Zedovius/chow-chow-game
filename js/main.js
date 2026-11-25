@@ -9,7 +9,7 @@ import { Events } from './core/events.js';
 import { touch } from './core/activity.js';
 import { VIEW, setViewTop } from './core/view.js';
 import { CONFIG } from './config.js';
-import { rivalOf, signById } from './world/levels.js';
+import { journeyFor, rivalOf, signById } from './world/levels.js';
 import { AudioManager, connectAudio, connectMenuAudio } from './audio/Audio.js';
 import { loadImages } from './graphics/assets.js';
 import { HUD } from './ui/HUD.js';
@@ -171,6 +171,7 @@ new ResizeObserver(() => game.resized()).observe(canvas);
 document.addEventListener('wheel:sign', ({ detail }) => {
   game.scene.animalPainter.sheet(detail);
   game.scene.animalPainter.sheet('cloud');
+  game.scene.preload(journeyFor('easy', detail).map(({ id }) => id)); // los mundos, en el orden de su viaje
 });
 document.getElementById('pause-button').addEventListener('click', () => game.pause());
 onLanguageChange(() => game.refreshTexts());

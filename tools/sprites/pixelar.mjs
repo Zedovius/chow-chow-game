@@ -288,6 +288,85 @@ export function layers(img, n, { round = 12, zones = [], toSprite = (p) => p } =
   });
 }
 
+/**
+ * Lo mismo con una escultura (escultura.mjs): cada capa lleva solo lo que hay a su profundidad (de far a near), con lo que
+ * quedaba tapado. img: la figura ya pintada (sin contorno); colors: su paleta.
+ */
+export function slices(img, n, { chunks }, colors, near, far) {
+  const out = Array.from({ length: n }, () => image(img.w, img.h));
+  const step = (near - far) / (n - 1);
+  const layerOf = (z) => Math.max(0, Math.min(n - 1, Math.round((z - far) / step)));
+  for (const [i, list] of chunks) {
+    list.forEach(({ from, to, color }, k) => {
+      const c = k === 0 ? img.data.subarray(i * 4, i * 4 + 4) : [...colors[nearest(colors, color)].map(Math.round), 255];
+      for (let layer = layerOf(to + step * 0.5); layer <= layerOf(from); layer++) out[layer].data.set(c, i * 4);
+      out[layerOf(from)].data.set(c, i * 4);
+    });
+  }
+  return out;
+}
+
+/**
+ * Dobla una parte larga de la ilustración (una cola) como una ola: points es su línea de en medio, de la raíz a la punta;
+ * reach, qué tan lejos de ella llega; amp, cuánto se mueve la punta; phase, en qué momento (0 a 1). keep(x, y): lo que
+ * no es de ella.
+ */
+export function bend(src, { points, reach, amp, waves = 0.7, keep = () => false }, phase) {
+  const path = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const [p0, p1, p2, p3] = [points[Math.max(0, i - 1)], points[i], points[i + 1], points[Math.min(points.length - 1, i + 2)]];
+    for (let k = 0; k < 12; k++) {
+      const u = k / 12;
+      path.push([0, 1].map((c) => 0.5 * (2 * p1[c] + (p2[c] - p0[c]) * u + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * u * u + (3 * p1[c] - p0[c] - 3 * p2[c] + p3[c]) * u ** 3)));
+    }
+  }
+  path.push(points[points.length - 1]);
+  const last = path.length - 1;
+  const normal = (list, i) => {
+    const [a, b] = [list[Math.max(0, i - 1)], list[Math.min(last, i + 1)]];
+    const n = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    return [-(b[1] - a[1]) / n, (b[0] - a[0]) / n];
+  };
+  const moved = path.map((p, i) => {
+    const k = i / last;
+    const d = k ** 1.25 * amp * Math.sin(Math.PI * 2 * (phase - k * waves));
+    const n = normal(path, i);
+    return [p[0] + n[0] * d, p[1] + n[1] * d];
+  });
+  const nearest = (list, x, y) => {
+    let best = 0;
+    for (let i = 1; i <= last; i++) if (Math.hypot(list[i][0] - x, list[i][1] - y) < Math.hypot(list[best][0] - x, list[best][1] - y)) best = i;
+    return best;
+  };
+  const out = { w: src.w, h: src.h, data: src.data.slice() };
+  const pad = reach + amp + 2;
+  const [x0, x1] = [Math.min(...path.map((p) => p[0])) - pad, Math.max(...path.map((p) => p[0])) + pad].map(Math.round);
+  const [y0, y1] = [Math.min(...path.map((p) => p[1])) - pad, Math.max(...path.map((p) => p[1])) + pad].map(Math.round);
+  for (const draw of [false, true]) {
+    for (let y = Math.max(0, y0); y <= Math.min(src.h - 1, y1); y++) {
+      for (let x = Math.max(0, x0); x <= Math.min(src.w - 1, x1); x++) {
+        if (keep(x, y)) continue;
+        const i = nearest(draw ? moved : path, x + 0.5, y + 0.5);
+        const base = (draw ? moved : path)[i];
+        const n = normal(draw ? moved : path, i);
+        const d = (x + 0.5 - base[0]) * n[0] + (y + 0.5 - base[1]) * n[1];
+        if (Math.hypot(x + 0.5 - base[0], y + 0.5 - base[1]) > reach) continue;
+        if (!draw) { // se quita de donde estaba
+          out.data[(y * src.w + x) * 4 + 3] = 0;
+          continue;
+        }
+        const m = normal(path, i);
+        const along = (x + 0.5 - base[0]) * n[1] - (y + 0.5 - base[1]) * n[0]; // lo que pasa de la punta
+        const [sx, sy] = [Math.floor(path[i][0] + m[0] * d + m[1] * along), Math.floor(path[i][1] + m[1] * d - m[0] * along)];
+        if (sx < 0 || sy < 0 || sx >= src.w || sy >= src.h || keep(sx, sy)) continue;
+        const from = (sy * src.w + sx) * 4;
+        if (src.data[from + 3] >= 40) out.data.set(src.data.subarray(from, from + 4), (y * src.w + x) * 4);
+      }
+    }
+  }
+  return out;
+}
+
 /** Recorta los pixeles donde keep(x, y). */
 export function clip(img, keep) {
   const out = image(img.w, img.h);

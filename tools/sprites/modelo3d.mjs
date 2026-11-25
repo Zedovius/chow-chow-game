@@ -221,17 +221,18 @@ export class Model {
 // Hasta dónde influye una pieza fuera de sí misma (para fundirse con sus vecinas)
 const SKIN = 1.6;
 // Lo que da distance(): la distancia con signo, la normal y el punto local
-const D = { dist: 0, nx: 0, ny: 0, nz: 0, l0: 0, l1: 0, l2: 0 };
+export const D = { dist: 0, nx: 0, ny: 0, nz: 0, l0: 0, l1: 0, l2: 0 };
 
 /** Distancia con signo (aproximada) a una pieza, y su normal (en D). */
-function distance(prim, x, y, z) {
+export function distance(prim, x, y, z) {
   if (prim.type === 'ball') {
-    const { c, r, cos, sin } = prim;
-    const dx = x - c[0];
+    const { c, r, cos, sin, yaw } = prim;
+    let dx = x - c[0];
     const dy = y - c[1];
+    let l2 = z - c[2];
+    if (yaw) [dx, l2] = [dx * yaw[0] - l2 * yaw[1], dx * yaw[1] + l2 * yaw[0]]; // girada hacia quien mira (escultura.mjs)
     const l0 = dx * cos - dy * sin;
     const l1 = dx * sin + dy * cos;
-    const l2 = z - c[2];
     const len = Math.hypot(l0 / r[0], l1 / r[1], l2 / r[2]) || 1e-6;
     const g0 = l0 / (r[0] * r[0]);
     const g1 = l1 / (r[1] * r[1]);

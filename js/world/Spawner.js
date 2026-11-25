@@ -56,12 +56,13 @@ export class Spawner {
   constructor(level, carry = null, { star = false, ingredient = null } = {}) {
     this.level = level;
     this.progress = 0; // 0 al empezar el nivel, 1 al terminarlo
-    const { firstDistance } = CONFIG.obstacles;
+    const { firstDistance, nextDistance } = CONFIG.obstacles;
+    const first = carry ? nextDistance : firstDistance;
     this.lanes = [];
-    if (level.lanes.ground) this.lanes.push({ name: 'ground', ...level.lanes.ground, next: firstDistance });
+    if (level.lanes.ground) this.lanes.push({ name: 'ground', ...level.lanes.ground, next: first });
     // El cielo empieza un poco después, para que no salgan las dos filas juntas (el nivel 12 no
     // tiene filas: ahí los obstáculos son los disparos del jefe)
-    if (level.lanes.sky) this.lanes.push({ name: 'sky', ...level.lanes.sky, next: firstDistance * (level.ground ? 1.5 : 1) });
+    if (level.lanes.sky) this.lanes.push({ name: 'sky', ...level.lanes.sky, next: first + (level.ground ? 0.5 * firstDistance : 0) });
 
     // Cuándo sale lo que se recoge: los cócteles y la comida, cada tantos segundos (lo que falta)
     // (null: en este nivel no sale; por ejemplo, los cócteles contra el rival en fácil)
@@ -97,6 +98,7 @@ export class Spawner {
       lane.next -= speed * dt;
       if (lane.next > 0) continue;
       const placed = lane.name === 'ground' ? [this.groundObstacle(lane)] : this.skyObstacles(lane);
+      for (const obstacle of placed) obstacle.world = this.level.id; // su dibujo es el de su mundo
       obstacles.push(...placed);
       // Lo que se acerca más rápido necesita más distancia para dar el mismo tiempo; una formación
       // cuenta desde su último obstáculo
@@ -156,13 +158,14 @@ export class Spawner {
    *   - diseño base: entre minGapSeconds y minGapSeconds + gapVarianceSeconds;
    *   - el promedio se divide entre la densidad (la de la dificultad, la de la fila y la del tramo)
    *     y se multiplica por la subida del nivel (densityRamp: más aire al empezar, menos al final);
+   *     también se acorta con la velocidad (crowd), para que la pantalla no se vea vacía al ir rápido;
    *   - nunca baja de minGapFloorSeconds, para que siempre se pueda reaccionar.
    */
   gap(speed, laneDensity = 1) {
-    const { minGapSeconds, gapVarianceSeconds, minGapFloorSeconds, densityRamp } = CONFIG.obstacles;
+    const { minGapSeconds, gapVarianceSeconds, minGapFloorSeconds, densityRamp, crowd } = CONFIG.obstacles;
     const ramp = densityRamp.start + (densityRamp.end - densityRamp.start) * this.progress;
     const base = minGapSeconds + gapVarianceSeconds / 2;
-    const density = (this.level.density ?? 1) * laneDensity;
+    const density = (this.level.density ?? 1) * laneDensity * (speed / crowd.speed) ** crowd.power;
     const average = Math.max(minGapFloorSeconds + 0.05, (base * ramp) / density);
     const min = Math.max(minGapFloorSeconds, average * 0.62);
     return (min + Math.random() * 2 * (average - min)) * speed;
@@ -186,7 +189,7 @@ export class Spawner {
     const cocktail = this.nextCocktail <= 0 && !reserved;
     // La estrella y el trío esperan menos (trio.apart) desde lo último que salió: en los mundos rápidos,
     // pickups.apart es casi un tercio del nivel y no cabrían los cuatro
-    const apart = star || ingredient ? CONFIG.trio.apart : CONFIG.pickups.apart;
+    const apart = star || ingredient ? CONFIG.trio.apart : this.level.boss ? CONFIG.boss.pickupsApart : CONFIG.pickups.apart;
     if ((!star && !ingredient && !cocktail && !food) || this.sincePickup < apart) return;
     const { clearBefore, clearAfter, bob } = CONFIG.pickups;
     const { skyFloor } = CONFIG.obstacles;

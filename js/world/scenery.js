@@ -136,7 +136,7 @@ export const SCENERY = {
     astro: { kind: 'sun', color: '#f6ffc8', shade: '#c0d878' },
     floor: { kind: 'lake', base: '#1f6a5c', light: '#7cc87a', dark: '#0f3c40', accent: '#ff8ab8' }, lane: '#a0703c',
     people: folk(['remero'], -3, ['sombrilla'], 4),
-    traffic: [{ s: 0.69, every: 310, v: 5, bob: 0.9, names: ['lupita', 'sofia', 'maria'] }],
+    traffic: [{ s: 0.69, every: 310, v: 5, bob: 0.9, names: ['trajineraRoja', 'trajineraAzul', 'trajineraVerde'] }],
     props: { land: ['pagoda', 'bridge'], back: ['willow', 'pagoda', 'bridge'], mid: ['boat', 'willow', 'lotus'], near: ['lotus', 'snakes', 'boat'] },
     air: { kind: 'rain', colors: ['#d8f0d0', '#a9d0b0'], n: 34 },
   },

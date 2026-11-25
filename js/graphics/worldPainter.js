@@ -21,7 +21,7 @@ import { WORLD_ART } from './worldArt.js';
 
 const P = CONFIG.pixel;
 const W = CONFIG.width / P;
-const BUDGET = { calm: 2.5, urgent: 10 }; // milisegundos por cuadro para armar mundos: los que vienen y el de ahora
+const BUDGET = { menu: 8, playing: 2, urgent: 10 }; // lo más por cuadro (ms) para armar mundos: en el menú, jugando y si urge
 const DISTANCE = 170; // a qué distancia está quien mira de los objetos: más chica, más giran sus capas
 const frac = (v) => v - Math.floor(v);
 const rgb = (hex) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
@@ -34,9 +34,19 @@ export class WorldPainter {
   constructor() {
     this.worlds = new Map(); // id → { image, ready, floor, sky }
     this.jobs = []; // lo que falta armar: { id, gen }
+    this.queue = []; // los mundos que faltan por pedir, en orden
+    this.loading = 0; // cuántos se están bajando
     this.shown = null; // el último mundo que se dibujó
     this.t = 0;
     this.last = 0;
+  }
+
+  /**
+   * Los mundos que se van a necesitar, en orden: se cargan en silencio, uno por uno, desde el menú (work). Se puede
+   * pedir otra vez con otro orden, al saber el animal de quien juega.
+   */
+  preload(ids) {
+    this.queue = [...new Set(ids)].filter((id) => !this.worlds.has(id));
   }
 
   /** El mundo id: la primera vez que se pide, baja su hoja y deja su suelo y su cielo por armar (work). */
@@ -48,8 +58,13 @@ export class WorldPainter {
       if (art && typeof Image !== 'undefined') {
         const image = new Image();
         image.decoding = 'async';
-        whenDecoded(image, () => this.jobs.push({ id, gen: this.build(id, entry, image) }));
+        this.loading++;
+        whenDecoded(image, () => {
+          this.loading--;
+          this.jobs.push({ id, gen: this.build(id, entry, image) });
+        });
         image.addEventListener('error', () => {
+          this.loading--;
           entry.failed = true;
           console.warn(`[Chow Chow] No se pudo cargar la imagen ${art.src}.`);
         });
@@ -67,7 +82,12 @@ export class WorldPainter {
       entry.floor = yield* makeFloor(scenery);
       entry.face = yield* makeFace(scenery);
     } else entry.storm = yield* makeStorm();
-    entry.image = image;
+    // Su hoja, en un canvas: así el navegador no la vuelve a decodificar ni a subir cuando le toque
+    entry.image = document.createElement('canvas');
+    entry.image.width = image.width;
+    entry.image.height = image.height;
+    entry.image.getContext('2d').drawImage(image, 0, 0);
+    yield;
     this.paint(this.buffer(), id, entry, { scroll: 0, cameraY: 0 });
     this.warm = true;
     entry.ready = true;
@@ -78,12 +98,20 @@ export class WorldPainter {
     entry.sky = yield* makeSky(SCENERY[id], W, skyHeight());
   }
 
-  /** Unos milisegundos por cuadro para lo que falta armar. busy: a medio cambio de nivel no, salvo que urja. */
-  work(current, busy) {
-    const urgent = this.worlds.get(current).ready ? null : this.jobs.find((job) => job.id === current);
-    const job = urgent ?? (busy ? null : this.jobs[0]);
-    if (!job) return;
-    const end = performance.now() + (urgent ? BUDGET.urgent : BUDGET.calm);
+  /**
+   * Al final de cada cuadro, lo que falta armar, en el tiempo que sobra (left, ms): en el menú, bastante; jugando, muy
+   * poco; a medio cambio de nivel, nada, salvo que sea el mundo de ahora.
+   */
+  work({ level, state, previous }, left) {
+    const urgent = this.worlds.get(level.id)?.ready ? null : this.jobs.find((job) => job.id === level.id);
+    if (previous && !urgent) return;
+    if (!this.jobs.length) {
+      if (!this.loading && this.queue.length) this.world(this.queue.shift());
+      return;
+    }
+    const job = urgent ?? this.jobs[0];
+    const playing = state === 'playing' || state === 'dying';
+    const end = performance.now() + (urgent ? BUDGET.urgent : Math.min(left, playing ? BUDGET.playing : BUDGET.menu));
     while (performance.now() < end) {
       if (!job.gen.next().done) continue;
       this.jobs.splice(this.jobs.indexOf(job), 1);
@@ -115,7 +143,6 @@ export class WorldPainter {
     this.last = now;
     const fading = Boolean(view.previous) && view.previousAlpha > 0;
     const wanted = this.world(view.level.id);
-    this.work(view.level.id, fading);
     if (this.warm) {
       ctx.drawImage(this.back, 0, 0, 1, 1, 0, 0, 1, 1); // obliga a subir a la tarjeta de video lo recién armado
       this.warm = false;

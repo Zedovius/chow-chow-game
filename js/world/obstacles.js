@@ -33,9 +33,9 @@ export const KINDS = {
  * (rush) antes del cambio de animal; Game la anuncia.
  */
 export const PACING = [
-  { name: 'calm', until: 0.12, ground: 0.75, sky: 0.6 },
-  { name: 'ground', until: 0.36, ground: 1.25, sky: 0.8 },
-  { name: 'sky', until: 0.58, ground: 0.8, sky: 1.35 },
+  { name: 'calm', until: 0.1, ground: 0.9, sky: 0.85 },
+  { name: 'ground', until: 0.36, ground: 1.25, sky: 0.95 },
+  { name: 'sky', until: 0.58, ground: 0.95, sky: 1.35 },
   { name: 'mixed', until: 0.7, ground: 1, sky: 1 },
   { name: 'rush', until: 1, ground: 1.3, sky: 1.4 },
 ];

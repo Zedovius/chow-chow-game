@@ -8,9 +8,8 @@ import { CONFIG } from '../config.js';
 import { groundLane, KINDS, skyLane } from './obstacles.js';
 
 // Las reglas de cada dificultad:
-//   boost, speed     px/s de más en todos los niveles y, con eso, × su velocidad (miden otro tanto más: duran lo
-//                    mismo)
-//   ramp             cuánto más rápido va al final de cada nivel que al empezarlo
+//   speed            px/s al empezar el primer mundo (from) y al terminar el último (to): sube pareja de uno al otro y
+//                    nunca baja al cambiar de nivel; boss: contra el rival (el fondo, más despacio)
 //   density          × cuántos obstáculos salen por segundo (las dos filas)
 //   sky              el cielo: × su ritmo (density) y obstáculos de más en cada oleada (extraPerWave)
 //   formations       probabilidad de que lo siguiente del cielo sea una formación (desde el Tigre)
@@ -24,37 +23,33 @@ import { groundLane, KINDS, skyLane } from './obstacles.js';
 //   score            multiplica todos los puntos
 export const DIFFICULTIES = {
   easy: {
-    boost: 0,
-    speed: 1.05,
-    ramp: 0.12,
-    density: 1,
-    sky: { density: 1, extraPerWave: 0 },
+    speed: { from: 252, to: 400, boss: 273 },
+    density: 0.94,
+    sky: { density: 0.92, extraPerWave: 0 },
     formations: 0.2,
     unburnable: 1,
     lives: 3,
     maxLives: 3,
     keepLives: false,
     fireMax: 9,
-    cocktailEvery: [6, 10],
-    foodEvery: [12, 18],
+    cocktailEvery: [5, 8.5],
+    foodEvery: [10.5, 16],
     restartFromHome: false,
     trioRetry: true, // un ingrediente del trío que se escapa vuelve a salir más adelante (world/trio.js)
     score: 1,
   },
   hard: {
-    boost: 70,
-    speed: 1.15,
-    ramp: 0.17,
+    speed: { from: 357, to: 552, boss: 380 },
     density: 1.1,
-    sky: { density: 1.25, extraPerWave: 1 },
+    sky: { density: 1.2, extraPerWave: 1 },
     formations: 0.35,
     unburnable: 1.4,
     lives: 2,
     maxLives: 3,
     keepLives: true,
     fireMax: 6,
-    cocktailEvery: [7, 11],
-    foodEvery: [15, 24],
+    cocktailEvery: [5.5, 9],
+    foodEvery: [12, 19],
     restartFromHome: true,
     trioRetry: false,
     score: 1.5,
@@ -137,18 +132,21 @@ export function levelsFor(difficulty = 'easy', sign = 'pig') {
   const rules = DIFFICULTIES[difficulty];
   return worldOrder(sign).map((world, index) => {
     const ground = !world.noGround;
-    const pace = CONFIG.speed.start + CONFIG.speed.perLevel * index;
-    const speed = (pace + rules.boost) * rules.speed;
+    // Empieza a la velocidad con que terminó el anterior (ramp: cuánto más rápido va al final)
+    const { from, to } = rules.speed;
+    const speed = from + ((to - from) * index) / WORLDS;
+    const fastest = from + ((to - from) * (index + 1)) / WORLDS;
+    const { first, last } = CONFIG.levelSeconds;
     return {
       index,
       id: world.id,
       nameKey: `zodiac.${world.id}`,
       ground,
       colors: world,
-      length: Math.round((CONFIG.levelLength * speed) / pace),
+      length: Math.round(((speed + fastest) / 2) * (first + ((last - first) * index) / (WORLDS - 1))),
       speed,
-      ramp: rules.ramp,
-      lightning: lightningPeriod(speed * (1 + rules.ramp)),
+      ramp: fastest / speed - 1,
+      lightning: lightningPeriod(fastest),
       density: rules.density,
       pickups: { cocktail: rules.cocktailEvery, food: rules.foodEvery },
       lanes: { ground: ground ? groundLane(index, rules) : null, sky: skyLane(index, { ground, rules }) },
@@ -173,13 +171,19 @@ export function bossLevel(difficulty = 'easy', sign = 'pig') {
     ground: !rival.noGround, // contra el Dragón o el Gallo, en su cielo: sin suelo, como su mundo
     colors: rival,
     length: Infinity,
-    speed: (CONFIG.boss.speed + rules.boost) * rules.speed,
+    speed: rules.speed.boss,
     ramp: 0,
     density: rules.density,
     pickups: { ...CONFIG.boss.pickups[difficulty] },
     lanes: { ground: null, sky: null },
   };
 }
+
+/**
+ * ¿Ya se acabó un mundo? Cuando se recorrió todo y ya no hay obstáculos adelante: los que van quedando atrás siguen
+ * su camino mientras empieza el otro.
+ */
+export const levelDone = (level, distance, obstacles, playerX) => distance >= level.length && !obstacles.some((o) => o.x + o.w > playerX - 40);
 
 /** Los 12 niveles: los 11 mundos y la pelea contra el rival. */
 export const journeyFor = (difficulty = 'easy', sign = 'pig') => [...levelsFor(difficulty, sign), bossLevel(difficulty, sign)];

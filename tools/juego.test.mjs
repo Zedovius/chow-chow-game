@@ -9,7 +9,7 @@ import { Player } from '../js/entities/Player.js';
 import { Obstacle } from '../js/entities/Obstacle.js';
 import { Spawner } from '../js/world/Spawner.js';
 import { planTrio, reschedule } from '../js/world/trio.js';
-import { levelsFor, DIFFICULTIES, ZODIAC, worldOrder, rivalOf, signOfYear, bossLevel, journeyFor } from '../js/world/levels.js';
+import { levelDone, levelsFor, DIFFICULTIES, ZODIAC, worldOrder, rivalOf, signOfYear, bossLevel, journeyFor } from '../js/world/levels.js';
 import { Boss } from '../js/entities/Boss.js';
 import { Fireball } from '../js/entities/Fireball.js';
 import { FireButton } from '../js/core/charge.js';
@@ -703,7 +703,7 @@ function botRun(difficulty, seed, { stars = true } = {}) {
       const spawner = new Spawner(level, carry, { star: stars && level.ground && !dragon.canFly, ingredient: plan[level.index] ?? null });
       let distance = 0;
       let steps = 0;
-      while (!(distance >= level.length && !obstacles.length)) {
+      while (!levelDone(level, distance, obstacles, dragon.x)) {
         if (++steps > 60 * 120) throw new Error(`el nivel ${level.index + 1} no termina`);
         if (dragon.waiting) {
           dragon.update(DT, inputOf({ press: ['jump'] }), scroll);
@@ -1431,10 +1431,73 @@ test('los obstáculos: cada tipo tiene su dibujo, dentro de su hoja y sin salirs
 
 test('las luces del fondo: las trajineras con su nombre, y lo que se refleja es de su mundo', async () => {
   const { WORLD_ART } = await import('../js/graphics/worldArt.js');
-  for (const name of ['lupita', 'sofia', 'maria']) assert.ok(WORLD_ART.snake.pieces[`traffic0-${name}`] && WORLD_ART.snake.mirrors[`traffic0-${name}`], name);
+  for (const name of ['trajineraRoja', 'trajineraAzul', 'trajineraVerde']) assert.ok(WORLD_ART.snake.pieces[`traffic0-${name}`] && WORLD_ART.snake.mirrors[`traffic0-${name}`], name);
   for (const [id, { pieces, mirrors }] of Object.entries(WORLD_ART)) {
     for (const name of Object.keys(mirrors)) assert.ok(pieces[name], `${id}: se refleja ${name}, que no existe`);
     assert.equal(Object.keys(mirrors).length > 0, ['snake', 'dog'].includes(id), id); // solo el agua y la calle mojada
+  }
+});
+
+test('la velocidad sube pareja del primer mundo al último y nunca baja; entre un nivel y otro no queda un hueco', () => {
+  for (const difficulty of ['easy', 'hard']) {
+    const levels = levelsFor(difficulty);
+    const { from, to } = DIFFICULTIES[difficulty].speed;
+    assert.equal(levels[0].speed, from);
+    levels.forEach((level, i) => {
+      const end = level.speed * (1 + level.ramp);
+      assert.ok(end > level.speed && Math.abs(end - (levels[i + 1]?.speed ?? to)) < 1e-6, `${difficulty} nivel ${i + 1}: termina a ${end.toFixed(0)}`);
+    });
+  }
+  // Viniendo de otro nivel, lo primero sale casi enseguida; al empezar a jugar, no
+  const level = levelsFor('hard')[1];
+  const first = (carry) => withSeed(5, () => spawnLevel(level, carry).placed[0].distance);
+  assert.ok(first({ cocktail: 5, food: 9 }) < 120 && first(null) > 600);
+  // Un nivel se acaba con lo último ya detrás de quien juega, sin esperar a que salga de la pantalla
+  const box = new Obstacle('crate', 300, {});
+  assert.ok(!levelDone(level, level.length, [box], 190));
+  box.x = 100;
+  assert.ok(levelDone(level, level.length, [box], 190) && !levelDone(level, level.length - 1, [], 190));
+});
+
+test('los jefes: los 12 tienen su arte, en el mismo lugar, y cada uno mueve su brazo o su boca', async () => {
+  const { BOSS_ART } = await import('../js/graphics/bossArt.js');
+  const { decode } = await import('./sprites/png.mjs');
+  const { readFileSync } = await import('node:fs');
+  const size = (src) => decode(readFileSync(new URL('../' + src, import.meta.url)));
+  for (const { id } of ZODIAC) {
+    const art = BOSS_ART[id];
+    assert.ok(art, `falta el jefe ${id}`);
+    const armless = CONFIG.boss.armless.includes(id);
+    assert.equal(Boolean(art.arm), !armless, `${id}: su brazo`);
+    assert.equal(art.jaws ?? 1, armless ? 3 : 1, `${id}: su boca`);
+    assert.equal(art.eyes?.length ?? art.frames, art.frames, `${id}: un ojo por cuadro`);
+    const body = size(art.body);
+    assert.deepEqual([body.w, body.h], [art.w * art.frames, art.h * art.layers * (art.jaws ?? 1)], `${id}: su hoja`);
+    assert.ok(body.w <= 4096 && body.h <= 4096, `${id}: una hoja muy grande`);
+    if (art.arm) assert.deepEqual([size(art.arm).w, size(art.arm).h], [art.armSize * art.armFrames, art.armSize * art.armLayers], `${id}: su brazo`);
+    // El punto débil, el hombro y los pies, donde choca y dispara
+    const at = (p) => p.map((v, i) => v - art.center[i]);
+    assert.ok(Math.hypot(at(art.weak)[0] * 2 - CONFIG.boss.weak.x, at(art.weak)[1] * 2 - CONFIG.boss.weak.y) <= 4, `${id}: el punto débil`);
+    assert.ok(Math.hypot(at(art.shoulder)[0] * 2 - CONFIG.boss.arm.x, at(art.shoulder)[1] * 2 - CONFIG.boss.arm.y) <= 4, `${id}: el hombro`);
+    // Todo el cuerpo se mueve: un cuadro y el de medio ciclo después se ven distintos
+    let [changed, solid] = [0, 0];
+    for (let y = 0; y < art.h; y++) {
+      for (let x = 0; x < art.w; x++) {
+        // Lo que se ve: la capa de más al frente que tenga algo ahí
+        const seen = (frame) => {
+          for (let layer = art.layers - 1; layer >= 0; layer--) {
+            const i = ((layer * art.h + y) * body.w + frame * art.w + x) * 4;
+            if (body.data[i + 3]) return body.data.subarray(i, i + 4);
+          }
+          return [0, 0, 0, 0];
+        };
+        const [now, later] = [seen(0), seen(Math.floor(art.frames / 2))];
+        if (!now[3] && !later[3]) continue;
+        solid++;
+        if ([0, 1, 2, 3].some((c) => Math.abs(now[c] - later[c]) > 24)) changed++;
+      }
+    }
+    assert.ok(changed / solid > (armless ? 0.35 : 0.03), `${id}: se mueve el ${(100 * changed / solid).toFixed(0)} %`);
   }
 });
 

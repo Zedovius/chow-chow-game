@@ -48,7 +48,6 @@ export class ObstaclePainter {
   /** Todos los obstáculos (ctx sin escala). false si la hoja aún no carga. */
   draw(ctx, { obstacles, cameraY, level }, drawBolt) {
     const common = this.sheet('comun');
-    const own = this.sheet(level.id);
     if (!common.ready) return false;
     const toY = (y) => snap(y - cameraY + VIEW.top);
     for (const o of obstacles) {
@@ -59,8 +58,10 @@ export class ObstaclePainter {
         continue;
       }
       if (o.kind === 'cloud') drawBolt(o);
-      const mine = own?.ready && OBSTACLE_ART[level.id].skins[o.kind];
-      this.stack(ctx, o, x, y, OBSTACLE_ART[mine ? level.id : 'comun'], mine ? own.image : common.image);
+      const world = o.world ?? level.id;
+      const own = this.sheet(world);
+      const mine = own?.ready && OBSTACLE_ART[world].skins[o.kind];
+      this.stack(ctx, o, x, y, OBSTACLE_ART[mine ? world : 'comun'], mine ? own.image : common.image);
     }
     return true;
   }

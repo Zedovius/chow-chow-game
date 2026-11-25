@@ -19,7 +19,7 @@ import { ANIMAL_ART } from './animalArt.js';
 import { ObstaclePainter } from './obstaclePainter.js';
 import { GRID, fineFor, snap } from './grid.js';
 import { WorldPainter } from './worldPainter.js';
-import { signById } from '../world/levels.js';
+import { signById, ZODIAC } from '../world/levels.js';
 import { VIEW } from '../core/view.js';
 
 const { width: W, height: H, groundY, ceilingY, pixel: P } = CONFIG;
@@ -95,6 +95,7 @@ export class Scene {
   draw(view) {
     const ctx = this.ctx;
     const K = GRID.fine;
+    const started = performance.now();
     const art = this.images?.levels?.[view.level.id] ?? null;
     // El escenario del mundo (graphics/worldPainter.js); mientras carga, un cielo y un suelo sencillos
     ctx.setTransform(K, 0, 0, K, 0, 0);
@@ -119,6 +120,7 @@ export class Scene {
     }
     ctx.setTransform(K / P, 0, 0, K / P, 0, 0);
     this.drawMarkers(view);
+    this.worldPainter.work(view, 12 - (performance.now() - started)); // en lo que sobra del cuadro
   }
 
   /**
@@ -218,13 +220,11 @@ export class Scene {
     ctx.globalAlpha = 1;
   }
 
-  /** Va cargando los mundos que siguen. */
-  preload(ids) {
-    for (const id of ids) {
-      if (!id) continue;
-      this.worldPainter.world(id);
-      this.obstaclePainter.sheet(id);
-    }
+  /** Va cargando en silencio todos los mundos: primero los de ids, en ese orden, y luego los demás. */
+  preload(ids = []) {
+    const order = [...ids, ...ZODIAC.map(({ id }) => id)];
+    this.worldPainter.preload(order);
+    for (const id of ['comun', ...order]) this.obstaclePainter.sheet(id); // (los obstáculos casi no pesan)
   }
 
   /** El suelo de un nivel (o sus nubes, si no tiene): su imagen si ya cargó; si no, figuras. */

@@ -1,5 +1,6 @@
 // El jefe con su arte (los sprites de tools/sprites/jefes.mjs; medidas en graphics/bossArt.js): el
-// cuerpo con sus cuadros, el brazo en el ángulo que toca según lo que hace, el punto débil (la moneda) y
+// cuerpo con sus cuadros, el brazo en el ángulo que toca según lo que hace (o la boca que se abre, en los que no tienen
+// brazos), el punto débil (la moneda) y
 // el ojo, que brilla del color de sus disparos y sigue a quien juega. Sin arte, Scene.drawBoss lo
 // dibuja con figuras (y weak() su punto débil).
 //
@@ -15,6 +16,7 @@ const P = CONFIG.pixel;
 const whole = (v) => Math.round(v / P) * P; // medidas: pixeles del juego, enteros
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 const SOCKET = '#120b1c';
+const INK = '#1b1226'; // el contorno
 const RED = '#ff2b2b';
 const WEAK_FLASH = 0.35; // lo que dura el rojo (Boss.hit)
 const TURN = 5; // qué tanto se separan las capas al girar (pixeles)
@@ -68,6 +70,15 @@ export class BossPainter {
     return 24 + Math.sin(t * 2.2) * 5;
   }
 
+  /** Los que atacan con la boca (la Serpiente y el Dragón): cuánto la abren (0: cerrada). */
+  jaw({ state, warning, timer, attack, t }, jaws) {
+    if (warning) return timer < 0.16 ? 1 : jaws - 1; // avisa un ataque: se va abriendo
+    if (state === 'charging') return Math.floor(t * 9) % 2 ? jaws - 1 : 1; // embiste a mordidas
+    if (state === 'aiming') return jaws - 1;
+    if (state === 'rest' && attack && timer < 0.4) return timer < 0.24 ? jaws - 1 : 1; // acaba de disparar
+    return 0;
+  }
+
   /** Dibuja al jefe. target: { x, y }, la cabeza de quien juega. Devuelve false si el arte no ha cargado. */
   draw(ctx, boss, art, images, target) {
     const body = ready(images?.body);
@@ -92,10 +103,8 @@ export class BossPainter {
 
     // El cuerpo, capa por capa, de atrás hacia adelante
     const frame = Math.floor(t * art.fps * (state === 'charging' ? 2 : 1)) % art.frames;
-    for (let layer = 0; layer < art.layers; layer++) {
-      const [x, y] = at([0, 0], layer / (art.layers - 1));
-      this.sprite(ctx, body, frame, layer, art.w, art.h, x, y, tint);
-    }
+    const row = art.jaws ? this.jaw(boss, art.jaws) * art.layers : 0; // su boca
+    this.stacked(ctx, art.ink, Array.from({ length: art.layers }, (_, layer) => [frame, row + layer, ...at([0, 0], layer / (art.layers - 1))]), body, art.w, art.h, tint);
     // La moneda, al frente; al darle, salta
     const jump = weakFlash > 0 ? Math.round(Math.sin((1 - weakFlash / WEAK_FLASH) * Math.PI) * 4) * P : 0;
     if (coin) {
@@ -110,20 +119,20 @@ export class BossPainter {
     if (arm) {
       const k = Math.round(clamp((this.angle - art.armFrom) / (art.armTo - art.armFrom), 0, 1) * (art.armFrames - 1));
       const half = (art.armSize / 2) * P;
-      for (let layer = 0; layer < art.armLayers; layer++) {
+      this.stacked(ctx, art.ink, Array.from({ length: art.armLayers }, (_, layer) => {
         const [x, y] = at(art.shoulder, ARM_DEPTH + 0.2 * layer);
-        this.sprite(ctx, arm, k, layer, art.armSize, art.armSize, x - half, y - half, tint);
-      }
+        return [k, layer, x - half, y - half];
+      }), arm, art.armSize, art.armSize, tint);
     }
     // Se enciende de donde va a salir el ataque: la boca (ráfaga) o la mano (lo demás); y un fogonazo al salir
     const angle = (this.angle * Math.PI) / 180;
     const { reach } = CONFIG.boss.arm;
     const hand = [snap(shoulder[0] - reach * Math.cos(angle)), snap(shoulder[1] + reach * Math.sin(angle))];
-    const source = boss.attack === 'volley' ? at(art.mouth, 0.6) : hand;
+    const source = boss.attack === 'volley' || art.jaws ? at(art.mouth, 0.6) : hand;
     if (warning && warning !== 'charge') this.glow(ctx, source, 3.5 + Math.min(3, boss.timer * 3) + Math.sin(t * 30) * 1.5, fire, 0.5);
     else if (state === 'aiming' || (state === 'rest' && boss.attack && boss.attack !== 'charge' && boss.timer < 0.14)) this.glow(ctx, source, 9, '#fff6e0', 0.6);
-    if (warning === 'rain' && boss.plan) this.launchRain(ctx, hand, boss);
-    if (state !== 'defeated' && !flash) this.eye(ctx, at(art.eye, 0.75), target, boss, fire);
+    if (warning === 'rain' && boss.plan) this.launchRain(ctx, source, boss);
+    if (state !== 'defeated' && !flash) this.eye(ctx, at(art.eyes?.[frame] ?? art.eye, 0.75), target, boss, fire);
     this.weak(ctx, at(art.weak, COIN_DEPTH), boss);
     return true;
   }
@@ -148,6 +157,33 @@ export class BossPainter {
   shift(depth) {
     const d = depth - 0.35; // lo de en medio casi no se mueve
     return [Math.round(d * this.yaw * TURN) * P, Math.round(d * this.pitch * TURN * 0.6) * P];
+  }
+
+  /** Varias capas de una hoja, [cuadro, capa, x, y], una sobre otra; con ink, se juntan aparte y llevan su contorno. */
+  stacked(ctx, ink, list, image, w, h, tint) {
+    if (!ink) {
+      for (const [frame, layer, x, y] of list) this.sprite(ctx, image, frame, layer, w, h, x, y, tint);
+      return;
+    }
+    const pad = 8;
+    const [W, H] = [w + pad * 2, h + pad * 2];
+    if (!this.buffer || this.buffer.width < W || this.buffer.height < H) {
+      const size = [Math.max(W, this.buffer?.width ?? 0), Math.max(H, this.buffer?.height ?? 0)];
+      [this.buffer, this.shade] = [0, 1].map(() => Object.assign(document.createElement('canvas'), { width: size[0], height: size[1] }));
+    }
+    const brush = this.buffer.getContext('2d');
+    const shade = this.shade.getContext('2d');
+    brush.clearRect(0, 0, W, H);
+    const [, , x0, y0] = list[0];
+    for (const [frame, layer, x, y] of list) brush.drawImage(tint ? this.tinted(image, tint) : image, frame * w, layer * h, w, h, pad + Math.round((x - x0) / P), pad + Math.round((y - y0) / P), w, h);
+    // El contorno: la silueta, corrida un pixel a cada lado, detrás
+    shade.globalCompositeOperation = 'source-over';
+    shade.clearRect(0, 0, W, H);
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) shade.drawImage(this.buffer, 0, 0, W, H, dx, dy, W, H);
+    shade.globalCompositeOperation = 'source-in';
+    shade.fillStyle = INK;
+    shade.fillRect(0, 0, W, H);
+    for (const canvas of [this.shade, this.buffer]) ctx.drawImage(canvas, 0, 0, W, H, x0 - pad * P, y0 - pad * P, W * P, H * P);
   }
 
   /** Un cuadro y una capa de una tira; teñido si le acaban de pegar. */

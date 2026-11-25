@@ -159,8 +159,9 @@ control cuentan como actividad).
   (solo el 15% a la altura de un salto): para recargar hay que volar, así no basta con quemar todo
   desde el suelo. Nunca hacen falta: los 11 mundos se pueden pasar
   sin disparar (lo comprueban las pruebas).
-- **12 niveles** (`js/world/levels.js`): 11 mundos, cada uno más rápido; dentro de cada nivel la velocidad
-  sube un poco. Van seguidos; al terminar uno se cobran los corazones. El paso de uno al otro es
+- **12 niveles** (`js/world/levels.js`): 11 mundos. La velocidad sube pareja del primero al último, dentro de cada uno y
+  de uno a otro (`speed`), y nunca baja. Más rápido, los obstáculos salen más seguido (`CONFIG.obstacles.crowd`) para
+  que la pantalla no se vea vacía. Van seguidos; al terminar uno (`levelDone`) se cobran los corazones. El paso de uno al otro es
   suave (`CONFIG.transition`, 1.6 s): el cielo y el suelo del anterior se desvanecen sobre los del
   nuevo (el suelo se vuelve nubes, o al revés, poco a poco) y la velocidad pasa sin frenones de la
   que se llevaba a la del nuevo nivel (también al llegar al jefe, que va más despacio). El animal sigue donde iba y
@@ -213,8 +214,7 @@ control cuentan como actividad).
     9 bolas de fuego.
   - **Difícil:** 2 corazones (la comida da más, hasta 3, y se conservan de un nivel al otro); al perder se vuelve al
     primer mundo. El cielo más lleno (oleadas más grandes, más seguido y más formaciones), más cosas
-    que no se queman, más rápido (70 px/s más en todos los niveles, `boost`, × 1.15, `speed`; en fácil, × 1.05; y sube más
-    dentro de cada uno; duran lo mismo que en fácil), cócteles cada 7–11 s, comida cada 15–24 s y hasta 6 bolas de fuego. Los puntos valen ×1.5.
+    que no se queman, más rápido (de 357 a 552 px/s; en fácil, de 252 a 400), cócteles cada 7–11 s, comida cada 15–24 s y hasta 6 bolas de fuego. Los puntos valen ×1.5.
 - **HI RECORDS:** quien vence a su rival (nivel 12) y entra al top 5 de su dificultad escribe un nombre
   de hasta 6 caracteres. Las tablas se alternan con el menú de inicio.
 - **Bucle de juego** (`js/core/Loop.js`): paso fijo de 1/60 s con interpolación, igual en
@@ -266,13 +266,19 @@ cuando hace falta (mientras gira la rueda).
 
 `npm run jefes` (`tools/sprites/jefes.mjs`) convierte cada ilustración de `tools/sprites/originales/`
 (PNG con fondo transparente, el brazo aparte) en sus sprites: es el pixelador de Chispas para Node
-(`tools/sprites/pixelar.mjs`), con gradientes de luz. Saca el cuerpo en 8 cuadros (cola, orejas, paño,
-farol...), el brazo en 21 ángulos y sus medidas (`js/graphics/bossArt.js`). `js/graphics/bossPainter.js`
+(`tools/sprites/pixelar.mjs`), con gradientes de luz. Saca el cuerpo en 12 cuadros (la cola, que ondula entera,
+`bend`; orejas, paño, farol...), el brazo en 21 ángulos y sus medidas (`js/graphics/bossArt.js`). `js/graphics/bossPainter.js`
 los dibuja: el brazo cambia según el ataque y el ojo brilla del color de sus disparos y sigue a quien
 juega. Todo va en capas de profundidad (sprite stacking de lado): al girar hacia quien juega, cada capa se
 corre un poco más que la de atrás. El punto débil (la moneda; `CONFIG.boss.weak`, en el mismo lugar para
-los 12) se enciende en rojo mientras avisa un ataque, y darle ahí quita el doble. Para otro jefe, agrega su ilustración y sus puntos en `BOSSES`. Los que no tienen arte se ven con
-figuras. Todos chocan con las mismas cajas (`CONFIG.boss.boxes`). Ya está la Rata (la rival del Caballo).
+los 12) se enciende en rojo mientras avisa un ataque, y darle ahí quita el doble. Todos chocan con las mismas cajas (`CONFIG.boss.boxes`).
+
+La Rata es la ilustración original. Los otros 11 siguen su diseño (encorvados, cara hostil, pañuelo rasgado, cuentas,
+medallón, pulseras y algo en la mano de atrás) con los colores de su animal: son esculturas (`jefesModelos.mjs`; la cara de
+cada uno, en `jefesCaras.mjs`; lo que comparten, en `jefesPiezas.mjs`) que `escultura.mjs` pinta con luz, pelo y oro, y pasan
+por el mismo pixelado. Cada capa lleva solo lo que hay a su profundidad, también lo tapado (`slices`), y el contorno se pone
+al dibujarlos, sobre las capas ya juntas (`BossPainter.stacked`): así no se embarran al girar. Cada uno mueve un brazo; la Serpiente y el Dragón (`jefesLargos.mjs`, `CONFIG.boss.armless`) no
+tienen: abren la boca, de donde les sale todo, y una ola les recorre el cuerpo. `npm run jefes dragon` hornea solo uno.
 
 ### Los mundos
 
@@ -288,16 +294,17 @@ picado), su suelo, sus objetos, su gente y lo que flota en el aire.
   suelo: nunca colgados ni tirados.
 - **La gente** (`gente.mjs`), mexicana y china, va vestida según el mundo, y camina.
 - **El Perro** es el barrio chino de una ciudad mexicana en los ochenta (`ciudad.mjs`): fachadas, puestos de
-  tacos y tortas, autos de la época y edificios al fondo. En el lago de la **Serpiente** pasan las trajineras Lupita,
-  Sofía y María (`trajinera` en `piezas.mjs`).
+  tacos y tortas, autos de la época y edificios al fondo. En el lago de la **Serpiente** pasan las trajineras
+  «Chow-Chow» (`trajinera` en `piezas.mjs`).
 - **Las luces** (`Model.light`: ventanas, faroles, foquitos, neón, autos y botes) se hornean en la capa donde está cada
   una (`glows` en `pintura.mjs`): giran y se tapan con su objeto, y entre más lejos, más tenues y más del color del aire.
   En el agua y en la calle mojada, además, se reflejan (`WorldPainter.reflect`). No parpadean: eso es de lo que se recoge.
 - **La profundidad:** cada cosa tiene su distancia `s` (0 en el horizonte, 1 en el camino; `DEPTHS`). Se
   mueve a `s` veces la velocidad del camino, y el suelo se dibuja renglón por renglón con la misma regla
   (`js/graphics/floors.js`): por eso nada patina y al volar el suelo se abre.
-- **Sin congelones:** el cielo y el suelo de cada mundo se arman de a poco (`WorldPainter.work`, unos milisegundos por
-  cuadro), durante el nivel anterior y nunca a medio cambio; las imágenes se decodifican antes de usarse
+- **Sin congelones:** los 12 mundos se cargan en silencio desde el menú (`Scene.preload`), uno por uno y en lo que sobra
+  de cada cuadro (`WorldPainter.work`); al salir el animal en la rueda, en el orden de su viaje. Si alguien se adelanta,
+  lo que falte sigue mientras juega, nunca a medio cambio de nivel. Las imágenes se decodifican antes de usarse
   (`whenDecoded`).
 - **Pantallas grandes:** el juego llena la pantalla. Donde cada pixel del juego mide 3 o más de los de verdad, el canvas
   lleva el doble y todo se mueve de medio en medio pixel (`js/graphics/grid.js`); el arte se ve igual.

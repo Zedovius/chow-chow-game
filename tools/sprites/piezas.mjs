@@ -533,20 +533,13 @@ const snake = {
 
 // Letras de 5 pixeles de alto, para la portada
 const FONT = {
-  A: ['.#.', '#.#', '###', '#.#', '#.#'], F: ['###', '#..', '##.', '#..', '#..'], I: ['###', '.#.', '.#.', '.#.', '###'],
-  L: ['#..', '#..', '#..', '#..', '###'], M: ['#...#', '##.##', '#.#.#', '#...#', '#...#'], O: ['###', '#.#', '#.#', '#.#', '###'],
-  P: ['##.', '#.#', '##.', '#..', '#..'], R: ['##.', '#.#', '##.', '#.#', '#.#'], S: ['###', '#..', '###', '..#', '###'],
-  T: ['###', '.#.', '.#.', '.#.', '.#.'], U: ['#.#', '#.#', '#.#', '#.#', '###'],
+  C: ['###', '#..', '#..', '#..', '###'], H: ['#.#', '#.#', '###', '#.#', '#.#'], O: ['###', '#.#', '#.#', '#.#', '###'],
+  W: ['#...#', '#...#', '#.#.#', '#.#.#', '.#.#.'], '-': ['..', '..', '##', '..', '..'],
 };
-/** Un nombre en renglones de pixeles; la Í lleva su acento arriba. */
+/** Un nombre en renglones de pixeles. */
 function letters(name) {
-  const accent = name.includes('Í');
-  const rows = Array.from({ length: accent ? 7 : 5 }, () => '');
-  [...name].forEach((char, n) => {
-    const glyph = char === 'Í' ? ['.#', '#.', '..', '#.', '#.', '#.', '#.'] : FONT[char];
-    const blank = '.'.repeat(glyph[0].length);
-    (accent && char !== 'Í' ? [blank, blank, ...glyph] : glyph).forEach((row, i) => (rows[i] += (n ? '.' : '') + row));
-  });
+  const rows = Array.from({ length: 5 }, () => '');
+  [...name].forEach((char, n) => FONT[char].forEach((row, i) => (rows[i] += (n ? '.' : '') + row)));
   return rows;
 }
 
@@ -560,13 +553,13 @@ function trajinera(name, { hull, trim, roofs, panel, flowers }) {
   for (const x of [-19, -6.4, 6.4, 19]) for (const z of [-5.6, 5.6]) pole(m, x, 4, 19, 0.6, trim, z);
   for (let i = 0; i < 5; i++) m.box([0, 19.4 + i * 0.8], [22.4 - i * 0.5, 0.6, 7.4 - i * i * 0.36], { color: (l) => roofs[Math.floor((l[0] + 60) / 4.4) % roofs.length], group: 'top' });
   // La portada: el letrero con su arco de flores
-  m.box([0, 27, 5.4], [18.6, 6, 1], { color: (l) => (Math.abs(l[0]) > 17.6 || Math.abs(l[1]) > 5.1 ? trim : panel), group: 'sign', over: 1 });
-  for (let i = 0; i <= 18; i++) {
-    const a = Math.PI * (i / 18);
-    m.ball([-Math.cos(a) * 20, 26 + Math.sin(a) * 10, 5.4], [2, 1.9, 1.7], { color: flowers[i % flowers.length], group: `fl${i}`, over: 2, blend: 0.2 });
+  m.box([0, 27, 5.4], [25.6, 5, 1], { color: (l) => (Math.abs(l[0]) > 24.6 || Math.abs(l[1]) > 4.1 ? trim : panel), group: 'sign', over: 1 });
+  for (let i = 0; i <= 22; i++) {
+    const a = Math.PI * (i / 22);
+    m.ball([-Math.cos(a) * 27, 26 + Math.sin(a) * 8.6, 5.4], [2, 1.9, 1.7], { color: flowers[i % flowers.length], group: `fl${i}`, over: 2, blend: 0.2 });
   }
-  for (let i = -3; i <= 3; i++) m.ball([i * 4.4, 34.4 - Math.abs(i) * 0.5, 5], [2, 1.4, 1.4], { color: flowers[(i + 4) % flowers.length], group: `fx${i}`, over: 1, blend: 0.2 });
-  m.label([0, 27.4, 8], letters(name), { '#': '#ffe23c' });
+  for (let i = -4; i <= 4; i++) m.ball([i * 4.8, 33.4 - Math.abs(i) * 0.5, 5], [2, 1.4, 1.4], { color: flowers[(i + 4) % flowers.length], group: `fx${i}`, over: 1, blend: 0.2 });
+  m.label([0, 27, 8], letters(name), { '#': '#ffe23c' });
   m.light([0, 27, 8.5], 20, '#ffd27a', 0.16);
   // Los que pasean: sentados a los lados de la mesa
   m.box([0, 7], [15, 0.7, 2], { color: '#e8d8a8', group: 'table' });
@@ -601,9 +594,9 @@ function trajinera(name, { hull, trim, roofs, panel, flowers }) {
 }
 
 Object.assign(snake, {
-  lupita: () => trajinera('LUPITA', { hull: '#d8304a', trim: '#ffc83a', roofs: ['#ffc83a', '#d8304a'], panel: '#2a4a9a', flowers: ['#ff6fa0', '#ffd45e', '#f4f0ea'] }),
-  sofia: () => trajinera('SOFÍA', { hull: '#2f7ac8', trim: '#ff9a3c', roofs: ['#2fa08a', '#f0e4c8'], panel: '#8a1f5a', flowers: ['#ff9a3c', '#ffe08a', '#d85ad0'] }),
-  maria: () => trajinera('MARÍA', { hull: '#3f9a4a', trim: '#ff5f9a', roofs: ['#ff7a5a', '#ffe08a'], panel: '#7a2018', flowers: ['#f4f0ea', '#ff5f7a', '#ffb04a'] }),
+  trajineraRoja: () => trajinera('CHOW-CHOW', { hull: '#d8304a', trim: '#ffc83a', roofs: ['#ffc83a', '#d8304a'], panel: '#2a4a9a', flowers: ['#ff6fa0', '#ffd45e', '#f4f0ea'] }),
+  trajineraAzul: () => trajinera('CHOW-CHOW', { hull: '#2f7ac8', trim: '#ff9a3c', roofs: ['#2fa08a', '#f0e4c8'], panel: '#8a1f5a', flowers: ['#ff9a3c', '#ffe08a', '#d85ad0'] }),
+  trajineraVerde: () => trajinera('CHOW-CHOW', { hull: '#3f9a4a', trim: '#ff5f9a', roofs: ['#ff7a5a', '#ffe08a'], panel: '#7a2018', flowers: ['#f4f0ea', '#ff5f7a', '#ffb04a'] }),
 });
 
 // --- Lo que pasa cerca de quien mira (siluetas bajas) -------------------------------------

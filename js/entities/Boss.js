@@ -238,8 +238,9 @@ export class Boss {
     return Math.min(arm.max, Math.max(arm.min, angle));
   }
 
-  /** Su mano, con el brazo en un ángulo. */
+  /** Su mano, con el brazo en un ángulo; los que no tienen brazos (CONFIG.boss.armless) disparan todo con la boca. */
   hand(angle) {
+    if (CONFIG.boss.armless.includes(this.sign)) return this.mouth;
     const { arm } = CONFIG.boss;
     const a = (angle * Math.PI) / 180;
     return { x: this.x + arm.x - arm.reach * Math.cos(a), y: this.y + arm.y + arm.reach * Math.sin(a) };

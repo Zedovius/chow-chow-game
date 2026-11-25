@@ -24,7 +24,7 @@ import { Combo } from './combo.js';
 import { Events } from './events.js';
 import { touch, idleSeconds } from './activity.js';
 import { addScore, loadBoards, placeIn } from './scores.js';
-import { DIFFICULTIES, levelsFor, journeyFor, signById } from '../world/levels.js';
+import { DIFFICULTIES, levelDone, levelsFor, journeyFor, signById } from '../world/levels.js';
 import { Boss } from '../entities/Boss.js';
 import { Spawner } from '../world/Spawner.js';
 import { Player } from '../entities/Player.js';
@@ -212,6 +212,7 @@ export class Game {
     this.level = this.levels[0];
     this.levelIndex = 0;
     this.clearWorld();
+    this.scene.preload([this.level.id]);
     this.player.sign = null;
     this.player.canFly = false;
     this.player.forceFlight = false;
@@ -352,7 +353,7 @@ export class Game {
     }
     this.showBanner(lines.join('\n'), !this.player.waiting);
     this.fsm.set('playing');
-    this.scene.preload([this.level.id, this.levels[index + 1]?.id]); // el escenario que sigue, para no esperar
+    this.scene.preload(this.levels.slice(index).map(({ id }) => id)); // los que falten, en el orden de su viaje
     this.events.emit('levelStart', { index, id: this.level.id, continued, ground: this.level.ground, boss: Boolean(this.boss) });
     if (this.boss) this.events.emit('bossStart', { sign: this.level.id });
   }
@@ -429,7 +430,7 @@ export class Game {
     }
     this.extendCombo(cleared);
 
-    if (this.boss ? this.boss.done : this.distance >= this.level.length && !this.obstacles.length) this.completeLevel();
+    if (this.boss ? this.boss.done : levelDone(this.level, this.distance, this.obstacles, this.player.x)) this.completeLevel();
   }
 
   /** El jefe del nivel 12: se mueve, avisa y ataca (sus disparos son obstáculos del mundo). */
@@ -973,6 +974,7 @@ export class Game {
       moveHint: this.player.alive ? Math.min(1, Math.max(0, this.moveHint) / HINT_FADE) : 0, // las flechas ◀ ▶ a sus lados (0 a 1)
       obstacles: this.obstacles.map((o) => ({
         kind: o.kind,
+        world: o.world, // el mundo en que salió: conserva su dibujo aunque ya cambió el nivel
         height: o.height,
         motion: o.motion,
         burnable: o.burnable,
