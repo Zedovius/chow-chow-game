@@ -51,7 +51,10 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
+  const url = new URL(request.url);
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+  // La página de pruebas no es el juego: va directo a la red (si no, en su lugar saldría el juego)
+  if (request.mode === 'navigate' && /\/jefes(\.html)?$/.test(url.pathname)) return;
   event.respondWith(DEV ? fromNetwork(request) : fromCache(request));
 });
 

@@ -153,7 +153,7 @@ control cuentan como actividad).
   quien viene disparando (`CONFIG.drinkScreen`). Los datos están en `js/world/cocktails.js` (y sus textos, `drinks.*` y
   `taste.*`, en `js/i18n/`). Los 12 vasos son capas apiladas (sprite stacking), horneadas con `npm run tragos`
   (`tools/sprites/tragos.mjs`, con la forma y el color de las fotos). Luego, junto al nombre, sale en chico
-  (`js/ui/drink.js`). Para verla: `?trago=dragon` (solo en localhost), o desde `jefes.html`.
+  (`js/ui/drink.js`). Para verla: `?trago=dragon`, o desde `jefes.html`.
 - **Bolas de fuego**, del color de cada animal: queman todo menos los muros y las nubes de tormenta
   (`burnable` en `js/world/obstacles.js`). Se empieza con 3. Casi todos los cócteles salen arriba
   (solo el 15% a la altura de un salto): para recargar hay que volar, así no basta con quemar todo
@@ -221,7 +221,7 @@ control cuentan como actividad).
   cualquier pantalla.
 
 Todo lo que se ajusta (física, vuelo, velocidades, obstáculos, fuego, cócteles, puntos) está en
-`js/config.js`. Para probar un nivel: `?nivel=5` empieza en el 5; la página `jefes.html` (por ejemplo http://localhost:8000/jefes.html) lista los 12 animales y los 12 jefes, con la dificultad, el trío, la estrella y no perder corazones; lleva a `?animal=goat&vuelo=1` o `?jefe=rat&dificultad=hard&trio=1&invencible=1`, donde no se guardan récords (solo en localhost o en la red de la casa; `jefes.html` no se publica y en el juego publicado no hace nada, para que nadie se salte niveles y entre a HI RECORDS).
+`js/config.js`. Para probar un nivel: `?nivel=5` empieza en el 5; la página `jefes.html` (por ejemplo http://localhost:8000/jefes.html) lista los 12 animales y los 12 jefes, con la dificultad, el trío, la estrella y no perder corazones; lleva a `?animal=goat&vuelo=1` o `?jefe=rat&dificultad=hard&trio=1&invencible=1`, donde no se guardan récords (también publicado, en firio.studio/chow-chow/jefes: Cloudflare Pages sirve `jefes.html` sin el `.html`). `?nivel` solo, en una partida de verdad, no hace nada publicado, para que nadie se salte niveles y entre a HI RECORDS.
 
 - **Avisos** (`js/core/events.js`): Game cuenta lo que pasa (`jump`, `flap`, `land`, `fire`,
   `burn`, `cocktail`, `food`, `hit`, `levelStart`, `gameOver`...; la lista completa está en ese archivo) y quien

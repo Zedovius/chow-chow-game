@@ -1117,6 +1117,29 @@ test('la cruceta táctil: una dirección a la vez, nada en el centro y sin cambi
   assert.equal(padDirection(-0.3, 0.7, 'left'), 'down');
 });
 
+test('publicado: las pruebas de /jefes funcionan sin guardar récords, y ?nivel solo no salta niveles', async () => {
+  const at = async (hostname, search) => {
+    const before = Object.getOwnPropertyDescriptor(globalThis, 'location');
+    Object.defineProperty(globalThis, 'location', { value: { hostname, search }, configurable: true, writable: true });
+    try {
+      return (await import(`../js/config.js?${hostname}${search}`)).CONFIG;
+    } finally {
+      if (before) Object.defineProperty(globalThis, 'location', before);
+      else delete globalThis.location;
+    }
+  };
+  const boss = await at('firio.studio', '?jefe=rat&invencible=1');
+  assert.equal(boss.test.boss, 'rat'); // con test, Game no guarda nada
+  assert.equal(boss.startLevel, 11);
+  assert.equal((await at('firio.studio', '?animal=goat&nivel=5')).startLevel, 4);
+  for (const search of ['?nivel=12', '?trago=dragon&nivel=12', '?invencible=1&trio=1&vuelo=1']) {
+    const real = await at('firio.studio', search);
+    assert.equal(real.test, null, search);
+    assert.equal(real.startLevel, 0, search);
+  }
+  assert.equal((await at('localhost', '?nivel=5')).startLevel, 4);
+});
+
 test('el trago del final: cada signo con su trago, su vaso y su logo, y la pantalla espera un minuto', async () => {
   const { cocktailOf } = await import('../js/world/cocktails.js');
   const { SHEET, glassSheet } = await import('../js/graphics/glassArt.js');

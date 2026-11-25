@@ -1,18 +1,21 @@
 // Ajustes globales del juego. Las medidas van en unidades del mundo: el mundo mide 800 × 300 y
 // el canvas lo dibuja a la mitad de resolución (pixel), ampliado sin suavizar.
 
-// Para probar: ?nivel=5 empieza en el nivel 5; ?nivel=12, en la pelea contra el rival. Solo en la
-// computadora de desarrollo (localhost, el archivo abierto directo o, para probar en el celular, su
-// dirección en la red de la casa): en el juego publicado no hace nada, para que nadie se salte niveles y
-// entre a HI RECORDS. En las pruebas de Node no hay location.
-//   ?jefe=rat                  directo a la pelea contra ese jefe (la página jefes.html los lista); ahí no
-//                              se guardan récords, y al salir se regresa a la lista. Además:
+// Para probar. La página jefes.html (en el sitio, /jefes) lista todo esto. Funciona también publicado, porque ahí no se
+// guarda ningún récord, y al salir se regresa a la lista:
+//   ?jefe=rat                  directo a la pelea contra ese jefe
 //   ?animal=goat               a jugar con ese animal, sin menú, desde el nivel 1 (o con &nivel=5)
-//   &dificultad=hard  &trio=1  &invencible=1  &vuelo=1 (con la estrella desde el principio)
+//   &dificultad=hard  &trio=1  &invencible=1  &vuelo=1 (con la estrella desde el principio)  &cajas=1
+//   ?trago=dragon              la pantalla del trago de ese animal
+// Solo en la computadora de desarrollo (localhost, el archivo abierto directo o, para probar en el celular, su
+// dirección en la red de la casa): ?nivel=5 empieza en el nivel 5 una partida de verdad; ?nivel=12, en la pelea contra
+// el rival. Publicado no hace nada, para que nadie se salte niveles y entre a HI RECORDS. En las pruebas de Node no
+// hay location.
 const DEV_HOSTS = /^(localhost|127[.]0[.]0[.]1|[[]::1[\]]|192[.]168[.].+|10[.].+|172[.](1[6-9]|2[0-9]|3[01])[.].+|)$/;
 const dev = Boolean(globalThis.location) && DEV_HOSTS.test(globalThis.location.hostname);
-const params = new URLSearchParams(dev ? globalThis.location.search : '');
-const requestedLevel = params.get('jefe') ? 12 : Number.parseInt(params.get('nivel') ?? '', 10);
+const params = new URLSearchParams(globalThis.location?.search ?? '');
+const testing = Boolean(params.get('jefe') || params.get('animal')); // no se guardan récords (test, abajo)
+const requestedLevel = params.get('jefe') ? 12 : Number.parseInt((dev || testing ? params.get('nivel') : null) ?? '', 10);
 
 // El salto completo: 700² / (2 · 2400) ≈ 102 de alto. Se puede volar hasta SKY_JUMPS saltos de alto.
 const JUMP = { gravity: 2400, velocity: 700 };
@@ -267,11 +270,11 @@ export const CONFIG = {
   // hacer caso al botón y en cuánto da una vuelta el vaso. En segundos
   drinkScreen: { seconds: 60, guard: 1, turn: 6.4 },
 
-  // Solo para probar (localhost): ?trago=dragon abre esa pantalla
+  // Para probar: ?trago=dragon abre esa pantalla
   showDrink: params.get('trago'),
 
   // Probando a un jefe (?jefe=...) o a un animal (?animal=...), o null
-  test: params.get('jefe') || params.get('animal') ? {
+  test: testing ? {
     boss: params.get('jefe'),
     animal: params.get('animal'),
     fly: params.has('vuelo'),

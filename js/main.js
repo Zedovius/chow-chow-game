@@ -202,5 +202,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   else window.addEventListener('load', register, { once: true });
 }
 
-// Para probar la pantalla del trago (?trago=dragon, solo en localhost)
-if (CONFIG.showDrink) showDrink({ dialogs, sign: CONFIG.showDrink });
+// Para probar la pantalla del trago (?trago=dragon); al salir, a la lista
+if (CONFIG.showDrink && !CONFIG.test && signById(CONFIG.showDrink)) {
+  showDrink({ dialogs, sign: CONFIG.showDrink }).then(() => { window.location.href = 'jefes.html'; });
+}

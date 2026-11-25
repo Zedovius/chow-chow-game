@@ -27,7 +27,8 @@ const MARKER = '.chowchow-publicado';
 // Lo que necesita el juego, y lo que se copia solo si existe: el arte y el sonido (ver
 // js/graphics/assets.js y js/audio/sounds.js)
 const REQUIRED = ['index.html', 'manifest.webmanifest', 'sw.js', 'css', 'js', 'assets/icons', 'assets/fonts'];
-const OPTIONAL = ['assets/images', 'assets/audio'];
+// jefes.html: la página de pruebas. Cloudflare Pages la sirve sin el .html: firio.studio/chow-chow/jefes
+const OPTIONAL = ['jefes.html', 'assets/images', 'assets/audio'];
 
 const exists = (p) => access(p).then(() => true, () => false);
 const fail = (message) => {
@@ -63,7 +64,7 @@ for (const file of files) hash.update(file).update(await readFile(path.join(dest
 const version = hash.digest('hex').slice(0, 12);
 const stamped = sw
   .replace("const VERSION = 'dev';", `const VERSION = '${version}';`)
-  .replace('const FILES = [];', `const FILES = ${JSON.stringify(['./', ...files], null, 2)};`);
+  .replace('const FILES = [];', `const FILES = ${JSON.stringify(['./', ...files.filter((file) => file !== 'jefes.html')], null, 2)};`);
 if (stamped === sw) fail('No se encontró dónde poner la versión y la lista de archivos en sw.js.');
 await writeFile(path.join(dest, 'sw.js'), stamped);
 
