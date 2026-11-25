@@ -35,6 +35,7 @@ export function lantern(m, [x, y, z = 0], r, { color = '#e23a2a', cap = GOLD, ta
   m.drum([x, y + r * tall, z], r * 0.5, r * 0.42, 0.6, { color: cap, group: 'cap', over: 1 });
   m.drum([x, y - r * tall, z], r * 0.42, r * 0.5, 0.6, { color: cap, group: 'cap', over: 1 });
   m.limb([x, y - r * tall - 0.6, z], [x, y - r * tall - 2.6, z], 0.5, 0.35, { color: cap, group: 'tas', over: 1 });
+  m.light([x, y, z + r], r * 2.4 + 2.4, '#ff9a4a', 0.42);
 }
 
 export const pole = (m, x, y0, y1, r = 0.8, color = WOOD, z = 0) => m.drum([x, (y0 + y1) / 2, z], r, r, (y1 - y0) / 2, { color, group: `pole${x}${z}` });
@@ -42,6 +43,13 @@ export const pole = (m, x, y0, y1, r = 0.8, color = WOOD, z = 0) => m.drum([x, (
 export const flame = (m, [x, y, z = 0], k = 1) => {
   m.ball([x, y + 0.9 * k, z], [0.9 * k, 1.6 * k, 0.9 * k], { color: '#ff9a2e', group: `fl${x}`, flat: 3, over: 4, blend: 0.6 });
   m.ball([x, y + 0.6 * k, z + 0.4], [0.5 * k, 0.9 * k, 0.6 * k], { color: '#fff3b0', group: `fm${x}`, flat: 4, over: 5, blend: 0 });
+  m.light([x, y + 1.2 * k, z + 1], 3 + 3.4 * k, '#ffa03c', 0.42);
+};
+
+/** Una ventana encendida, con su marco. */
+export const lit = (m, [x, y, z], w, h, { frame = WOOD, color = '#ffc46a', deep = 0.8 } = {}) => {
+  m.box([x, y, z], [w, h, deep], { color: (l) => (Math.abs(l[0]) > w - 0.5 || Math.abs(l[1]) > h - 0.5 || Math.abs(l[0]) < 0.35 ? frame : color), flat: 3, group: `lit${x}${y}`, over: 2 });
+  m.light([x, y, z + deep], Math.max(w, h) * 1.5 + 2.6, '#ffb45a', 0.4);
 };
 
 /** Una copa de hojas: bolas juntas; spot: motas de otro color (flores). */
@@ -89,6 +97,7 @@ const rat = {
     m.drum([0, 20.4], 11.4, 1, 4.6, { color: (l) => (Math.sin(l[0] * 3 + l[1]) > 0.2 ? '#8a6a3a' : '#5e4424'), group: 'hat' });
     m.ball([0, 25.4], [1.2, 1.2, 1.2], { color: GOLD, group: 'tip' });
     m.box([0, 8, 8.4], [2.6, 3.6, 0.8], { color: DARK, group: 'door', over: 2 });
+    for (const x of [-5.4, 5.4]) lit(m, [x, 10, 7], 1.5, 1.8, { deep: 1.4 });
     m.box([0, 13, 8.4], [2.6, 2.6, 0.7], { color: RED, group: 'fu', over: 2, turn: Math.PI / 4 }); // el rombo rojo de la puerta
     m.box([0, 13, 8.9], [0.9, 0.9, 0.6], { color: GOLD, group: 'fu2', over: 3 });
     return m;
@@ -200,7 +209,7 @@ const ox = {
     const m = make();
     m.box([0, 6], [9, 6, 6], { color: stripe('#8a6440', '#6a4a2e', 3.2, 0.5), group: 'w' });
     m.box([1, 4.4, 6], [2.4, 4.2, 0.8], { color: DARK, group: 'd', over: 1 });
-    m.box([-5.4, 7, 6], [1.8, 1.6, 0.8], { color: '#ffb85a', flat: 3, group: 'v', over: 1 });
+    for (const x of [-5.4, 6.2]) lit(m, [x, 7, 6], 1.9, 1.8, { deep: 1.4 });
     roof(m, [0, 12], 12.4, 8.6, 7, '#a8803e', { dark: '#6e4e22', ridge: '#8a6230', lift: 0.8 });
     return m;
   },
@@ -336,6 +345,9 @@ const rabbit = {
     m.box([0, 5], [9, 0.7, 6.4], { color: '#c9cbe6', group: 'r' });
     roof(m, [0, 15], 13.4, 9.6, 6, '#5d6aa8', { dark: '#39437a' });
     m.box([0, 22.6], [5.4, 2.4, 3.6], { color: '#8a3a56', group: 'u' });
+    for (const x of [-3, 0, 3]) lit(m, [x, 22.6, 3.8], 1.2, 1.5, { frame: '#8a3a56' });
+    m.ball([0, 10, 0], [2, 2.2, 2], { color: '#ffd27a', flat: 3, group: 'inside' });
+    m.light([0, 10, 4], 9, '#ffc46a', 0.3);
     roof(m, [0, 25], 8, 5.8, 5.4, '#5d6aa8', { dark: '#39437a' });
     m.ball([0, 32], [1.4, 2, 1.4], { color: GOLD, group: 'k' });
     for (const x of [-10, 10]) lantern(m, [x, 12, 8], 1.7, { color: '#ffd9a0' });
@@ -383,6 +395,7 @@ const dragon = {
     m.box([0, 17.6], [4.4, 2.2, 1.2], { color: (l) => (Math.max(Math.abs(l[0]) / 4.4, Math.abs(l[1]) / 2.2) > 0.76 ? GOLD : '#16324a'), group: 'sign' });
     roof(m, [0, 25], 19, 4.6, 4.6, '#2f8f7a', { dark: '#17564e' });
     m.box([0, 30.4], [7, 1.6, 1.4], { color: RED, group: 'u' });
+    for (const x of [-8, 8]) lantern(m, [x, 15, 2], 2);
     roof(m, [0, 32], 10, 3.6, 3.8, '#2f8f7a', { dark: '#17564e' });
     for (const x of [-1, 1]) m.chain([[x * 2, 36.4], [x * 5, 37.6], [x * 6.4, 40]], 0.9, 0.6, { color: GOLD, group: `t${x}` });
     return m;
@@ -427,6 +440,7 @@ const dragon = {
     islet(m, 13);
     m.box([0, 6], [7, 5, 5], { color: RED, group: 'w' });
     m.box([0, 5, 5], [2, 3.8, 0.7], { color: DARK, group: 'd', over: 1 });
+    for (const x of [-4.6, 4.6]) lit(m, [x, 6, 5], 1.4, 1.9, { frame: DEEP });
     roof(m, [0, 11], 11, 8, 5, '#2f8f7a', { dark: '#17564e' });
     m.box([0, 17.4], [4.4, 2.2, 3.2], { color: RED, group: 'w2' });
     roof(m, [0, 19.6], 7, 5, 4.6, '#2f8f7a', { dark: '#17564e' });
@@ -444,6 +458,7 @@ const pagoda = (tiers, w, wall, tile, dark) => {
     const k = 1 - i * (0.62 / tiers);
     const hw = w * k;
     m.drum([0, y + 2.8], hw, hw * 0.96, 2.8, { color: (l) => (Math.abs(Math.abs(l[0]) - hw * 0.52) < 0.8 || Math.abs(l[0]) < 1 ? (l[1] < 1.2 ? (i % 2 ? '#ffb85a' : DARK) : wall) : wall), group: `w${i}` });
+    for (const x of i % 2 ? [-hw * 0.52, 0, hw * 0.52] : [0]) lit(m, [x, y + 2.4, Math.sqrt(hw * hw - x * x)], 1.1, 1.6, { frame: DARK, deep: 1.2 });
     roof(m, [0, y + 5.4], hw + 3, hw * 0.9 + 2, 3.2, tile, { dark, ridge: dark });
     y += 8.2;
   }
@@ -507,11 +522,89 @@ const snake = {
       m.ball([lerp(-16, 16, k), 2 + (2 * k - 1) ** 4 * 4, 0], [1.8, 1.6, 4.4 * (1 - 0.6 * (2 * k - 1) ** 4)], { color: i % 3 ? WOOD : '#7a5434', group: 'h', blend: 0.6 });
     }
     m.ball([-1, 5.4], [7.4, 5, 4.2], { color: stripe('#a8803e', '#6e4e22', 1.8), group: 'c' });
-    lantern(m, [8.4, 8, 0], 1.6);
+    lantern(m, [8.4, 8, 0], 2);
+    lit(m, [-1, 5.6, 4], 1.8, 1.6, { deep: 1.2 });
     m.limb([8.4, 3, 0], [8.4, 11.4, 0], 0.5, 0.5, { color: DARK, group: 'p' });
     return m;
   },
 };
+
+// --- Las trajineras -------------------------------------------------------------------------
+
+// Letras de 5 pixeles de alto, para la portada
+const FONT = {
+  A: ['.#.', '#.#', '###', '#.#', '#.#'], F: ['###', '#..', '##.', '#..', '#..'], I: ['###', '.#.', '.#.', '.#.', '###'],
+  L: ['#..', '#..', '#..', '#..', '###'], M: ['#...#', '##.##', '#.#.#', '#...#', '#...#'], O: ['###', '#.#', '#.#', '#.#', '###'],
+  P: ['##.', '#.#', '##.', '#..', '#..'], R: ['##.', '#.#', '##.', '#.#', '#.#'], S: ['###', '#..', '###', '..#', '###'],
+  T: ['###', '.#.', '.#.', '.#.', '.#.'], U: ['#.#', '#.#', '#.#', '#.#', '###'],
+};
+/** Un nombre en renglones de pixeles; la Í lleva su acento arriba. */
+function letters(name) {
+  const accent = name.includes('Í');
+  const rows = Array.from({ length: accent ? 7 : 5 }, () => '');
+  [...name].forEach((char, n) => {
+    const glyph = char === 'Í' ? ['.#', '#.', '..', '#.', '#.', '#.', '#.'] : FONT[char];
+    const blank = '.'.repeat(glyph[0].length);
+    (accent && char !== 'Í' ? [blank, blank, ...glyph] : glyph).forEach((row, i) => (rows[i] += (n ? '.' : '') + row));
+  });
+  return rows;
+}
+
+/** Una trajinera con su nombre en la portada de flores, sus foquitos, su remero y su gente. */
+function trajinera(name, { hull, trim, roofs, panel, flowers }) {
+  const m = make();
+  // El casco, plano, con las puntas levantadas
+  m.box([0, 2.4], [27, 2.4, 7], { color: (l) => (l[1] > 1.2 ? trim : Math.abs(((l[0] + 60) % 8) - 4) < 1.6 - Math.abs(l[1] + 0.6) ? trim : hull), group: 'hull' });
+  for (const s of [-1, 1]) for (let i = 0; i < 4; i++) m.box([s * (27 + i * 1.7), 3.4 + i * 0.9], [1.4, 1.8 - i * 0.2, 6.6 - i * 1.1], { color: i === 3 ? trim : hull, group: `tip${s}` });
+  // El toldo, sobre sus postes
+  for (const x of [-19, -6.4, 6.4, 19]) for (const z of [-5.6, 5.6]) pole(m, x, 4, 19, 0.6, trim, z);
+  for (let i = 0; i < 5; i++) m.box([0, 19.4 + i * 0.8], [22.4 - i * 0.5, 0.6, 7.4 - i * i * 0.36], { color: (l) => roofs[Math.floor((l[0] + 60) / 4.4) % roofs.length], group: 'top' });
+  // La portada: el letrero con su arco de flores
+  m.box([0, 27, 5.4], [18.6, 6, 1], { color: (l) => (Math.abs(l[0]) > 17.6 || Math.abs(l[1]) > 5.1 ? trim : panel), group: 'sign', over: 1 });
+  for (let i = 0; i <= 18; i++) {
+    const a = Math.PI * (i / 18);
+    m.ball([-Math.cos(a) * 20, 26 + Math.sin(a) * 10, 5.4], [2, 1.9, 1.7], { color: flowers[i % flowers.length], group: `fl${i}`, over: 2, blend: 0.2 });
+  }
+  for (let i = -3; i <= 3; i++) m.ball([i * 4.4, 34.4 - Math.abs(i) * 0.5, 5], [2, 1.4, 1.4], { color: flowers[(i + 4) % flowers.length], group: `fx${i}`, over: 1, blend: 0.2 });
+  m.label([0, 27.4, 8], letters(name), { '#': '#ffe23c' });
+  m.light([0, 27, 8.5], 20, '#ffd27a', 0.16);
+  // Los que pasean: sentados a los lados de la mesa
+  m.box([0, 7], [15, 0.7, 2], { color: '#e8d8a8', group: 'table' });
+  [[-13, '#e8e0d0', '#1d1518'], [-4.6, '#d8506a', '#1d1518'], [4, '#3f8fb0', '#4a2a1a'], [12.6, '#e8c45a', '#1d1518']].forEach(([x, shirt, hair], i) => {
+    const z = i % 2 ? 3.6 : -3.6;
+    m.limb([x, 5, z], [x, 9.6, z], 2, 2.1, { color: shirt, group: `t${x}` });
+    m.ball([x + 0.2, 13, z], [2.1, 2.2, 2.1], { color: (l) => (l[1] > 0.6 || l[0] < -1 ? hair : '#b27a4c'), group: `h${x}` });
+    if (i === 2) {
+      m.drum([x, 14.6, z], 4, 4, 0.5, { color: '#d8b468', group: 'hat', over: 2 });
+      m.drum([x, 15.8, z], 2, 1.6, 1, { color: '#d8b468', group: 'hat', over: 2 });
+    }
+  });
+  // El remero, en la punta de atrás, con su vara
+  m.limb([-25, 4, 0], [-25, 10, 0], 1.6, 1.4, { color: '#f0e4c8', group: 'legs' });
+  m.limb([-25, 10, 0], [-24.6, 15, 0], 2.2, 2.3, { color: '#f4f0ea', group: 'body' });
+  m.ball([-24.2, 19, 0], [2.2, 2.3, 2.2], { color: '#8f5c38', group: 'head' });
+  m.drum([-24.2, 20.8, 0], 4.2, 4.2, 0.5, { color: '#d8b468', group: 'rhat', over: 2 });
+  m.drum([-24.2, 22, 0], 2.1, 1.6, 1, { color: '#d8b468', group: 'rhat', over: 2 });
+  m.limb([-24, 13, 2], [-27, 12, 4], 0.9, 0.8, { color: '#8f5c38', group: 'arm', over: 2 });
+  m.limb([-25.4, 26, 4], [-30, -1, 4.6], 0.6, 0.6, { color: WOOD, group: 'vara', over: 3 });
+  // Foquitos colgados del toldo y un farol en la punta
+  for (let i = 0; i < 9; i++) {
+    const x = -18 + i * 4.5;
+    const y = 18 - Math.abs(Math.sin(i * 1.57)) * 0.9;
+    m.ball([x, y, 7.6], [0.9, 1, 0.9], { color: ['#ffe08a', '#ff9a5a'][i % 2], flat: 3, group: `bulb${i}`, over: 4, blend: 0 });
+    m.light([x, y, 8.4], 4.6, '#ffc46a', 0.36);
+  }
+  m.limb([27, 5, 0], [27, 14, 0], 0.5, 0.5, { color: DARK, group: 'farol' });
+  lantern(m, [27, 13, 0], 1.9);
+  m.light([0, 10, 6], 15, '#ffb45a', 0.16);
+  return m;
+}
+
+Object.assign(snake, {
+  lupita: () => trajinera('LUPITA', { hull: '#d8304a', trim: '#ffc83a', roofs: ['#ffc83a', '#d8304a'], panel: '#2a4a9a', flowers: ['#ff6fa0', '#ffd45e', '#f4f0ea'] }),
+  sofia: () => trajinera('SOFÍA', { hull: '#2f7ac8', trim: '#ff9a3c', roofs: ['#2fa08a', '#f0e4c8'], panel: '#8a1f5a', flowers: ['#ff9a3c', '#ffe08a', '#d85ad0'] }),
+  maria: () => trajinera('MARÍA', { hull: '#3f9a4a', trim: '#ff5f9a', roofs: ['#ff7a5a', '#ffe08a'], panel: '#7a2018', flowers: ['#f4f0ea', '#ff5f7a', '#ffb04a'] }),
+});
 
 // --- Lo que pasa cerca de quien mira (siluetas bajas) -------------------------------------
 

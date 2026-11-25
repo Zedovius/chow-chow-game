@@ -213,8 +213,8 @@ control cuentan como actividad).
     9 bolas de fuego.
   - **Difícil:** 2 corazones (la comida da más, hasta 3, y se conservan de un nivel al otro); al perder se vuelve al
     primer mundo. El cielo más lleno (oleadas más grandes, más seguido y más formaciones), más cosas
-    que no se queman, más rápido (70 px/s más en todos los niveles, `boost`, y sube más dentro de cada uno; duran lo
-    mismo que en fácil), cócteles cada 7–11 s, comida cada 15–24 s y hasta 6 bolas de fuego. Los puntos valen ×1.5.
+    que no se queman, más rápido (70 px/s más en todos los niveles, `boost`, × 1.15, `speed`; en fácil, × 1.05; y sube más
+    dentro de cada uno; duran lo mismo que en fácil), cócteles cada 7–11 s, comida cada 15–24 s y hasta 6 bolas de fuego. Los puntos valen ×1.5.
 - **HI RECORDS:** quien vence a su rival (nivel 12) y entra al top 5 de su dificultad escribe un nombre
   de hasta 6 caracteres. Las tablas se alternan con el menú de inicio.
 - **Bucle de juego** (`js/core/Loop.js`): paso fijo de 1/60 s con interpolación, igual en
@@ -288,7 +288,11 @@ picado), su suelo, sus objetos, su gente y lo que flota en el aire.
   suelo: nunca colgados ni tirados.
 - **La gente** (`gente.mjs`), mexicana y china, va vestida según el mundo, y camina.
 - **El Perro** es el barrio chino de una ciudad mexicana en los ochenta (`ciudad.mjs`): fachadas, puestos de
-  tacos y tortas, autos de la época y edificios al fondo.
+  tacos y tortas, autos de la época y edificios al fondo. En el lago de la **Serpiente** pasan las trajineras Lupita,
+  Sofía y María (`trajinera` en `piezas.mjs`).
+- **Las luces** (`Model.light`: ventanas, faroles, foquitos, neón, autos y botes) se hornean en la capa donde está cada
+  una (`glows` en `pintura.mjs`): giran y se tapan con su objeto, y entre más lejos, más tenues y más del color del aire.
+  En el agua y en la calle mojada, además, se reflejan (`WorldPainter.reflect`). No parpadean: eso es de lo que se recoge.
 - **La profundidad:** cada cosa tiene su distancia `s` (0 en el horizonte, 1 en el camino; `DEPTHS`). Se
   mueve a `s` veces la velocidad del camino, y el suelo se dibuja renglón por renglón con la misma regla
   (`js/graphics/floors.js`): por eso nada patina y al volar el suelo se abre.
@@ -302,7 +306,7 @@ picado), su suelo, sus objetos, su gente y lo que flota en el aire.
   vista, el mismo acabado y la misma sombra (`Scene.drawShadows`).
 - **Los mundos sin suelo** (Dragón y Gallo): bancos de nubes a cinco distancias (`nubes.mjs`, `BANKS`), más oscuros
   mientras más cerca, y adelante, en el plano del juego, la nube de tormenta que no se debe tocar (`makeStorm`):
-  violeta, clara, con contorno, ojos y chispas, con sus crestas justo donde golpea.
+  violeta, clara, con contorno y chispas, con sus crestas justo donde golpea.
 - **Los valores** (`js/graphics/aerial.js`): el fondo va siempre más oscuro que lo que se juega. Al oscurecer, los
   colores viran hacia el tono de las sombras de su mundo (`dusk`) y se saturan, así no se ensucian.
 - **La perspectiva aérea:** entre más lejos, menos contraste y más se parece todo al aire del horizonte, que tiene

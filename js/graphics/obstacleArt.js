@@ -19,7 +19,7 @@ export const OBSTACLE_ART = {
       hopper0: { y: 864, w: 14, h: 11, ax: 7, ay: 10, n: 7, z0: -2, frames: 3 },
       flyer0: { y: 941, w: 20, h: 16, ax: 9, ay: 9, n: 15, z0: -7, frames: 4 },
       lantern0: { y: 1181, w: 10, h: 16, ax: 5, ay: 8, n: 7, z0: -3, frames: 6 },
-      cloud0: { y: 1293, w: 31, h: 17, ax: 15, ay: 9, n: 13, z0: -5, frames: 3 },
+      cloud0: { y: 1293, w: 31, h: 17, ax: 15, ay: 9, n: 11, z0: -5, frames: 3 },
     },
   },
   rat: {

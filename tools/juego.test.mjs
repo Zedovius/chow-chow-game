@@ -466,9 +466,11 @@ test('las nubes de tormenta avisan antes del rayo, y el rayo golpea', () => {
 });
 
 test('los rayos tienen un ritmo que se lee: caen varias veces mientras la nube cruza la pantalla', () => {
-  const { period, warn } = CONFIG.obstacles.lightning;
+  const { warn, strike } = CONFIG.obstacles.lightning;
   for (const level of levelsFor('hard')) {
-    const cloud = new Obstacle('cloud', CONFIG.width, { height: 'sky', center: 300, limits: { low: level.lanes.sky.from, high: level.lanes.sky.to } });
+    const period = level.lightning;
+    assert.ok(period <= CONFIG.obstacles.lightning.period && period - warn - strike > 0.05, `nivel ${level.index + 1}: un rayo cada ${period.toFixed(2)} s`);
+    const cloud = new Obstacle('cloud', CONFIG.width, { height: 'sky', center: 300, limits: { low: level.lanes.sky.from, high: level.lanes.sky.to }, period });
     // A la velocidad más rápida del nivel (el final, con lo más alto del cielo)
     const speed = level.speed * (1 + level.ramp) + CONFIG.obstacles.altitudeSpeed * 4;
     let strikes = 0;
@@ -1424,6 +1426,15 @@ test('los obstáculos: cada tipo tiene su dibujo, dentro de su hoja y sin salirs
         assert.ok(over[0] >= -1 && over[0] <= 8 && over[1] >= -1 && over[1] <= 7, `${set}.${kind}${i}: ${over}`);
       }
     }
+  }
+});
+
+test('las luces del fondo: las trajineras con su nombre, y lo que se refleja es de su mundo', async () => {
+  const { WORLD_ART } = await import('../js/graphics/worldArt.js');
+  for (const name of ['lupita', 'sofia', 'maria']) assert.ok(WORLD_ART.snake.pieces[`traffic0-${name}`] && WORLD_ART.snake.mirrors[`traffic0-${name}`], name);
+  for (const [id, { pieces, mirrors }] of Object.entries(WORLD_ART)) {
+    for (const name of Object.keys(mirrors)) assert.ok(pieces[name], `${id}: se refleja ${name}, que no existe`);
+    assert.equal(Object.keys(mirrors).length > 0, ['snake', 'dog'].includes(id), id); // solo el agua y la calle mojada
   }
 });
 

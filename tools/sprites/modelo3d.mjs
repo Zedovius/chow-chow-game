@@ -44,6 +44,8 @@ export class Model {
   constructor() {
     this.prims = [];
     this.dots = [];
+    this.labels = [];
+    this.lights = [];
     this.bands = [];
     this.farShade = true; // lo del otro lado, en sombra (los animales; los objetos de los mundos, no)
   }
@@ -110,7 +112,7 @@ export class Model {
         p.color = (l, at) => paint(limb ? l : l.map((v) => v / k), at.map((v) => v / k));
       }
     }
-    for (const d of this.dots) for (const key of ['x', 'y', 'z']) d[key] *= k;
+    for (const d of [...this.dots, ...this.labels, ...this.lights]) for (const key of ['x', 'y', 'z', 'r']) if (d[key] !== undefined) d[key] *= k;
     return this;
   }
 
@@ -137,6 +139,21 @@ export class Model {
     return this;
   }
 
+  /**
+   * Una luz: su resplandor (radio r, fuerza alpha) se pinta al hornear los mundos en la capa donde está (glows,
+   * pintura.mjs): así queda a su profundidad, y lo que pasa delante la tapa.
+   */
+  light([x, y, z = 0], r, color = '#ffb45a', alpha = 0.4) {
+    this.lights.push({ x, y, z, r, color, alpha });
+    return this;
+  }
+
+  /** Un dibujo de pixeles (un letrero): rows, renglones de letras (. nada; las demás, su color en inks), al centro. No cambia de tamaño con el modelo. */
+  label([x, y, z = 0], rows, inks) {
+    this.labels.push({ x, y, z, rows, inks });
+    return this;
+  }
+
   /** Las capas: un arreglo de imágenes RGBA (w × h), de z = -depth a depth. anchor: dónde cae el punto (0, 0). */
   slices({ w, h, anchor, depth, step = 1 }) {
     const out = [];
@@ -146,6 +163,13 @@ export class Model {
       const x = Math.floor(anchor[0] + d.x);
       const y = Math.floor(anchor[1] - d.y);
       if (x >= 0 && y >= 0 && x < w && y < h) layer.data.set([...rgb(d.color), 255], (y * w + x) * 4);
+    }
+    for (const { x, y, z, rows, inks } of this.labels) {
+      const layer = out[clamp(Math.round((z + depth) / step), 0, out.length - 1)];
+      const [left, top] = [Math.round(anchor[0] + x - rows[0].length / 2), Math.round(anchor[1] - y - rows.length / 2)];
+      rows.forEach((row, j) => [...row].forEach((ink, i) => {
+        if (inks[ink]) layer.data.set([...rgb(inks[ink]), 255], ((top + j) * w + left + i) * 4);
+      }));
     }
     return out;
   }

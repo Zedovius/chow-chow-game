@@ -6,6 +6,7 @@ import { aerial, tone } from '../../js/graphics/aerial.js';
 import { CREAM, HAIR, SKIN, WHITE, standing } from './gente.mjs';
 import { lerp } from './modelo3d.mjs';
 import { C, lantern, make, pole, roof, stripe } from './piezas.mjs';
+import { halo } from './pintura.mjs';
 import { image } from './png.mjs';
 import { fbm, hash } from './ruido.mjs';
 
@@ -16,9 +17,18 @@ const LAMP = '#ffd27a';
 const brick = (a, b) => (l) => (Math.abs(((l[1] + 60) % 3) - 1.5) > 1.2 || Math.abs((((l[0] + Math.floor((l[1] + 60) / 3) * 2.4) % 5) + 5) % 5 - 2.5) > 2.2 ? b : a);
 
 /** Una ventana encendida (o apagada), con su marco. */
-const pane = (m, [x, y, z], w, h, on = true, frame = '#3a2a30') => m.box([x, y, z], [w, h, 1.5], { color: (l) => (Math.abs(l[0]) > w - 0.8 || Math.abs(l[1]) > h - 0.8 || Math.abs(l[0]) < 0.35 ? frame : on ? LAMP : '#2c3a4e'), flat: on ? 3 : 2, group: `pane${x}${y}`, over: 2 });
+const pane = (m, [x, y, z], w, h, on = true, frame = '#3a2a30') => {
+  if (on) m.light([x, y, z + 1.5], Math.max(w, h) * 1.5 + 2.4, '#ffbe62', 0.36);
+  m.box([x, y, z], [w, h, 1.5], { color: (l) => (Math.abs(l[0]) > w - 0.8 || Math.abs(l[1]) > h - 0.8 || Math.abs(l[0]) < 0.35 ? frame : on ? LAMP : '#2c3a4e'), flat: on ? 3 : 2, group: `pane${x}${y}`, over: 2 });
+};
 /** Un letrero vertical de tienda: rojo con trazos dorados. */
 const board = (m, [x, y, z], w, h, base = '#b3202c', ink = GOLD) => m.box([x, y, z], [w, h, 1.5], { color: (l) => (Math.abs(l[0]) > w - 0.6 || Math.abs(l[1]) > h - 0.6 ? ink : Math.abs(((l[1] + 50) % 4.4) - 2.2) < 1.5 && Math.sin(l[0] * 2.6 + Math.floor((l[1] + 50) / 4.4) * 2) > -0.1 && Math.abs(l[0]) < w - 1.2 ? ink : base), group: `board${x}${y}`, over: 3 });
+
+/** Un foquito de color. */
+const bulb = (m, [x, y, z], color, r = 0.9) => {
+  m.ball([x, y, z], [r, r, r], { color, flat: 3, group: `bulb${x}${y}`, over: 4, blend: 0 });
+  m.light([x, y, z + r], 3.4 * r + 1, color, 0.36);
+};
 
 // --- Fachadas ----------------------------------------------------------------------------------
 
@@ -43,6 +53,9 @@ const buildings = {
       },
       group: 'neon', flat: 3, over: 3,
     });
+    m.light([0, 18.8, 9], 13, PINK, 0.42).light([0, 19.4, 9], 4, CYAN, 0.3).light([0, 5, 9], 6, '#ffbe62', 0.26);
+    // Foquitos a lo largo del techo
+    for (let i = -5; i <= 5; i++) bulb(m, [i * 4, 25 - (i % 2 ? 0.8 : 0), 9.4], ['#ffe08a', '#ff8a6a', '#8fe6d8'][(i + 6) % 3]);
     for (const x of [-6.4, 6.4]) lantern(m, [x, 9.4, 8.6], 1.9);
     return m;
   },
@@ -50,6 +63,7 @@ const buildings = {
     const m = make();
     m.box([0, 14], [14, 14, 6.6], { color: (l) => (Math.sin(l[1] * 1.1) > 0.94 ? '#24483f' : '#3f6f62'), group: 'w' });
     m.box([-4, 5, 6.8], [4.6, 5, 1.5], { color: (l) => (Math.abs(l[0]) < 0.4 ? DARK : '#e8b86a'), flat: 3, group: 'd', over: 2 });
+    m.light([-4, 5, 8.4], 10, '#ffbe62', 0.38).light([8.6, 19, 9], 8, '#4fb0e0', 0.3).light([-8.6, 19, 9], 8, '#ff5a4a', 0.3);
     m.box([0, 11, 8.2], [14.4, 1, 2.4], { color: stripe('#b3202c', CREAM, 1.8, 0), group: 'aw', over: 2 });
     board(m, [8, 6, 7.4], 2.4, 5);
     board(m, [-8.6, 19, 7.4], 2.4, 6.4);
@@ -72,6 +86,7 @@ const buildings = {
       for (let i = -2; i <= 2; i++) m.limb([x + i * 1.7, 18, 9.2], [x + i * 1.7, 20.8, 9.2], 0.4, 0.4, { color: DARK, group: `bar${x}${i}`, over: 3 });
       m.box([x, 21, 9.2], [3.9, 0.45, 0.5], { color: DARK, group: `rail${x}`, over: 3 });
     }
+    lantern(m, [0, 13, 9], 1.7);
     m.drum([-9, 33], 3.2, 3, 3, { color: '#2a2a32', group: 'tinaco' });
     m.limb([8, 30, 0], [8, 37, 0], 0.5, 0.4, { color: DARK, group: 'ant' });
     for (const y of [33, 35]) m.limb([5.6, y, 0], [10.4, y, 0], 0.4, 0.4, { color: DARK, group: 'ant' });
@@ -83,6 +98,7 @@ const buildings = {
     m.box([0, 5.6, 6.8], [9, 5.4, 1.5], { color: (l) => (Math.abs(l[0]) < 0.4 || Math.abs(Math.abs(l[0]) - 5) < 0.4 ? '#241f3a' : l[1] > 1 ? '#7ae0e0' : '#a86ad0'), flat: 3, group: 'in', over: 2 });
     for (const [x, c] of [[-6.4, '#e0563a'], [-2, '#3f8fb0'], [6.6, '#d8b04a']]) m.box([x, 3, 8], [1.5, 3, 1.6], { color: (l) => (l[1] > 0.6 && l[1] < 2.2 ? '#dff8ff' : c), group: `mq${x}`, over: 3 });
     m.box([0, 15.6, 7.2], [14, 3.2, 1.6], { color: (l) => (Math.abs(l[1]) > 2.5 ? (Math.sin(l[0] * 2.4) > 0 ? LAMP : '#8a5a2a') : Math.abs(((l[0] - l[1] + 60) % 7) - 3.5) < 0.9 ? PINK : Math.abs(((l[0] + l[1] + 60) % 9) - 4.5) < 0.7 ? CYAN : '#201a34'), flat: 3, group: 'mar', over: 3 });
+    m.light([0, 15.6, 9], 12, PINK, 0.34).light([-9, 15.6, 9], 8, CYAN, 0.26).light([9, 15.6, 9], 8, '#b06af0', 0.28).light([0, 5, 9], 10, '#7ae0e0', 0.3).light([-5, 26, 1], 8, PINK, 0.34).light([7, 26, 1.4], 7, CYAN, 0.34);
     m.box([0, 22], [15.6, 0.8, 7], { color: '#4c487a', group: 'top' });
     m.chain([[-9, 23, 0], [-4, 29, 0], [1, 23, 0], [-9, 23, 0]], 0.6, 0.6, { color: PINK, group: 'tri', flat: 3 });
     m.ball([7, 26, 0], [3.2, 3.2, 1], { color: (l) => (Math.hypot(l[0], l[1]) > 2.1 ? CYAN : '#201a34'), flat: 3, group: 'ring' });
@@ -99,6 +115,8 @@ const buildings = {
     for (const x of [-13.6, 13.6]) roof(m, [x, 22], 8.4, 4, 3.4, '#2f8f7a', { dark: '#17564e' });
     roof(m, [0, 27], 12.4, 4.6, 4.6, '#2f8f7a', { dark: '#17564e', lift: 2.4 });
     for (const x of [-4, 4]) lantern(m, [x, 17.4, 1], 2.2);
+    m.light([0, 23.6, 2], 12, '#ffd27a', 0.28);
+    for (const x of [-13.6, 13.6]) for (const d of [-3.6, 0, 3.6]) bulb(m, [x + d, 17.2, 1], '#ffe08a', 0.8);
     return m;
   },
 };
@@ -122,6 +140,7 @@ const street = {
     m.box([0, 31.4, 1], [16, 1.6, 7], { color: stripe('#c8202c', CREAM, 1.4, 0), group: 'awn' });
     m.limb([0, 30, 2], [0, 27.4, 2], 0.3, 0.3, { color: DARK, group: 'cord' });
     m.ball([0, 26.6, 2], [1.3, 1.4, 1.3], { color: '#fff0b0', flat: 4, group: 'bulb', over: 3 });
+    m.light([0, 25, 5], 14, '#ffd27a', 0.42).light([-11, 17, 3], 7, '#ff8a2e', 0.4);
     return m;
   },
   tortas() { // tortas, con su sombrilla
@@ -134,6 +153,8 @@ const street = {
     for (let i = 0; i < 5; i++) m.ball([-3.4 + i * 2.7, 14.6, 1], [1.6, 1, 1.4], { color: i % 2 ? '#d89a4a' : '#c98438', group: `pan${i}`, over: 2 });
     for (const x of [-8, 8]) m.ball([x, 2, 4.6], [2.2, 2.2, 0.9], { color: (l) => (Math.hypot(l[0], l[1]) < 1 ? '#c9ced8' : DARK), group: `rueda${x}`, over: 2 });
     pole(m, -8.6, 8, 30, 0.6, '#7a7f8a');
+    for (const x of [-12, -4, 4]) bulb(m, [x, 27.4, 5], '#ffe08a');
+    m.light([2, 14, 5], 9, '#ffe6b0', 0.34);
     m.drum([-4, 31], 13, 0.8, 3, { color: (l) => (Math.sin(Math.atan2(l[2], l[0]) * 6) > 0 ? '#2f7a4a' : '#f4ecd8'), group: 'umb', flatten: 0.6 });
     return m;
   },
@@ -146,6 +167,7 @@ const street = {
     m.ball([6, 11, 0], [1.6, 2.2, 1.6], { color: '#f4ecd8', group: 'mayo', over: 1 });
     m.chain([[-9, 4], [-11, 10], [-9.6, 11]], 0.6, 0.6, { color: '#7a7f8a', group: 'bar' });
     pole(m, 4, 8, 26, 0.7, '#7a7f8a');
+    bulb(m, [4, 23, 3], '#ffe08a', 1.1);
     m.drum([4, 27], 9, 0.6, 2.4, { color: (l) => (Math.sin(Math.atan2(l[2], l[0]) * 5) > 0 ? '#e0563a' : '#f0c850'), group: 'umb', flatten: 0.6 });
     return m;
   },
@@ -153,6 +175,7 @@ const street = {
     const m = make();
     pole(m, 0, 0, 12, 1, '#5a6070');
     m.box([0, 18], [4.4, 6.4, 3], { color: (l) => (l[2] > 2 && Math.abs(l[0]) < 3.2 && Math.abs(l[1]) < 5 ? '#c9d2dc' : '#2f6fa8'), group: 'b', round: 0.8 });
+    m.light([0, 22, 3.4], 8, '#bfe6ff', 0.3);
     m.box([-0.6, 18, 3], [1.6, 2.8, 0.8], { color: (l) => (Math.abs(l[0]) < 1 && l[1] > 0 ? DARK : '#3a3f4a'), group: 'ph', over: 2 });
     m.chain([[2, 20, 3.4], [2.4, 18, 3.6], [2, 15.6, 3.4]], 0.8, 0.8, { color: DARK, group: 'aur', over: 3 });
     return m;
@@ -163,6 +186,7 @@ const street = {
     pole(m, 0, 2, 38, 0.8, '#2f3a44');
     m.chain([[0, 37], [3, 40], [8, 39.6]], 0.8, 0.7, { color: '#2f3a44', group: 'arm' });
     m.ball([9, 38.4], [2.4, 1.6, 2.2], { color: '#ffe6a8', flat: 4, group: 'luz' });
+    m.light([9, 37.6, 3], 12, '#ffc24a', 0.44).light([9, 27, 3], 12, '#ffb84a', 0.1);
     m.limb([0, 28, 0], [-4.6, 28, 0], 0.5, 0.5, { color: '#2f3a44', group: 'arm2' });
     lantern(m, [-4.6, 23], 2.9);
     return m;
@@ -179,11 +203,24 @@ const street = {
     m.chain(Array.from({ length: 9 }, (_, i) => [lerp(-20, 20, i / 8), 31.6 - Math.sin((i / 8) * Math.PI) * 4, 0]), 0.35, 0.35, { color: DARK, group: 'rope' });
     return m;
   },
+  foquitos() { // focos de colores de poste a poste
+    const m = make();
+    for (const x of [-22, 22]) pole(m, x, 0, 35, 0.8, '#2f3a44');
+    const colors = ['#ffe08a', '#ff8a6a', '#8fe6d8', '#ffb0d8'];
+    const at = (k) => [lerp(-22, 22, k), 33.6 - Math.sin(k * Math.PI) * 6, 0];
+    m.chain(Array.from({ length: 11 }, (_, i) => at(i / 10)), 0.5, 0.5, { color: DARK, group: 'rope' });
+    for (let i = 0; i < 9; i++) {
+      const [x, y] = at((i + 0.5) / 9);
+      bulb(m, [x, y - 1.6, 1], colors[i % 4], 1.2);
+    }
+    return m;
+  },
   arcade() { // una maquinita en la banqueta, con su banquito
     const m = make();
     m.box([0, 8], [4.4, 8, 4.4], { color: (l) => (Math.abs(((l[1] - l[0] + 40) % 8) - 4) < 0.9 ? PINK : Math.abs(((l[1] - l[0] + 37) % 8) - 4) < 0.6 ? CYAN : '#3a3268'), group: 'c' });
     m.box([0, 18.4, -0.6], [4.4, 2.6, 3.8], { color: (l) => (Math.abs(l[1]) < 1.4 ? LAMP : '#3a3268'), flat: 3, group: 'mar' });
     m.box([0, 12.4, 4.4], [3.4, 2.8, 0.8], { color: (l) => (Math.hypot(l[0] + 1, l[1] - 0.6) < 0.9 ? '#ffd45e' : Math.abs(l[1] + 1.8) < 0.4 ? '#7affa0' : '#1f3a5a'), flat: 3, group: 'scr', over: 2 });
+    m.light([0, 12.4, 6], 8, '#7ad8ff', 0.38).light([0, 18.4, 4], 7, '#ffd27a', 0.32);
     m.box([0, 8.4, 5.4], [4, 0.8, 1.6], { color: (l) => (Math.sin(l[0] * 3) > 0.4 ? RED : '#201a34'), group: 'pan', over: 2 });
     m.drum([9, 3], 1.8, 1.6, 3, { color: '#5a4030', group: 'st' });
     m.drum([9, 6.4], 2.6, 2.6, 0.6, { color: RED, group: 'st2', over: 1 });
@@ -209,6 +246,8 @@ const lights = (m, x0, x1, y, z = 6) => {
     m.ball([x1, y, s * z], [1.2, 1.5, 1.5], { color: '#fff3c0', flat: 4, group: `hl${s}`, over: 4 });
     m.ball([x0, y, s * z], [1, 1.3, 1.4], { color: '#e0302e', flat: 3, group: `tl${s}`, over: 4 });
   }
+  // Los faros alumbran hacia adelante
+  m.light([x1 + 1, y, z + 1], 5.6, '#ffd86a', 0.4).light([x1 + 6, y - 1.5, z], 6, '#ffd86a', 0.14).light([x0 - 1, y, z + 1], 5, '#ff4a3a', 0.4);
 };
 
 const cars = {
@@ -256,6 +295,7 @@ const cars = {
     m.box([29, 13], [1, 6, 7.6], { color: (l) => (l[1] > 0 ? '#3a4a5e' : '#e8e0cc'), group: 'f', over: 1 });
     for (const x of [-18, 18]) wheel(m, x, 4.8, 8.6);
     lights(m, -28.6, 29.4, 7.4, 7);
+    for (const x of [-20, 0, 18]) m.light([x, 19, 10], 9, '#ffd88a', 0.24);
     return m;
   },
   sedan() { // el sedán cuadrado
@@ -300,6 +340,9 @@ export function skyline({ w, h, seed, layers, style }) {
     if (x < 0 || y < 0 || x >= w || y >= h) return;
     for (let i = 0; i < (front ? layers : 1); i++) out[i].data.set([...c.map((v) => Math.round(Math.max(0, Math.min(255, v)))), 255], (y * w + x) * 4);
   };
+  // Las luces: se pintan al final, encima (x, y, radio, color, fuerza, en qué capa)
+  const glow = [];
+  const shine = 1 - style.airAmount * 0.55;
   const count = style.count;
   for (let b = 0; b < count; b++) {
     const bw = Math.round(w * (0.2 + 0.16 * hash(b, 1, seed)));
@@ -320,10 +363,12 @@ export function skyline({ w, h, seed, layers, style }) {
         const [gx, gy] = [Math.floor((x - x0 - 2) / 4), Math.floor((y - top - 3) / 5)];
         const inWindow = (x - x0 - 2) % 4 < 2 && (y - top - 3) % 5 < 2 && x - x0 > 1 && x < x0 + bw - 2 && y > top + 2 && gx >= 0;
         if (inWindow) {
-          if (hash(gx * 7 + b, gy, seed) > 0.72) {
-            c = rgb(hash(gx, gy * 3 + b, seed) > 0.85 ? '#8fd8e0' : '#ffcf8a');
-            k *= 0.6;
-            top2 = 0.5;
+          if (hash(gx * 7 + b, gy, seed) > 0.58) {
+            const hex = hash(gx, gy * 3 + b, seed) > 0.85 ? '#8fd8e0' : '#ffc670';
+            c = rgb(hex);
+            k *= 0.45;
+            top2 = 0.42 + 0.26 * detail; // entre más cerca, más claras
+            if ((x - x0 - 2) % 4 === 1 && (y - top - 3) % 5 === 1 && hash(gx, gy, seed + 9) > 0.45) glow.push([x, y, 2.6 + detail * 1.4, hex, 0.3, front]);
           } else c = mix(c, ink, 0.3 * detail);
         }
         put(x, y, far(c, y, k, top2), front);
@@ -340,7 +385,20 @@ export function skyline({ w, h, seed, layers, style }) {
     if (kind === 3) {
       for (let dy = 0; dy < 9; dy++) put(x0 + Math.floor(bw / 2), top - 1 - dy, roofTone, front);
       for (const dy of [5, 7]) for (let x = -2; x <= 2; x++) put(x0 + Math.floor(bw / 2) + x, top - 1 - dy, roofTone, front);
+      // La luz roja de la antena
+      put(x0 + Math.floor(bw / 2), top - 10, rgb('#ff5a4a'), front);
+      glow.push([x0 + Math.floor(bw / 2) + 0.5, top - 9.5, 3 + detail * 2, '#ff5a4a', 0.5, front]);
+    }
+    // Un letrero de neón, vertical, en algunos
+    if (hash(b, 8, seed) > 0.42 && bw > 9) {
+      const hex = ['#ff5fa0', '#4fe0e8', '#ffb04a', '#b06af0'][Math.floor(hash(b, 9, seed) * 4)];
+      const sx = x0 + (hash(b, 10, seed) > 0.5 ? 2 : bw - 4);
+      const tall = 7 + Math.floor(hash(b, 11, seed) * 6);
+      const ink = far(rgb(hex), top + 8, style.airAmount * 0.45, 0.5 + 0.24 * detail);
+      for (let y = 0; y < tall; y++) for (let x = 0; x < 2; x++) if (y % 4 !== 3) put(sx + x, top + 5 + y, ink, front);
+      glow.push([sx + 1, top + 5 + tall / 2, 6 + detail * 3, hex, 0.34, front]);
     }
   }
+  for (const [x, y, r, hex, alpha, front] of glow) halo(out[front ? layers - 1 : 0], x, y, r, mix(rgb(hex), style.air.base, style.airAmount * 0.3), alpha * shine);
   return out;
 }

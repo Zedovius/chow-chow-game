@@ -32,3 +32,42 @@ export function grade(layers, scenery, k) {
   }
   return layers;
 }
+
+/** El resplandor de una luz sobre una imagen, por escalones (como pixeles): aclara lo que hay y tiñe el aire de junto. */
+export function halo({ w, h, data }, cx, cy, r, color, alpha) {
+  // Sobre lo oscuro, el aire se tiñe de su color más puro: si no, el resplandor se ve gris
+  const pure = round(color.map((v) => lum(color) * 0.92 + (v - lum(color)) * 1.75));
+  for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(h - 1, cy + r); y++) {
+    for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(w - 1, cx + r); x++) {
+      const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy) / r;
+      if (d >= 1) continue;
+      const a = (Math.ceil((1 - d) ** 1.7 * 5) / 5) * alpha;
+      const i = (y * w + x) * 4;
+      const under = data[i + 3] / 255;
+      if (under > 0.99) for (let k = 0; k < 3; k++) data[i + k] += (255 - data[i + k]) * (color[k] / 255) * a * 0.8;
+      else {
+        const out = a + under * (1 - a);
+        for (let k = 0; k < 3; k++) data[i + k] = (pure[k] * a + data[i + k] * under * (1 - a)) / out;
+        data[i + 3] = Math.round(out * 255);
+      }
+    }
+  }
+}
+
+/**
+ * Las luces de una pieza (Model.light), ya pintada: cada una en la capa donde está, apenas delante de lo que alumbra.
+ * Entre más lejos (k de aire), más tenues y más del color del aire.
+ */
+export function glows(layers, lights, scenery, k, { anchor, depth, step }) {
+  if (!lights.length) return layers;
+  let last = 0;
+  layers.forEach(({ data }, n) => {
+    for (let i = 3; i < data.length; i += 4) if (data[i]) last = n;
+  });
+  const { base } = viewOf(scenery);
+  for (const { x, y, z, r, color, alpha } of lights) {
+    const n = Math.max(0, Math.min(last, Math.ceil((z + depth) / step)));
+    halo(layers[n], anchor[0] + x, anchor[1] - y, r, mix(rgb(color), base, k * 0.35), alpha * (1 - k * 0.5));
+  }
+  return layers;
+}

@@ -145,7 +145,7 @@ export class Spawner {
       if (lowest > highest) return this.skyObstacle(lane, { band, kind: 'flyer', motion: 'bob', dx });
     }
     const center = between(lowest, highest);
-    const obstacle = new Obstacle(kind, CONFIG.width + 40 + dx, { height: 'sky', center, motion, limits });
+    const obstacle = new Obstacle(kind, CONFIG.width + 40 + dx, { height: 'sky', center, motion, limits, period: this.level.lightning });
     obstacle.band = band;
     obstacle.speedBonus += band * CONFIG.obstacles.altitudeSpeed; // más arriba, más rápido
     return obstacle;

@@ -18,7 +18,7 @@ import { mountain } from './montanas.mjs';
 import { bank } from './nubes.mjs';
 import { PIECES_A } from './piezas.mjs';
 import { PIECES_B } from './piezas2.mjs';
-import { grade, round } from './pintura.mjs';
+import { glows, grade, round } from './pintura.mjs';
 import { encode, image } from './png.mjs';
 import { quadrupedPoses } from './poses.mjs';
 import { fbm, hash } from './ruido.mjs';
@@ -27,6 +27,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const OUT = path.join(root, 'assets', 'images', 'mundos');
 const PIECES = { ...PIECES_A, ...PIECES_B, dog: CITY };
 const STEP = 2; // grosor de cada capa de los objetos
+const REFLECTS = new Set(['lake', 'street']); // los suelos que reflejan las luces
 
 const rgb = (hex) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
 const mix = (a, b, k) => a.map((v, i) => v + (b[i] - v) * k);
@@ -78,8 +79,15 @@ const flat = (img, ax = Math.round(img.w / 2), ay = Math.round(img.h / 2)) => ({
 function prop(build, scenery, size, k, frames = 0) {
   const [w, h, depth, step] = frames ? [96, 72, 12, 1] : [136, 120, 22, STEP];
   const anchor = [w / 2, h - 20];
-  const sets = Array.from({ length: frames || 1 }, (_, f) => grade(build(f / (frames || 1)).scale(size).slices({ w, h, anchor, depth, step }), scenery, k));
-  return strip(sets, anchor, depth, step);
+  let lights = [];
+  const sets = Array.from({ length: frames || 1 }, (_, f) => {
+    const model = build(f / (frames || 1)).scale(size);
+    if (!f) lights = model.lights;
+    return glows(grade(model.slices({ w, h, anchor, depth, step }), scenery, k), model.lights, scenery, k, { anchor, depth, step });
+  });
+  // Lo que se refleja en el agua o en la calle mojada: sus luces más grandes
+  const mirror = lights.filter((l) => l.alpha > 0.28).sort((a, b) => b.r - a.r).slice(0, 6).map(({ x, y, r, color }) => [Math.round(x), Math.round(y), Math.max(1, Math.round(r * 0.3)), color]);
+  return { ...strip(sets, anchor, depth, step), ...(REFLECTS.has(scenery.floor.kind) && mirror.length ? { mirror } : {}) };
 }
 
 /** Una nube del cielo, con los rizos de las pinturas: base plana, bolas arriba y espirales. */
@@ -224,7 +232,8 @@ function pack(pieces) {
     }
     top += row.h + 1;
   }
-  return { out, map };
+  const mirrors = Object.fromEntries(Object.entries(pieces).filter(([, p]) => p.mirror).map(([name, p]) => [name, p.mirror]));
+  return { out, map, mirrors };
 }
 
 function bake(id) {
@@ -262,7 +271,7 @@ function bake(id) {
     for (const name of new Set(names)) pieces[`people${i}-${name}`] = prop(FOLK[name], scenery, sizeAt(s), view.k(s), v ? 6 : 4);
   });
   scenery.traffic?.forEach(({ s, names }, i) => {
-    for (const name of new Set(names)) pieces[`traffic${i}-${name}`] = prop(CITY[name], scenery, sizeAt(s), view.k(s));
+    for (const name of new Set(names)) pieces[`traffic${i}-${name}`] = prop(CITY[name] ?? PIECES[id][name], scenery, sizeAt(s), view.k(s));
   });
   // Los bancos de nubes de los mundos sin suelo: de lejos a cerca, cambian de color (banks: far y near)
   if (scenery.banks) {
@@ -291,16 +300,17 @@ async function main() {
   const art = only.length ? { ...(await import(pathToFileURL(file).href)).WORLD_ART } : {};
   let total = 0;
   for (const id of only.length ? only : Object.keys(SCENERY)) {
-    const { out, map } = bake(id);
+    const { out, map, mirrors } = bake(id);
     const data = encode(out);
     total += data.length;
     await writeFile(path.join(OUT, `${id}.png`), data);
-    art[id] = { src: `assets/images/mundos/${id}.png`, pieces: map };
+    art[id] = { src: `assets/images/mundos/${id}.png`, pieces: map, mirrors };
     console.log(`${id}: ${out.w}×${out.h}, ${Math.round(data.length / 1024)} KB, ${Object.keys(map).length} piezas`);
   }
-  const lines = Object.entries(art).map(([id, { src, pieces }]) => `  ${id}: {\n    src: '${src}',\n    pieces: {\n${Object.entries(pieces).map(([name, v]) => `      '${name}': [${v.join(', ')}],`).join('\n')}\n    },\n  },`);
+  const lines = Object.entries(art).map(([id, { src, pieces, mirrors = {} }]) => `  ${id}: {\n    src: '${src}',\n    pieces: {\n${Object.entries(pieces).map(([name, v]) => `      '${name}': [${v.join(', ')}],`).join('\n')}\n    },\n    mirrors: ${JSON.stringify(mirrors)},\n  },`);
   await writeFile(file, `// Lo escribe tools/sprites/mundos.mjs (npm run mundos): dónde está cada pieza en la hoja de su mundo.
 // [x, y, ancho, alto, ax, ay (dónde queda su punto), cuántas capas, z de la primera, grosor de cada una]
+// mirrors: las luces de cada pieza que se reflejan en el suelo: [x, altura, mitad del ancho, color]
 
 export const WORLD_ART = {
 ${lines.join('\n')}

@@ -21,8 +21,6 @@ import { WORLD_ART } from './worldArt.js';
 
 const P = CONFIG.pixel;
 const W = CONFIG.width / P;
-// El ojo enojado de la nube de tormenta (el otro, al revés)
-const GLARE = ['bb.....', 'bbbb...', 'byybbb.', 'byrybbb', '.byyyb.', '..bbb..'];
 const BUDGET = { calm: 2.5, urgent: 10 }; // milisegundos por cuadro para armar mundos: los que vienen y el de ahora
 const DISTANCE = 170; // a qué distancia está quien mira de los objetos: más chica, más giran sus capas
 const frac = (v) => v - Math.floor(v);
@@ -144,6 +142,7 @@ export class WorldPainter {
     this.eye = eye;
     this.ctx = ctx;
     this.art = WORLD_ART[id].pieces;
+    this.mirrors = WORLD_ART[id].mirrors ?? {};
     this.image = world.image;
 
     // El cielo (se arma a la medida de la vista) y el astro, que no se mueve: ni al volar ni de un mundo a otro
@@ -171,7 +170,7 @@ export class WorldPainter {
 
   /** Una distancia: lo que hay en ella, a todo lo ancho. */
   plane(layer, scenery, floating) {
-    const { s, every, tag, names, v = 0, salt, skip = 0, kind, row } = layer;
+    const { s, every, tag, names, v = 0, salt, skip = 0, kind, row, bob = 0 } = layer;
     const base = this.base(s);
     if (kind === 'mountain') {
       const variants = row === 2 ? 3 : 4;
@@ -199,10 +198,12 @@ export class WorldPainter {
       const name = `${tag}-${pick}`;
       const afloat = floating && pick !== 'carps';
       const lift = afloat ? (8 + hash(i, 3, salt) * 22) * s + Math.sin(this.t * 1.1 + i * 2.1) * 2 * s : 0;
+      const sway = bob ? Math.sin(this.t * 1.3 + i * 2.3) * bob : 0; // en el agua
       if (!floating) this.shadow(name, x, base, scenery.rock.ink);
+      this.reflect(name, x, base, v < 0, scenery.floor.kind === 'lake' ? 1 : 0.5);
       const frames = this.art[name]?.[9] ?? 1;
       const rate = tag.startsWith('people') ? (v ? 5 : 3.4) : 3;
-      this.stack(name, x, base - lift, 1 / DISTANCE, { frame: frames > 1 ? mod(Math.floor(this.t * rate + i * 1.7), frames) : 0, flip: v < 0 });
+      this.stack(name, x, base - lift + sway, 1 / DISTANCE, { frame: frames > 1 ? mod(Math.floor(this.t * rate + i * 1.7), frames) : 0, flip: v < 0 });
     });
   }
 
@@ -217,7 +218,7 @@ export class WorldPainter {
 
   /**
    * La nube de tormenta que no se debe tocar: va justo a la velocidad del juego y sus crestas están donde se choca.
-   * Un velo oscuro la separa de las de atrás; chisporrotea y mira feo, como las demás nubes de tormenta.
+   * Un velo oscuro la separa de las de atrás; chisporrotea, como las demás nubes de tormenta.
    */
   storm(canvas, scenery) {
     const { ctx, eye, t } = this;
@@ -232,17 +233,6 @@ export class WorldPainter {
     const left = -fine(mod(eye.x, canvas.width));
     for (let x = left; x < W; x += canvas.width) {
       ctx.drawImage(canvas, x, y);
-      // Los ojos: parpadean de vez en cuando
-      for (const [dx, beat] of [[52, 0], [150, 1.7], [214, 3.1]]) {
-        if (mod(t + beat, 3.4) < 0.14) continue;
-        for (const [eye, shift] of [[0, 0], [1, 9]]) {
-          GLARE.forEach((row, r) => [...row].forEach((pixel, c) => {
-            if (pixel === '.') return;
-            ctx.fillStyle = { b: '#1b1226', y: '#ffe88a', r: '#d8203c' }[pixel];
-            ctx.fillRect(x + dx + shift + (eye ? row.length - 1 - c : c), y + 10 + r, 1, 1);
-          }));
-        }
-      }
       // Chispas que corren por las crestas
       for (let j = 0; j < 3; j++) {
         const clock = t * 1.6 + j * 0.37;
@@ -340,6 +330,27 @@ export class WorldPainter {
     ctx.fillStyle = ink;
     ctx.fillRect(fine(x) - half, fine(y) - 1, half * 2 + 4, 2);
     ctx.fillRect(fine(x) - half + 4, fine(y) + 1, half * 2 + 4, 1);
+    ctx.globalAlpha = 1;
+  }
+
+  /**
+   * Sus luces, reflejadas en el agua o en la calle mojada: una estela que tiembla (wave), más clara donde cae el reflejo.
+   * Se queda en su distancia: lo que pasa más cerca la tapa, y nunca llega al camino.
+   */
+  reflect(name, x, base, flip, wave) {
+    const list = this.mirrors[name];
+    if (!list || x < -90 || x > W + 90) return;
+    const { ctx, t } = this;
+    const end = Math.min(this.eye.height, this.base(0.83));
+    for (const [dx, height, half, color] of list) {
+      const px = x + (flip ? -dx : dx);
+      ctx.fillStyle = color;
+      for (let y = Math.round(base) + 2; y < Math.min(end, base + height + 5); y += 2) {
+        const far = Math.abs(y - base - height) / (height + 6);
+        ctx.globalAlpha = 0.3 * (1 - far) * (0.75 + 0.25 * Math.sin(t * 3 + y));
+        ctx.fillRect(fine(px - half + Math.sin(t * 2.2 + y * 0.9 + dx) * wave * 1.4), y, half * 2, 1);
+      }
+    }
     ctx.globalAlpha = 1;
   }
 

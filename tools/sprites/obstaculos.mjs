@@ -164,7 +164,7 @@ function ironLamp(t) {
   return m;
 }
 
-/** Nube de tormenta con cara de trueno. pose: 0 y 1, quieta; 2, avisa su rayo. */
+/** Nube de tormenta. pose: 0 y 1, quieta; 2, avisa su rayo. */
 function storm(pose) {
   const m = make();
   const lit = pose === 2;
@@ -184,13 +184,6 @@ function storm(pose) {
       blend: 1.4,
     });
   });
-  // Los ojos, enojados, mirando hacia quien juega
-  for (const s of [-1, 1]) {
-    const x = -2.6 + s * 3.4;
-    m.ball([x, 0.2, 6.2], [2.3, 1.7, 1], { color: lit ? '#ffffff' : HOT, group: `eye${s}`, over: 2, flat: 4, blend: 0 });
-    m.ball([x - 0.9, -0.2, 7], [0.9, 1, 0.8], { color: lit ? RED : DARK, group: `pupil${s}`, over: 4, flat: lit ? 2 : 0, blend: 0 });
-    m.limb([x - s * 2.6, 0.4 + (s > 0 ? 0 : 0), 7.2], [x + s * 2.4, 2.6, 7.2], 0.8, 0.8, { color: low, group: `brow${s}`, over: 5, flat: 0, blend: 0 });
-  }
   return m;
 }
 

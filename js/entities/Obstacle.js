@@ -23,9 +23,10 @@ export class Obstacle {
   /**
    * kind: un tipo de KINDS; x: borde izquierdo. Para lo del aire: height ('low', 'mid', 'high' o
    * 'sky'), center: la altura de su centro sobre el suelo, motion, y limits: { low, high }, las
-   * alturas sobre el suelo entre las que debe quedarse (su fila).
+   * alturas sobre el suelo entre las que debe quedarse (su fila). period: cada cuánto cae su rayo, si
+   * es una nube de tormenta (level.lightning).
    */
-  constructor(kind, x, { height = null, center = 0, motion = 'bob', limits = null } = {}) {
+  constructor(kind, x, { height = null, center = 0, motion = 'bob', limits = null, period = CONFIG.obstacles.lightning.period } = {}) {
     const spec = KINDS[kind];
     this.kind = kind;
     this.height = spec.ground ? 'ground' : height;
@@ -73,11 +74,11 @@ export class Obstacle {
     // llega un salto normal: limits.low - 10)
     this.lightning = null;
     if (kind === 'cloud') {
-      const { length, period, warn, strike } = CONFIG.obstacles.lightning;
+      const { length, warn, strike } = CONFIG.obstacles.lightning;
       const floor = limits ? limits.low - BOLT_CLEARANCE : 0;
       const reach = Math.min(length, bottom - this.bob - floor);
       // Empieza en algún momento de la pausa: así ningún rayo cae sin su aviso
-      if (reach >= 18) this.lightning = { length: reach, clock: Math.random() * (period - warn - strike) };
+      if (reach >= 18) this.lightning = { length: reach, period, clock: Math.random() * (period - warn - strike) };
     }
     this.struck = false; // el rayo empezó en este paso
   }
@@ -118,7 +119,7 @@ export class Obstacle {
     this.y = this.baseY + this.offset + Math.sin(this.t * 6) * this.bob;
     if (this.lightning) {
       const wasStriking = this.striking;
-      this.lightning.clock = (this.lightning.clock + dt) % CONFIG.obstacles.lightning.period;
+      this.lightning.clock = (this.lightning.clock + dt) % this.lightning.period;
       this.struck = this.striking && !wasStriking;
     }
   }
@@ -126,16 +127,15 @@ export class Obstacle {
   /** La nube parpadea: viene un rayo. */
   get warning() {
     if (!this.lightning) return false;
-    const { period, warn, strike } = CONFIG.obstacles.lightning;
-    const clock = this.lightning.clock;
+    const { warn, strike } = CONFIG.obstacles.lightning;
+    const { period, clock } = this.lightning;
     return clock >= period - strike - warn && clock < period - strike;
   }
 
   /** El rayo está cayendo (y golpea). */
   get striking() {
     if (!this.lightning) return false;
-    const { period, strike } = CONFIG.obstacles.lightning;
-    return this.lightning.clock >= period - strike;
+    return this.lightning.clock >= this.lightning.period - CONFIG.obstacles.lightning.strike;
   }
 
   /** La caja del rayo en zigzag, de la nube hacia abajo (lo ancho del zigzag). */

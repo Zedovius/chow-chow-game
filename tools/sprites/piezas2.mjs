@@ -3,7 +3,7 @@
 
 import { lerp, TAU } from './modelo3d.mjs';
 import { hash } from './ruido.mjs';
-import { C, coin, flame, foliage, islet, lantern, make, pine, pole, post, roof, stripe } from './piezas.mjs';
+import { C, coin, flame, foliage, islet, lantern, lit, make, pine, pole, post, roof, stripe } from './piezas.mjs';
 
 const { RED, DEEP, GOLD, BRONZE, WOOD, DARK, STONE, PAPER } = C;
 
@@ -104,6 +104,8 @@ const goat = {
     m.drum([0, 13], 11.4, 2.4, 3.4, { color: stripe('#e4decb', '#bdb7a4', 1.3), group: 'r', flatten: 0.8 });
     m.drum([0, 17.4], 2.6, 2, 1, { color: RED, group: 't' });
     m.box([0, 4.4, 8], [2.6, 4.4, 0.8], { color: (l) => (Math.abs(l[0]) > 1.8 ? GOLD : '#2f5a8a'), group: 'd', over: 1 });
+    for (const x of [-5.8, 5.8]) lit(m, [x, 5.6, 6.6], 1.4, 1.6, { frame: RED, deep: 1.2 });
+    m.light([0, 18.6, 1], 6, '#ffc46a', 0.34); // el fuego de adentro, que asoma por el techo
     return m;
   },
   wheat() {

@@ -5,10 +5,11 @@
 // Los colores son provisionales; el arte irá después.
 
 import { CONFIG } from '../config.js';
-import { groundLane, skyLane } from './obstacles.js';
+import { groundLane, KINDS, skyLane } from './obstacles.js';
 
 // Las reglas de cada dificultad:
-//   boost            px/s de más en todos los niveles (miden otro tanto más: duran lo mismo)
+//   boost, speed     px/s de más en todos los niveles y, con eso, × su velocidad (miden otro tanto más: duran lo
+//                    mismo)
 //   ramp             cuánto más rápido va al final de cada nivel que al empezarlo
 //   density          × cuántos obstáculos salen por segundo (las dos filas)
 //   sky              el cielo: × su ritmo (density) y obstáculos de más en cada oleada (extraPerWave)
@@ -24,6 +25,7 @@ import { groundLane, skyLane } from './obstacles.js';
 export const DIFFICULTIES = {
   easy: {
     boost: 0,
+    speed: 1.05,
     ramp: 0.12,
     density: 1,
     sky: { density: 1, extraPerWave: 0 },
@@ -41,6 +43,7 @@ export const DIFFICULTIES = {
   },
   hard: {
     boost: 70,
+    speed: 1.15,
     ramp: 0.17,
     density: 1.1,
     sky: { density: 1.25, extraPerWave: 1 },
@@ -116,6 +119,16 @@ export function worldOrder(sign = 'pig') {
 }
 
 /**
+ * Cada cuánto cae el rayo de una nube de tormenta: en los niveles más rápidos, más seguido, para que su patrón
+ * (dos veces el aviso y el rayo) siempre se alcance a leer mientras cruza la pantalla. fastest: lo más rápido del nivel.
+ */
+function lightningPeriod(fastest) {
+  const { lightning, altitudeSpeed } = CONFIG.obstacles;
+  const crossing = (CONFIG.width + KINDS.cloud.w - CONFIG.player.x) / (fastest + altitudeSpeed * 4);
+  return Math.min(lightning.period, crossing / 2.05);
+}
+
+/**
  * Los 11 mundos de una dificultad ('easy' | 'hard') para quien juega con el animal sign. Lo que
  * se aprieta (velocidad, obstáculos nuevos) depende del lugar del nivel, no del animal: el primer
  * mundo siempre es el más tranquilo.
@@ -125,7 +138,7 @@ export function levelsFor(difficulty = 'easy', sign = 'pig') {
   return worldOrder(sign).map((world, index) => {
     const ground = !world.noGround;
     const pace = CONFIG.speed.start + CONFIG.speed.perLevel * index;
-    const speed = pace + rules.boost;
+    const speed = (pace + rules.boost) * rules.speed;
     return {
       index,
       id: world.id,
@@ -135,6 +148,7 @@ export function levelsFor(difficulty = 'easy', sign = 'pig') {
       length: Math.round((CONFIG.levelLength * speed) / pace),
       speed,
       ramp: rules.ramp,
+      lightning: lightningPeriod(speed * (1 + rules.ramp)),
       density: rules.density,
       pickups: { cocktail: rules.cocktailEvery, food: rules.foodEvery },
       lanes: { ground: ground ? groundLane(index, rules) : null, sky: skyLane(index, { ground, rules }) },
@@ -159,7 +173,7 @@ export function bossLevel(difficulty = 'easy', sign = 'pig') {
     ground: !rival.noGround, // contra el Dragón o el Gallo, en su cielo: sin suelo, como su mundo
     colors: rival,
     length: Infinity,
-    speed: CONFIG.boss.speed + rules.boost,
+    speed: (CONFIG.boss.speed + rules.boost) * rules.speed,
     ramp: 0,
     density: rules.density,
     pickups: { ...CONFIG.boss.pickups[difficulty] },

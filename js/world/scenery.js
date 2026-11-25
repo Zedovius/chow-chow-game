@@ -11,7 +11,7 @@
 //              fauna.mjs): land (los grandes, al fondo), back, mid y near (justo detrás del camino)
 //   people     la gente (tools/sprites/gente.mjs), por capas: a qué distancia (s), cada cuántos pixeles sale
 //              alguien (every), cuánto camina (v: pixeles por segundo; negativo, hacia la izquierda) y quiénes
-//   traffic    los autos, igual (tools/sprites/ciudad.mjs)
+//   traffic    los autos (tools/sprites/ciudad.mjs) y las trajineras (piezas.mjs), igual; bob: cuánto se mecen en el agua
 //   gradient   el color a lo lejos (graphics/aerial.js): air, el del horizonte; dusk, el de las sombras; ranges, los de cada cordillera, de
 //              la cima a la base, como en el paisaje azul y verde chino; haze y mist, cuánto aire y cuánta bruma
 //              (los colores se escriben claros: al dibujarlos, su valor se baja para que el fondo quede atrás)
@@ -136,6 +136,7 @@ export const SCENERY = {
     astro: { kind: 'sun', color: '#f6ffc8', shade: '#c0d878' },
     floor: { kind: 'lake', base: '#1f6a5c', light: '#7cc87a', dark: '#0f3c40', accent: '#ff8ab8' }, lane: '#a0703c',
     people: folk(['remero'], -3, ['sombrilla'], 4),
+    traffic: [{ s: 0.69, every: 310, v: 5, bob: 0.9, names: ['lupita', 'sofia', 'maria'] }],
     props: { land: ['pagoda', 'bridge'], back: ['willow', 'pagoda', 'bridge'], mid: ['boat', 'willow', 'lotus'], near: ['lotus', 'snakes', 'boat'] },
     air: { kind: 'rain', colors: ['#d8f0d0', '#a9d0b0'], n: 34 },
   },
@@ -243,7 +244,7 @@ export const SCENERY = {
       { s: 0.53, every: 190, v: -30, names: ['micro', 'vocho', 'pickup'] },
       { s: 0.6, every: 230, v: 22, names: ['sedan', 'combi', 'vocho'] },
     ],
-    props: { land: ['bar', 'vecindad', 'herbolaria', 'arco', 'maquinitas'], back: ['tacos', 'phone', 'tortas', 'hedge'], mid: [], near: ['lamp', 'esquites', 'dogs', 'picado', 'arcade'] },
+    props: { land: ['bar', 'vecindad', 'herbolaria', 'arco', 'maquinitas'], back: ['tacos', 'phone', 'tortas', 'hedge'], mid: [], near: ['lamp', 'foquitos', 'esquites', 'lamp', 'dogs', 'picado', 'arcade'] },
     air: { kind: 'firefly', colors: ['#ff9ac0', '#8fe6ee', '#ffe0a0'], n: 10 },
   },
   // La víspera de año nuevo: fuegos artificiales, lingotes, cohetes y el árbol del dinero
