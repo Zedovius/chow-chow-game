@@ -3,8 +3,8 @@
 // falta o no se puede leer, tampoco: el juego sigue igual. Sirve cualquier formato que el
 // navegador sepa leer (.ogg, .mp3, .m4a, .wav).
 //
-// Los efectos los crea tools/sonidos.mjs (npm run sonidos). Para cambiar uno por otro archivo, escribe
-// su ruta aquí. Una lista son versiones del mismo efecto: se alternan al azar, o se elige cuál (ver
+// Los efectos los crea tools/sonidos.mjs (npm run sonidos) y la música, tools/musica.mjs (npm run
+// musica). Para cambiar un efecto por otro archivo, escribe su ruta aquí. Una lista son versiones del mismo efecto: se alternan al azar, o se elige cuál (ver
 // connectAudio en Audio.js). Lo que no está aquí no suena, a propósito.
 //
 // tools/publicar.mjs copia assets/audio/ y el service worker lo guarda para jugar sin internet.
@@ -25,25 +25,32 @@ export const VOICES = {
   ox: 2, dragon: 2, horse: 2, pig: 2,
 };
 
+const song = (name, seconds) => ({ url: `assets/audio/music/${name}.m4a`, seconds });
+
+/**
+ * Una banda sonora: cinco canciones de menor a mayor intensidad. El menú, tres que duran varios mundos seguidos
+ * (worlds: cuál suena en cada uno de los 11, por su lugar en el viaje) y la pelea contra el rival; al ganar, con el
+ * trago, una variación de la del menú. seconds: lo que dura la vuelta de cada una.
+ */
+function soundtrack(name, [first, middle, last]) {
+  const [a, b, c] = [first, middle, last].map((part) => song(`${name}-${part}`, 72));
+  return {
+    title: song(`${name}-menu`, 72),
+    worlds: [a, a, a, a, b, b, b, b, c, c, c],
+    boss: song(`${name}-rival`, 72),
+    ending: song(`${name}-brindis`, 48),
+  };
+}
+
 export const SOUNDS = {
-  // Música: una pista para la pantalla de inicio, una por animal (por su id en world/levels.js) y
-  // una para el final. Cambian con un fundido; si un nivel no tiene, sigue la que estaba sonando.
+  // Música: dos bandas sonoras. La segunda suena en una de cada every partidas. Todas las canciones van al
+  // mismo tempo, y una nueva entra en el siguiente compás de la que suena (bar: segundos del compás).
+  // Cada archivo trae start segundos antes y después de su vuelta, para repetirse sin corte.
   music: {
-    title: null, // p. ej. 'assets/audio/music/title.ogg'
-    rat: null,
-    ox: null,
-    tiger: null,
-    rabbit: null,
-    dragon: null,
-    snake: null,
-    horse: null,
-    goat: null,
-    monkey: null,
-    rooster: null,
-    dog: null,
-    pig: null,
-    boss: null, // la pelea contra el rival (nivel 12)
-    ending: null,
+    soundtracks: [soundtrack('rojo', ['farol', 'mercado', 'umbral']), soundtrack('jade', ['lluvia', 'espejos', 'cinabrio'])],
+    every: 3,
+    bar: 2,
+    start: 0.25,
   },
 
   // Efectos: cuál suena con cada aviso del juego se decide en connectAudio (Audio.js)
@@ -84,5 +91,5 @@ export const SOUNDS = {
 
   // Volumen de 0 a 1
   volume: { master: 1, music: 0.6, sfx: 0.8 },
-  fadeSeconds: 1.2, // fundido al cambiar de pista
+  fadeSeconds: 1.2, // fundido al detener la música
 };

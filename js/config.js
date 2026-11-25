@@ -263,6 +263,13 @@ export const CONFIG = {
 
   startLevel: Number.isFinite(requestedLevel) ? Math.min(12, Math.max(1, requestedLevel)) - 1 : 0,
 
+  // La pantalla del trago, al final (ui/drinkScreen.js): cuánto espera antes de seguir sola, cuánto tarda en
+  // hacer caso al botón y en cuánto da una vuelta el vaso. En segundos
+  drinkScreen: { seconds: 60, guard: 1, turn: 6.4 },
+
+  // Solo para probar (localhost): ?trago=dragon abre esa pantalla
+  showDrink: params.get('trago'),
+
   // Probando a un jefe (?jefe=...) o a un animal (?animal=...), o null
   test: params.get('jefe') || params.get('animal') ? {
     boss: params.get('jefe'),

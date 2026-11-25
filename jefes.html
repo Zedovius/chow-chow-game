@@ -45,6 +45,8 @@
     <ul id="animals"><li>Abre esta página desde un servidor local, como el juego.</li></ul>
     <h2>Pelear contra un jefe</h2>
     <ul id="list"></ul>
+    <h2>Ver su trago</h2>
+    <ul id="drinks"></ul>
   </main>
   <script type="module">
     import { ZODIAC, rivalOf } from './js/world/levels.js';
@@ -114,6 +116,7 @@
         return card({ jefe: sign.id }, icon, `Jefe ${nameOf(sign.id)}`, [who], Boolean(art));
       }));
     }
+    document.getElementById('drinks').replaceChildren(...ZODIAC.map((sign) => card({ trago: sign.id }, face(sign.id, 'face'), nameOf(sign.id), [])));
     options.addEventListener('change', render);
     render();
   </script>

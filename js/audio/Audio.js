@@ -5,13 +5,17 @@
 //     el audio se desbloquea con ese primer gesto (unlock). Antes, lo que se pida se recuerda (la
 //     música que toca) y empieza al desbloquearse.
 //   · Los archivos se bajan una vez y se guardan decodificados. Si uno falta o está dañado, se
-//     anota en la consola una sola vez y no suena; nada más cambia.
+//     anota en la consola y no suena; nada más cambia. De la música (una pista ocupa de 12 a 25 MB
+//     decodificada) solo se guardan la que suena y la que sigue.
+//   · Hay dos bandas sonoras; la segunda suena en una de cada tres partidas (cuántas se han jugado se
+//     guarda en chowchow.partidas). Una pista nueva entra en el siguiente compás de la que suena.
 //   · En pausa la música baja a cero; con la pestaña oculta se detiene todo.
 //   · El silencio (tecla M) se guarda en localStorage (chowchow.sonido).
 
 import { SOUNDS, VOICES } from './sounds.js';
 
 const MUTE_KEY = 'chowchow.sonido';
+const GAMES_KEY = 'chowchow.partidas';
 const LATE = 300; // ms: un efecto que no pudo sonar antes (aún se bajaba, o el audio no arrancaba) ya no suena
 const MIN_GAP = 45; // ms: el mismo efecto no se encima consigo mismo (tres cosas quemadas a la vez)
 
@@ -31,6 +35,22 @@ function saveMuted(muted) {
   }
 }
 
+function loadGames() {
+  try {
+    return Math.max(0, Math.floor(Number(localStorage.getItem(GAMES_KEY)))) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveGames(games) {
+  try {
+    localStorage.setItem(GAMES_KEY, String(games));
+  } catch {
+    // Sin almacenamiento, la cuenta dura solo esta visita
+  }
+}
+
 export class AudioManager {
   constructor(sounds = SOUNDS) {
     this.sounds = sounds;
@@ -38,8 +58,12 @@ export class AudioManager {
     this.buffers = new Map(); // url → Promise<AudioBuffer | null>
     this.muted = loadMuted();
     this.quiet = false; // pausa: la música baja a cero (los efectos del menú sí suenan)
-    this.wanted = null; // la pista que debería sonar (su clave en sounds.music)
-    this.track = null; // { key, source, gain }
+    this.games = loadGames(); // partidas jugadas: deciden la banda sonora
+    this.soundtrack = 0;
+    this.songs = new Set(sounds.music.soundtracks.flatMap((s) => [s.title, ...s.worlds, s.boss, s.ending]).map(({ url }) => url));
+    this.wanted = null; // la pista que debería sonar: { url, seconds }
+    this.upcoming = null; // la que sigue, para tenerla lista
+    this.track = null; // la que suena: { song, source, gain, startedAt }
     this.last = new Map(); // efecto → { at, index }: cuándo sonó y qué versión
     this.held = new Map(); // efecto → { source, gain } que suena mientras dura algo (hold)
     this.Context = globalThis.AudioContext ?? globalThis.webkitAudioContext;
@@ -53,6 +77,11 @@ export class AudioManager {
 
   get available() {
     return Boolean(this.Context);
+  }
+
+  /** Cuántos mundos tienen pista. */
+  get worlds() {
+    return this.sounds.music.soundtracks[0].worlds.length;
   }
 
   /** Crea o reanuda el contexto. Solo funciona dentro de un gesto de la persona (o después de uno). */
@@ -109,10 +138,10 @@ export class AudioManager {
     return this.buffers.get(url);
   }
 
-  /** Baja de antemano todo lo que está en sounds.js (tras el desbloqueo), para que no haya esperas. */
+  /** Baja de antemano todos los efectos (tras el desbloqueo), para que no haya esperas. */
   preload() {
     if (!this.ctx) return;
-    for (const url of [...Object.values(this.sounds.sfx), ...Object.values(this.sounds.music)].flat()) this.load(url);
+    for (const url of Object.values(this.sounds.sfx).flat()) this.load(url);
   }
 
   /**
@@ -188,40 +217,81 @@ export class AudioManager {
     slot.source.stop(now + 0.08);
   }
 
-  /**
-   * La música de key (su clave en sounds.music: 'title', el id de un animal o 'ending'). Si esa
-   * clave no tiene archivo, sigue la pista que ya sonaba.
-   */
-  music(key) {
-    if (!this.sounds.music[key]) return;
-    if (this.wanted === key) return;
-    this.wanted = key;
-    if (this.ctx) this.startTrack(key);
+  /** La banda sonora de la siguiente partida. started: esa partida ya empezó, y cuenta. */
+  chooseSoundtrack(started = false) {
+    const { soundtracks, every } = this.sounds.music;
+    this.soundtrack = this.games % every === every - 1 ? soundtracks.length - 1 : 0;
+    if (started) saveGames(++this.games);
   }
 
-  async startTrack(key) {
-    const buffer = await this.load(this.sounds.music[key]);
-    if (!buffer || this.wanted !== key || this.track?.key === key) return;
+  /** La pista de key en la banda sonora de ahora: 'title', el lugar de un mundo (desde 0), 'boss' o 'ending'. */
+  song(key) {
+    const tracks = this.sounds.music.soundtracks[this.soundtrack];
+    return (typeof key === 'number' ? tracks.worlds[key] : tracks[key]) ?? null;
+  }
+
+  /** La música de key (ver song). next: la que probablemente sigue, para tenerla lista. */
+  music(key, next = null) {
+    const song = this.song(key);
+    if (!song) return;
+    const same = this.wanted === song;
+    this.wanted = song;
+    this.upcoming = next === null ? null : this.song(next);
+    if (!this.ctx) return;
+    this.tidySongs();
+    if (!same) this.startTrack(song);
+    else this.prepareNext();
+  }
+
+  /** Olvida las pistas que no suenan ni siguen: decodificadas ocupan mucha memoria. */
+  tidySongs() {
+    const keep = [this.wanted, this.upcoming, this.track?.song].map((s) => s?.url);
+    for (const url of this.songs) if (!keep.includes(url)) this.buffers.delete(url);
+  }
+
+  prepareNext() {
+    if (this.upcoming) this.load(this.upcoming.url);
+  }
+
+  /** Cuándo entra una pista: al empezar el siguiente compás de la que suena (o ya, si no hay). */
+  nextBar(now) {
+    if (!this.track) return now;
+    const { startedAt } = this.track;
+    const { bar } = this.sounds.music;
+    return now <= startedAt ? startedAt : startedAt + Math.ceil((now - startedAt + 0.06) / bar) * bar;
+  }
+
+  async startTrack(song) {
+    const buffer = await this.load(song.url);
+    if (this.wanted !== song) return;
+    this.prepareNext(); // cuando ya está la que suena, la que sigue
+    if (!buffer || this.track?.song === song) return;
     const { ctx } = this;
-    const fade = this.sounds.fadeSeconds;
     const now = ctx.currentTime;
+    const at = this.nextBar(now);
     const old = this.track;
-    if (old) {
-      old.gain.gain.cancelScheduledValues(now);
-      old.gain.gain.setValueAtTime(old.gain.gain.value, now);
-      old.gain.gain.linearRampToValueAtTime(0, now + fade);
-      old.source.stop(now + fade + 0.05);
-    }
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(1, now + fade);
+    if (old) {
+      // Se apaga mientras la otra entra en el tiempo fuerte
+      const level = old.gain.gain;
+      level.cancelScheduledValues(now);
+      level.setValueAtTime(old.startedAt > now ? 0 : level.value, now);
+      level.setTargetAtTime(0, Math.max(now, at - 0.03), 0.09);
+      old.source.stop(at + 0.8);
+      gain.gain.setValueAtTime(0, at - 0.005);
+      gain.gain.linearRampToValueAtTime(1, at);
+    } else gain.gain.linearRampToValueAtTime(1, now + 0.5);
     gain.connect(this.musicBus);
     const source = ctx.createBufferSource();
+    const { start } = this.sounds.music;
     source.buffer = buffer;
     source.loop = true;
+    source.loopStart = start;
+    source.loopEnd = start + song.seconds;
     source.connect(gain);
-    source.start(now);
-    this.track = { key, source, gain };
+    source.start(at, start);
+    this.track = { song, source, gain, startedAt: at };
   }
 
   /** Detiene la música con un fundido. La siguiente llamada a music() la vuelve a empezar. */
@@ -305,19 +375,21 @@ export function connectAudio(audio, events) {
   events.on('pause', () => audio.sfx('pause'));
   events.on('gameOver', () => audio.sfx('gameOver'));
 
-  // La música
+  // La música: cada partida, con una de las dos bandas sonoras; los mundos que comparten canción la siguen oyendo
   events.on('title', () => {
     audio.setQuiet(false);
-    audio.music('title');
+    audio.chooseSoundtrack();
+    audio.music('title', 0);
   });
-  events.on('levelStart', ({ id }) => {
+  events.on('start', () => audio.chooseSoundtrack(true));
+  events.on('levelStart', ({ index, boss }) => {
     audio.setQuiet(false);
-    audio.music(id);
+    if (boss) audio.music('boss', 'ending');
+    else audio.music(index, index + 1 < audio.worlds ? index + 1 : 'boss');
   });
   events.on('pause', () => audio.setQuiet(true));
   events.on('resume', () => audio.setQuiet(false));
   events.on('gameOver', () => audio.stopMusic());
-  events.on('bossStart', () => audio.music('boss'));
   events.on('ending', () => audio.music('ending'));
   events.on('toggleMute', () => audio.toggleMute());
 }

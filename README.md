@@ -13,7 +13,7 @@ compilación. Nació como fork de la base de *Chispas*.
 > **Estado:** base del juego. La física, la lógica, los menús y HI RECORDS están completos y
 > probados. El dragón, los obstáculos, los escenarios, los botones táctiles y los colores son
 > **provisionales** (figuras simples en `js/graphics/Scene.js`, colores en `js/world/levels.js` y
-> estilos simples en `css/styles.css`), y todavía no hay música. Todo está
+> estilos simples en `css/styles.css`). Todo está
 > listo para recibirlos: ver [Arte](#arte) y [Sonido](#sonido).
 
 ## Jugar en local
@@ -69,12 +69,9 @@ control cuentan como actividad).
   gira y se detiene en el animal que le toca (▶ o FIRE mientras gira la detienen de una vez);
   «< Volver» regresa a la fecha, que conserva lo elegido, por si se equivocó. Junto a la rueda sale su tarjeta: el animal, su símbolo (el carácter tradicional, como
   龍), su nombre en chino simplificado con su pinyin (龙 · lóng), su nombre en el idioma del juego y
-  sus cuatro virtudes (`virtues.<animal>` en `js/i18n/`), sus tres defectos (`flaws.<animal>`), su cóctel (`js/world/cocktails.js`: nombre
-  y sus tres ingredientes, un fermento, uno mexicano y uno chino; **por ahora son ejemplos** y el juego
-  los marca con «Ejemplo» mientras `SAMPLE` sea `true`), y abajo su rival (el de enfrente en la
-  rueda, 六冲, contra quien pelea en el nivel 12, el último) con el porqué del choque (`rivalry.<animal>`, lo
-  suyo contra lo del rival); en la rueda, una línea punteada une a los dos. Los caracteres chinos usan una fuente china
-  del sistema (la fuente pixel no los tiene). Con ese animal se juega. La fecha no se guarda: en una
+  sus cuatro virtudes (`virtues.<animal>` en `js/i18n/`), sus tres defectos (`flaws.<animal>`), su trago de la carta con sus cualidades
+  (`js/world/cocktails.js`), y su rival (el de enfrente en la rueda, 六沖, contra quien pelea en el nivel 12, el
+  último) con el porqué del choque (`rivalry.<animal>`). Con ese animal se juega. La fecha no se guarda: en una
   máquina de bar juega gente distinta.
 - **El orden de los mundos** (`worldOrder` en `js/world/levels.js`): son 11, los de todos los animales
   menos tu rival (su mundo se guarda para el final). Empieza en el animal que sigue al tuyo y el
@@ -150,10 +147,13 @@ control cuentan como actividad).
   `Scene.drawJadeFireball`): los disparos normales se ven más grandes y con estela pero hacen el mismo
   daño (y su caja de choque es la misma); el especial es distinto (cruz de luz y aro) y quita 4 en vez
   de 3.
-- **Tu trago, al final** (`js/ui/drink.js`): al escribir el nombre en HI RECORDS sale el trago del
-  signo con su icono (`IMAGES.drink`, el vaso genérico, o `icon` de cada uno en `js/world/cocktails.js`),
-  su nombre (con «Ejemplo» mientras sea provisional) y sus ingredientes. Si no entró a la tabla, sale
-  en el diálogo final.
+- **Tu trago, al final** (`js/ui/drinkScreen.js`): al vencer al rival, antes del nombre para HI RECORDS, el trago de la
+  carta que le toca a su signo, solo, sobre negro: su vaso dando vueltas, su nombre, qué lleva y sus tres cualidades
+  (`js/ui/taste.js`). Sigue con el botón o sola, al minuto; el primer segundo no hace caso, para que no se la salte
+  quien viene disparando (`CONFIG.drinkScreen`). Los datos están en `js/world/cocktails.js` (y sus textos, `drinks.*` y
+  `taste.*`, en `js/i18n/`). Los 12 vasos son capas apiladas (sprite stacking), horneadas con `npm run tragos`
+  (`tools/sprites/tragos.mjs`, con la forma y el color de las fotos). Luego, junto al nombre, sale en chico
+  (`js/ui/drink.js`). Para verla: `?trago=dragon` (solo en localhost), o desde `jefes.html`.
 - **Bolas de fuego**, del color de cada animal: queman todo menos los muros y las nubes de tormenta
   (`burnable` en `js/world/obstacles.js`). Se empieza con 3. Casi todos los cócteles salen arriba
   (solo el 15% a la altura de un salto): para recargar hay que volar, así no basta con quemar todo
@@ -334,15 +334,28 @@ lo que un mundo no tenga) y uno por mundo, hecho con sus propios objetos (`obsta
 contorno oscuro. Los bordes claros y los destellos son solo de lo que se recoge. Pueden sobresalir un poco de su
 caja de choque, que es la de siempre (`js/world/obstacles.js`).
 
+### Menús
+
+Negro, gris oscuro, blanco (no del todo) y rojo: los colores `--m-*` de `css/styles.css`; el marcador del juego tiene
+los suyos. Detrás del menú el mundo se ve sin color. El botón con el foco va en rojo entero. La rueda del zodiaco
+es un disco rojo con los logos de los 12 animales, los del bar: `assets/images/logos/` (SVG de un color, calcados de
+las fotos de `assets/images/info-logo-tragos/`, que no se publican); el color se lo da el CSS (clase `brush`).
+Los caracteres chinos usan Yuji Boku (tradicionales) y Ma Shan Zheng (simplificados), recortadas a los que
+se usan: para agregar otro carácter hay que volver a recortarlas. El gallo va como 鷄, la otra forma tradicional de 雞,
+que es la que trae la fuente.
+
 ## Sonido
 
-Los efectos ya están (`assets/audio/sfx/`); falta la música. `js/audio/Audio.js` (Web Audio) está
-conectado a los avisos del juego, y `js/audio/sounds.js` dice qué archivo suena con cada uno:
+`js/audio/Audio.js` (Web Audio) está conectado a los avisos del juego, y `js/audio/sounds.js` dice qué
+archivo suena con cada uno:
 
-- **Música:** una pista para el inicio, una por animal, una para el jefe y una para el final. Coloca
-  los archivos en `assets/audio/` y escribe sus rutas en `sounds.js`. Cambian con un fundido, y si
-  un nivel no tiene pista, sigue la que sonaba. El aviso `section` dice en qué tramo va el nivel,
-  por si la música quiere cambiar en el último tramo (`rush`).
+- **Música** (`assets/audio/music/`): dos bandas sonoras de cinco canciones, «Rojo» y «Jade», de menor a mayor
+  intensidad: el menú; una para los mundos 1 a 4, otra para el 5 al 8 y otra para el 9 al 11 (los mundos que comparten
+  canción la siguen oyendo, sin cortes); y la pelea contra el rival. Al ganar, con el trago, suena una variación de la
+  del menú. «Jade» suena en una de cada tres partidas (se cuentan en `chowchow.partidas`; el menú ya suena con la de
+  la partida que sigue). Todas van a 120 BPM y una canción nueva entra en el siguiente compás de la que suena. Solo
+  se bajan y se guardan en memoria la que suena y la que sigue. El aviso `section` dice en qué tramo va el nivel, por
+  si la música quiere cambiar en el último (`rush`). Ver [La música](#la-música).
 - **Efectos:** con carácter de maquinita de 32 bits (capas, FM, ruido filtrado, estéreo y
   reverberación). Sol menor pentatónica (G B♭ C D F) es la guía para que no choquen con la música, pero
   no son melodías. Los de los menús no pasan de C5, para que no suenen agudos. Suenan saltar y
@@ -358,6 +371,30 @@ Lo que no tenga archivo, o no cargue, no suena y el juego sigue igual. Los naveg
 sonar nada hasta el primer toque, clic o tecla: el audio se activa solo en ese momento. En pausa la
 música baja a cero, y con la pestaña oculta no suena nada. M silencia, y se recuerda en
 `chowchow.sonido`. Qué suena con cada aviso se cambia en `connectAudio`, al final de `Audio.js`.
+
+### La música
+
+La crea `tools/musica.mjs` con `npm run musica` (tarda varios minutos; `npm run musica -- rojo-farol` hace solo
+esa). También deja `docs/musica.html`, para oírla, y `docs/recorrido-rojo.m4a` y `docs/recorrido-jade.m4a`: cada banda
+sonora como se oye al jugar.
+
+- **Los samples** (`assets/audio/samples/`, que no se publican) son la base de «Rojo»: `chow-intro` en el menú y, sin
+  golpes, en la pantalla del trago; `chow-medio-1` en los mundos 5 a 8; `chow-intro-hard` en la pelea. La mesa los
+  coloca por compases (`sample` en `mezcla.mjs`; `SAMPLES` dice en qué segundo empieza el primero) y alrededor van
+  los instrumentos. «Jade» no los usa, pero su pelea sigue el estilo de `chow-intro-hard`.
+- **El estilo:** electrónica oscura de los ochenta con raíz china. Bajos de secuenciador secos y saturados, pocos
+  elementos, golpes de metal, coros, y tambores que cuentan 3, 5 o 7 contra 4 (`poly` en `rojo.mjs`); el canto, de
+  guzheng, erhu, pipa, dizi, suona y campanas. Cada canción son tres vueltas de 12 compases: casi sola, completa, y
+  una parte que respira y vuelve a subir.
+- `tools/musica/partitura.mjs`: la escala (sol menor pentatónica), el tema de los samples, cómo se escribe una melodía
+  y el **contrapunto** (`canon`, `counter`, `mirror`, `stretch`...). Todo se mueve por lugares de la escala, así que
+  ninguna nota sale de ella y cada canción puede estar afinada en otro de sus grados.
+- `tools/musica/rojo.mjs` y `jade.mjs`: las canciones. `tradicionales.mjs`, `percusion.mjs` y `sintetizadores.mjs`:
+  los instrumentos.
+- `tools/musica/mezcla.mjs`: la mesa. El volumen de cada voz se mide y se lleva al que le toca, el bombo agacha a los
+  demás, y el color final se acerca al de los samples. Cada canción es una vuelta sin corte: lo que sobra al final
+  sigue al principio, y el archivo trae un cuarto de segundo de más a cada lado.
+- `tools/musica/codificar.ps1` convierte a M4A con el codificador de Windows.
 
 En una máquina de bar que solo usa el control, Chrome no cuenta sus botones como primer toque: ábrelo con
 `--autoplay-policy=no-user-gesture-required` para que suene desde el principio.

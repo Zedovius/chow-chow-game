@@ -1,9 +1,8 @@
-// El trago del signo de quien juega, para el final del viaje: su icono, «Tu trago», su nombre (con
-// «Ejemplo» mientras sea provisional, ver world/cocktails.js) y sus tres ingredientes. Sale al
-// escribir el nombre en HI RECORDS (ui/NameEntry.js) o, si no entró a la tabla, en el diálogo final.
+// El trago del signo de quien juega, en chico: su vaso, «Tu trago», su nombre y qué lleva. Sale al escribir el
+// nombre en HI RECORDS (ui/NameEntry.js), después de verlo en grande (ui/drinkScreen.js).
 
-import { cocktailOf, SAMPLE } from '../world/cocktails.js';
-import { IMAGES } from '../graphics/assets.js';
+import { cocktailOf } from '../world/cocktails.js';
+import { glassSheet, SHEET } from '../graphics/glassArt.js';
 import { t } from '../i18n/i18n.js';
 
 function element(tag, className, text = '') {
@@ -17,22 +16,19 @@ function element(tag, className, text = '') {
 export function drinkNode(sign) {
   const drink = cocktailOf(sign);
   if (!drink) return null;
-  const parts = { ferment: t(`ingredient.${drink.ferment}`), mexican: t(`ingredient.${drink.mexican}`), chinese: t(`ingredient.${drink.chinese}`) };
   const box = element('div', 'drink');
   box.setAttribute('role', 'img');
-  box.setAttribute('aria-label', t(SAMPLE ? 'drink.ariaSample' : 'drink.aria', { name: drink.name, ...parts }));
+  box.setAttribute('aria-label', t('drink.aria', { name: drink.name, parts: t(`drinks.${sign}`) }));
 
-  // Su icono: el del bar, si ya lo hay (drink.icon); si no, el vaso genérico
-  const icon = element('img', 'drink__icon');
-  icon.src = drink.icon ?? IMAGES.drink;
-  icon.alt = '';
+  // Un cuadro de su hoja
+  const icon = element('span', 'drink__icon');
+  icon.style.backgroundImage = `url("${new URL(glassSheet(sign), document.baseURI).href}")`;
+  icon.style.setProperty('--columns', String(SHEET.columns));
   icon.setAttribute('aria-hidden', 'true');
 
   const text = element('div', 'drink__text');
   text.setAttribute('aria-hidden', 'true');
-  const name = element('p', 'drink__name', drink.name);
-  if (SAMPLE) name.append(element('span', 'drink__sample', t('cocktail.sample')));
-  text.append(element('p', 'drink__label', t('drink.label')), name, element('p', 'drink__parts', [parts.ferment, parts.mexican, parts.chinese].join(' · ')));
+  text.append(element('p', 'drink__label', t('drink.label')), element('p', 'drink__name', drink.name), element('p', 'drink__parts', t(`drinks.${sign}`)));
   box.append(icon, text);
   return box;
 }

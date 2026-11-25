@@ -1,24 +1,22 @@
-// La rueda del zodiaco: los 12 animales en círculo. Al elegir la fecha, gira unas vueltas y se
-// detiene con el animal que le toca arriba, bajo la flecha. Entonces, a su lado, su tarjeta: el
-// animal en grande, su símbolo (el carácter tradicional), su nombre en chino simplificado con su
-// pinyin, su nombre en el idioma del juego, sus cuatro virtudes, sus tres defectos y su cóctel (world/cocktails.js; por
-// ahora, ejemplos marcados como tales); abajo, su rival (el animal de
-// enfrente en la rueda, contra quien pelea en el nivel 12) y por qué chocan; y ▶. En la rueda, una
-// línea une al animal con su rival, que queda abajo, enfrente.
+// La rueda del zodiaco: un disco de laca roja con los logos de los 12 animales, en negro (los del bar:
+// assets/images/logos/). Al elegir la fecha, gira unas vueltas y se detiene con el
+// animal que le toca arriba, bajo la marca, y con su rival (el de enfrente) abajo. Al centro, 福 (la suerte).
+// Entonces la rueda se hace a un lado y sale lo que le tocó:
+// su logo, en rojo, con su carácter, su nombre (también en chino simplificado, con su pinyin) y una lista corta:
+// virtudes, defectos, su trago con sus cualidades (world/cocktails.js) y su rival, contra quien pelea en el nivel
+// 12, y por qué chocan (六沖); y ▶.
 // Enter, A o ▶ siguen (mientras gira, la detienen de una vez); Esc, B o «< Volver» regresan a la
 // fecha (← lleva a «< Volver»).
-//
-// Cada animal es, por ahora, un disco de su color con su inicial (PROVISIONAL): cuando haya arte, su
-// icono (IMAGES.animals[id].icon en graphics/assets.js) ocupa su lugar.
 
 import { ZODIAC, rivalOf } from '../world/levels.js';
-import { cocktailOf, SAMPLE } from '../world/cocktails.js';
-import { IMAGES } from '../graphics/assets.js';
+import { cocktailOf } from '../world/cocktails.js';
+import { tasteNode } from './taste.js';
 import { t, onLanguageChange } from '../i18n/i18n.js';
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const TURNS = 3; // vueltas completas antes de detenerse
 const SPIN_SECONDS = 2.4;
+const logo = (id) => `url("${new URL(`assets/images/logos/${id}.svg`, document.baseURI).href}")`; // completa: si no, la busca junto al CSS
 
 export class ZodiacWheel {
   /**
@@ -40,66 +38,58 @@ export class ZodiacWheel {
       const token = document.createElement('span');
       token.className = 'wheel__token';
       token.style.setProperty('--i', String(i));
-      token.style.setProperty('--color', sign.body);
-      const icon = IMAGES.animals?.[sign.id]?.icon;
-      if (icon) {
-        const img = new Image();
-        img.src = icon;
-        img.alt = '';
-        token.append(img);
-      }
+      const ink = document.createElement('span');
+      ink.className = 'brush';
+      ink.style.setProperty('--brush', logo(sign.id));
+      token.append(ink);
       this.ring.append(token);
       return { sign, token };
     });
-    const pointer = document.createElement('span');
-    pointer.className = 'wheel__pointer';
-    pointer.setAttribute('aria-hidden', 'true');
-    // La línea del choque: de arriba (el animal) a abajo (su rival), por el centro
-    const clash = document.createElement('span');
-    clash.className = 'wheel__clash';
-    clash.setAttribute('aria-hidden', 'true');
-    const dial = document.createElement('div');
-    dial.className = 'wheel__dial';
-    dial.append(clash, this.ring, pointer);
-
-    // La tarjeta del animal (aparece al detenerse)
     const make = (tag, className, parent) => {
       const el = document.createElement(tag);
       el.className = className;
       parent?.append(el);
       return el;
     };
+    this.dial = make('div', 'wheel__dial');
+    this.dial.append(this.ring);
+    this.hub = make('span', 'wheel__hub', this.dial);
+    this.hub.setAttribute('aria-hidden', 'true');
+    this.hub.textContent = '福';
+    make('span', 'wheel__pointer', this.dial).setAttribute('aria-hidden', 'true');
+
+    // Lo que le tocó (aparece al detenerse): el animal y, abajo o a un lado, la lista
     this.card = make('div', 'wheel__card');
     this.card.setAttribute('aria-live', 'polite');
-    const top = make('div', 'wheel__top', this.card);
-    this.portrait = make('span', 'wheel__portrait', top);
-    this.hanzi = make('span', 'wheel__hanzi', top);
+    const hero = make('div', 'wheel__hero', this.card);
+    this.symbol = make('span', 'brush wheel__symbol', hero);
+    const title = make('div', 'wheel__title', hero);
+    this.hanzi = make('span', 'wheel__hanzi', title);
     this.hanzi.lang = 'zh-Hant';
-    this.chinese = make('p', 'wheel__chinese', this.card);
-    this.name = make('p', 'wheel__name', this.card);
-    this.virtues = make('ul', 'wheel__virtues', this.card);
-    // Sus tres defectos (flaws.<id> en js/i18n/)
-    this.flaws = make('ul', 'wheel__flaws', this.card);
-    // Su cóctel: nombre y sus tres ingredientes (fermento, mexicano y chino)
-    this.drink = make('div', 'wheel__cocktail', this.card);
-    const drinkTop = make('p', 'wheel__cocktail-top', this.drink);
-    this.drinkLabel = make('span', 'wheel__cocktail-label', drinkTop);
-    this.drinkName = make('span', 'wheel__cocktail-name', drinkTop);
-    this.drinkSample = make('span', 'wheel__cocktail-sample', drinkTop);
-    this.drinkParts = make('p', 'wheel__cocktail-parts', this.drink);
+    const names = make('div', 'wheel__names', title);
+    this.name = make('p', 'wheel__name', names);
+    this.chinese = make('p', 'wheel__chinese', names);
+    const facts = make('dl', 'wheel__facts', this.card);
+    const fact = (className) => {
+      const row = make('div', `wheel__fact ${className}`, facts);
+      return { row, label: make('dt', '', row), value: make('dd', '', row) };
+    };
+    this.virtues = fact('wheel__fact--virtues');
+    this.flaws = fact('wheel__fact--flaws');
+    // Su trago: el nombre, qué lleva y sus tres cualidades
+    this.drink = fact('wheel__fact--drink');
+    this.drinkName = make('strong', '', this.drink.value);
+    this.drinkParts = make('span', 'wheel__detail', this.drink.value);
     // Su rival y por qué
-    const rival = make('div', 'wheel__rival', this.card);
-    this.rivalLabel = make('span', 'wheel__rival-label', rival);
-    this.rivalDisc = make('span', 'wheel__rival-disc', rival);
-    this.rivalHanzi = make('span', 'wheel__rival-hanzi', rival);
-    this.rivalHanzi.lang = 'zh-Hant';
-    this.rivalName = make('span', 'wheel__rival-name', rival);
-    this.why = make('p', 'wheel__why', this.card);
+    this.rival = fact('wheel__fact--rival');
+    this.rivalInk = make('span', 'brush wheel__rival-ink', this.rival.value);
+    this.rivalName = make('strong', '', this.rival.value);
+    this.why = make('span', 'wheel__detail', this.rival.value);
     this.ok = make('button', 'button button--primary wheel__ok', this.card);
     this.ok.type = 'button';
     this.ok.textContent = '▶';
     this.ok.addEventListener('click', () => this.confirm());
-    root.replaceChildren(dial, this.card);
+    root.replaceChildren(this.dial, this.card);
     root.dataset.nativeKeys = '';
     root.tabIndex = -1; // para tener el foco cuando ▶ no se ve (con pantalla táctil, ▶ es FIRE)
 
@@ -152,15 +142,24 @@ export class ZodiacWheel {
     if (this.stopped || !this.sign) return;
     this.stopped = true;
     clearTimeout(this.timer);
+    const before = this.dial.getBoundingClientRect();
     this.render();
+    this.slide(before);
     this.focus();
     if (this.root.getClientRects().length) this.notify('stop'); // si no se salió antes a otro paso
+  }
+
+  /** Del centro a su lugar: la rueda se hace a un lado para dejar ver lo que tocó. */
+  slide(before) {
+    const after = this.dial.getBoundingClientRect();
+    if (reducedMotion.matches || !before.width || !after.width || !this.dial.animate) return;
+    const [x, y] = [before.left + before.width / 2 - after.left - after.width / 2, before.top + before.height / 2 - after.top - after.height / 2];
+    this.dial.animate([{ transform: `translate(${x}px, ${y}px) scale(${before.width / after.width})` }, { transform: 'none' }], { duration: 520, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' });
   }
 
   render() {
     const rival = this.sign ? rivalOf(this.sign.id) : null;
     for (const { sign, token } of this.tokens) {
-      if (!token.querySelector('img')) token.textContent = t(`zodiac.${sign.id}`).slice(0, 1);
       token.classList.toggle('is-chosen', this.stopped && sign === this.sign);
       token.classList.toggle('is-rival', this.stopped && sign === rival);
     }
@@ -168,72 +167,36 @@ export class ZodiacWheel {
     this.root.classList.toggle('is-stopped', Boolean(sign));
     this.card.hidden = !sign;
     if (sign) {
-      // El animal: su icono si ya hay arte; si no, un disco de su color con su inicial (PROVISIONAL)
-      const icon = IMAGES.animals?.[sign.id]?.icon;
-      this.portrait.replaceChildren();
-      this.portrait.style.setProperty('--color', sign.body);
-      if (icon) {
-        const img = new Image();
-        img.src = icon;
-        img.alt = '';
-        this.portrait.append(img);
-      } else {
-        this.portrait.textContent = t(`zodiac.${sign.id}`).slice(0, 1);
-      }
+      const list = (key) => t(`${key}.${sign.id}`);
+      this.symbol.style.setProperty('--brush', logo(sign.id));
       this.hanzi.textContent = sign.hanzi;
-      this.chinese.replaceChildren();
+      this.name.textContent = t(`zodiac.${sign.id}`);
       const simplified = document.createElement('span');
       simplified.lang = 'zh-Hans';
       simplified.textContent = sign.simplified;
-      const pinyin = document.createElement('span');
-      pinyin.className = 'wheel__pinyin';
-      pinyin.textContent = sign.pinyin;
-      this.chinese.append(simplified, ' · ', pinyin);
-      this.name.textContent = t(`zodiac.${sign.id}`);
-      this.virtues.replaceChildren(...t(`virtues.${sign.id}`).split(' · ').map((virtue) => {
-        const li = document.createElement('li');
-        li.textContent = virtue;
-        return li;
-      }));
-      this.flaws.replaceChildren(...t(`flaws.${sign.id}`).split(' · ').map((flaw) => {
-        const li = document.createElement('li');
-        li.textContent = flaw;
-        return li;
-      }));
-      // Su cóctel (provisional: SAMPLE lo marca como ejemplo)
+      this.chinese.replaceChildren(simplified, sign.pinyin);
+      this.virtues.label.textContent = t('sign.virtues');
+      this.virtues.value.textContent = list('virtues');
+      this.flaws.label.textContent = t('sign.flaws');
+      this.flaws.value.textContent = list('flaws');
       const drink = cocktailOf(sign.id);
-      this.drink.hidden = !drink;
+      this.drink.row.hidden = !drink;
       if (drink) {
-        const parts = { ferment: t(`ingredient.${drink.ferment}`), mexican: t(`ingredient.${drink.mexican}`), chinese: t(`ingredient.${drink.chinese}`) };
-        this.drinkLabel.textContent = t('cocktail.label');
+        this.drink.label.textContent = t('drink.label');
         this.drinkName.textContent = drink.name;
-        this.drinkSample.textContent = t('cocktail.sample');
-        this.drinkSample.hidden = !SAMPLE;
-        this.drinkParts.textContent = [parts.ferment, parts.mexican, parts.chinese].join(' · ');
-        this.drink.setAttribute('aria-label', t(SAMPLE ? 'cocktail.ariaSample' : 'cocktail.aria', { name: drink.name, ...parts }));
+        this.drinkParts.textContent = t(`drinks.${sign.id}`);
+        this.drinkTaste?.remove();
+        this.drinkTaste = tasteNode(drink.taste);
+        this.drink.value.append(this.drinkTaste);
       }
-      // Su rival: su icono (o su disco), su símbolo y su nombre; y por qué chocan
-      this.rivalLabel.textContent = t('rival.label');
-      this.rivalDisc.style.setProperty('--color', rival.body);
-      const rivalIcon = IMAGES.animals?.[rival.id]?.icon;
-      this.rivalDisc.replaceChildren();
-      if (rivalIcon) {
-        const img = new Image();
-        img.src = rivalIcon;
-        img.alt = '';
-        this.rivalDisc.append(img);
-      } else {
-        this.rivalDisc.textContent = t(`zodiac.${rival.id}`).slice(0, 1);
-      }
-      this.rivalHanzi.textContent = rival.hanzi;
+      // Su rival: su logo, su nombre, y por qué chocan
+      this.rival.label.textContent = t('rival.label');
+      this.rivalInk.style.setProperty('--brush', logo(rival.id));
       this.rivalName.textContent = t(`zodiac.${rival.id}`);
-      const chong = document.createElement('span');
-      chong.lang = 'zh-Hans';
-      chong.textContent = '六冲';
-      const contrast = document.createElement('span');
-      contrast.className = 'wheel__contrast';
-      contrast.textContent = t(`rivalry.${sign.id}`);
-      this.why.replaceChildren(chong, ` · ${t('rival.why')}`, document.createElement('br'), contrast);
+      const clash = document.createElement('span');
+      clash.lang = 'zh-Hant';
+      clash.textContent = '六沖';
+      this.why.replaceChildren(clash, t(`rivalry.${sign.id}`));
     }
     this.ok.hidden = !this.stopped;
     this.root.setAttribute('aria-label', sign ? t('sign.labelRival', { name: t(`zodiac.${sign.id}`), rival: t(`zodiac.${rival.id}`) }) : '');

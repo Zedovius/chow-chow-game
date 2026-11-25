@@ -38,13 +38,41 @@ function candil(t) {
   return m;
 }
 
-/** Costales de grano, amarrados. */
-function costales() {
+/** La ratonera: un cepo de hierro abierto, con dientes. (Nada de costales ni cajas: parecían comida que se recoge) */
+function cepo() {
   const m = make();
-  for (const [x, z, h, lean] of [[-4, -0.6, 4.4, -0.06], [4, 0.4, 4, 0.08]]) {
-    m.box([x, h + 0.2, z], [3.7, h, 3.2], { turn: lean, round: 1.6, color: (l) => (l[2] > 1.6 && Math.abs(l[0]) + Math.abs(l[1]) < 2.2 ? (Math.abs(l[0]) + Math.abs(l[1]) < 1 ? GOLD : RED) : Math.abs(((l[0] + 20) % 1.8) - 0.9) < 0.16 ? '#c8a070' : '#f0d4a0'), group: `s${x}` });
-    m.drum([x - lean * 8, h * 2 + 0.6, z], 1.3, 1.1, 0.8, { color: '#c86a4a', group: `tie${x}`, over: 1 });
-    for (const d of [-1.4, 0, 1.4]) m.limb([x - lean * 8, h * 2 + 1, z], [x - lean * 8 + d, h * 2 + 2.8, z], 0.9, 0.8, { color: '#f0d4a0', group: `neck${x}`, over: 1 });
+  m.drum([0, 0.8], 7.2, 6.4, 0.8, { color: '#6f7496', group: 'plate' });
+  m.box([0, 1.9, 0.6], [2, 0.5, 1.8], { color: RED, group: 'bait', over: 1 });
+  for (const [s, tall, over] of [[-1, 4.6, 1], [1, 2.2, 3]]) {
+    const at = (k) => [-7.4 * Math.cos(k * Math.PI), 1.2 + tall * Math.sin(k * Math.PI), s * (1.6 + 2.2 * Math.sin(k * Math.PI))];
+    m.chain([0, 0.17, 0.33, 0.5, 0.67, 0.83, 1].map(at), 1.15, 1.15, { color: '#6f7499', group: `jaw${s}`, over });
+    for (const k of s < 0 ? [0.2, 0.4, 0.6, 0.8] : [0.1, 0.3, 0.5, 0.7, 0.9]) {
+      const [x, y, z] = at(k);
+      m.limb([x, y, z], [x * 1.1, y + 5.6, z], 1.5, 0.12, { color: IRON, group: `tooth${s}${k}`, over: over + 1, blend: 0 });
+    }
+  }
+  m.chain([[7.2, 1, 1], [9, 0.7, 1.6], [10.4, 0.8, 1]], 0.9, 0.8, { color: '#8a8fb4', group: 'links', over: 1 });
+  return m;
+}
+
+/** Un brasero ancho de hierro, encendido. */
+function hoguera(t) {
+  const m = make();
+  for (const [x, z] of [[-5, 1.6], [5, 1.6], [0, -2.6]]) m.limb([x * 1.1, 0.4, z], [x * 0.7, 4.4, z], 1.1, 1, { color: '#7c81a4', group: `leg${x}`, over: 1 });
+  m.drum([0, 4.6], 4.2, 6.4, 1.7, { color: (l) => (Math.abs(((l[0] + 30) % 2.6) - 1.3) < 0.5 && Math.abs(l[1]) < 1 ? '#ff8a2e' : '#8a8fb4'), group: 'basket', over: 2 });
+  m.drum([0, 6.3], 6.8, 6.8, 0.5, { color: '#b4b9d6', group: 'rim', over: 3 });
+  for (const [x, k, shift] of [[-3.6, 0.72, 0.3], [3.6, 0.7, 0.65], [0, 1, 0]]) fire(m, [x, 6, 0.4], k, (t + shift) % 1, 0.95);
+  return m;
+}
+
+/** Una piedra de molino con púas, rodando (turn: cuánto ha girado). */
+export function molino(turn, { stone = '#b6b9d8', groove = '#7d81a8', spike = IRON } = {}) {
+  const m = roller(turn, (d, a) => (d < 0.2 ? DARK : d < 0.34 ? '#8c90b4' : d > 0.86 ? groove : Math.abs(((a / TAU) * 8 + 8) % 1 - 0.5) > 0.36 ? groove : stone), { side: groove, r: 4.7, thick: 2.4 });
+  for (let i = 0; i < 8; i++) {
+    const a = turn + ((i + 0.5) * TAU) / 8;
+    const at = (r) => [Math.cos(a) * r, 4.7 + Math.sin(a) * r, 0];
+    if (at(7)[1] < 0.5) continue; // abajo, clavadas en el suelo
+    m.limb(at(4), at(7.2), 1.5, 0.12, { color: spike, group: `spike${i}`, over: 1, blend: 0 });
   }
   return m;
 }
@@ -74,10 +102,10 @@ const granero = () => stonePillar({
 
 const rat = {
   post: [frames(4, candil), frames(2, (t) => stoneLamp(t, { stone: '#b4b8e4' }))],
-  crate: [[costales()], [cajaTe()]],
+  crate: [[cepo()], frames(4, hoguera)],
   group: [[palanquin()]],
   wall: [[granero()]],
-  barrel: [frames(8, (t) => cask(t * TAU))],
+  barrel: [frames(8, (t) => molino((t * TAU) / 8))],
   hopper: [poses(cricket, { body: '#e8c070', dark: '#b07a3c' })],
 };
 
@@ -235,26 +263,29 @@ const tiger = {
 
 // --- Conejo: la luna, el jade y la porcelana ----------------------------------------------------------------
 
-/** El mortero del elixir. */
-function mortero() {
+/** Rocas de la luna, en punta. (Nada de morteros ni jarrones: parecían un cóctel y un tazón que se recogen) */
+function rocas() {
   const m = make();
-  m.drum([0, 1.2], 5, 4.2, 1.2, { color: '#d8dcff', group: 'base' });
-  m.drum([0, 6], 3.8, 5.8, 4, { color: (l) => (Math.abs(l[1] - 2.4) < 0.8 ? GOLD : '#f0f2ff'), group: 'cup' });
-  m.drum([0, 10], 4.8, 4.8, 0.5, { color: '#8a90d8', group: 'in', over: 1 });
-  m.limb([0.6, 9], [4.4, 14], 1.4, 1.4, { color: JADE, group: 'pestle', over: 2 });
-  m.ball([4.8, 14.4], [2, 1.9, 1.9], { color: JADE, group: 'knob', over: 2 });
+  const gray = (l) => (Math.sin(l[0] * 1.9 + l[1] * 0.7) * Math.sin(l[1] * 2.3 - l[0] * 0.6) > 0.62 ? '#7d82b4' : '#b9bddf');
+  m.ball([-2.6, 2.8], [5.2, 3.2, 4.2], { color: gray, group: 'a' });
+  m.ball([4.2, 2.2, 1.2], [4, 2.5, 3.4], { color: gray, group: 'b', over: 1 });
+  const shard = (from, tip, r, name, over) => m.limb(from, tip, r, 0.12, { color: (l) => (l[2] > 0.2 ? '#dcdff4' : Math.sin(l[0] * 14) > 0.75 ? '#7d82b4' : '#a6abd4'), group: name, over, blend: 0 });
+  shard([-1.6, 3], [0.4, 13.4, 0], 3, 's1', 1);
+  shard([-5, 2.4, 0.6], [-8.2, 9.2, 0.6], 2.3, 's2', 2);
+  shard([4.4, 2.6, 1], [7, 10, 1], 2.4, 's3', 3);
+  shard([1.4, 2, 2.4], [2.6, 6.8, 2.8], 1.7, 's4', 4);
   return m;
 }
 
-/** Un jarrón de porcelana azul y blanca. */
-function jarron() {
+/** El tocón con el hacha de Wu Gang, el leñador de la luna. */
+function tocon() {
   const m = make();
-  const blue = (l) => (Math.abs(l[1]) > 3 || Math.sin(l[0] * 1.7) * Math.sin(l[1] * 1.9 + 1) > 0.42 ? '#3a5ad0' : '#fbfbff');
-  m.drum([0, 0.8], 3.6, 3, 0.8, { color: '#3a5ad0', group: 'foot' });
-  m.ball([0, 6], [5.6, 4.8, 5], { color: blue, group: 'body' });
-  m.drum([0, 11.4], 2.6, 2.2, 1.4, { color: '#fbfbff', group: 'neck', over: 1 });
-  m.drum([0, 13], 2.2, 3.4, 0.7, { color: '#3a5ad0', group: 'lip', over: 2 });
-  for (const s of [-1, 1]) m.chain([[s * 2.4, 12.4], [s * 5.4, 12.6], [s * 4.6, 9.6]], 0.8, 0.7, { color: GOLD, group: `h${s}`, over: 1 });
+  for (const [x, z] of [[-5.4, 1.4], [5.4, 1.4], [-2, 3.4]]) m.limb([x * 0.5, 2.4, z * 0.6], [x * 1.25, 0.5, z], 1.9, 0.8, { color: '#7d4f3a', group: `root${x}`, over: 1 });
+  m.drum([0, 3.2], 5.6, 4.8, 3.2, { color: (l) => (Math.sin(l[0] * 3.1 + Math.sin(l[1] * 1.4)) > 0.55 ? '#6b4030' : '#9c6446'), group: 'bark' });
+  m.drum([0, 6.5], 4.7, 4.7, 0.4, { color: (l) => (Math.sin(Math.hypot(l[0], l[2]) * 3.4) > 0.3 ? '#a8714c' : '#c48a5c'), group: 'cut', over: 1 });
+  m.limb([-1.6, 8.6, 0.8], [8.4, 13.2, 0.4], 1, 0.95, { color: (l) => (l[0] > 0.86 ? RED : '#d09058'), group: 'handle', over: 2 });
+  // La hoja, clavada: ancha arriba y con filo abajo
+  for (const [x, y, w] of [[-1.5, 10.4, 1.4], [-2.1, 9, 2], [-2.8, 7.6, 2.5]]) m.ball([x, y, 0.8], [w, 1.1, 1.1], { turn: 0.42, color: y < 8 ? '#f2f5ff' : '#a9b0d2', group: 'blade', over: 3, blend: 0.6 });
   return m;
 }
 
@@ -278,7 +309,7 @@ function biombo() {
 
 const rabbit = {
   post: [frames(2, (t) => stoneLamp(t, { stone: '#c8c8f4', light: '#f4f4ff', glow: '#ffe890' }))],
-  crate: [[mortero()], [jarron()]],
+  crate: [[rocas()], [tocon()]],
   group: [[biombo()]],
   wall: [[stonePillar({ stone: '#dcdcf8', dark: '#9496d0', light: '#ffffff', mark: (x, y) => { const d = Math.hypot(x, y - 2); return d < 2 ? '#ffe890' : d < 3 ? '#7478d0' : Math.abs(y + 4.4) < 0.5 ? '#7478d0' : null; }, top: (m) => { m.drum([0, 19], 6, 2.4, 1.2, { color: '#7c86e0', group: 'roof', over: 1 }); for (const s of [-1, 1]) m.limb([s * 5.4, 18.4], [s * 7, 20.6], 0.9, 0.5, { color: '#9ca4f0', group: `e${s}`, over: 2 }); m.ball([0, 21.4], [1.2, 1.4, 1.2], { color: GOLD, group: 'tip', over: 2 }); } })]],
   barrel: [frames(8, (t) => spoked((t * TAU) / 6, { rim: ['#6a78e8', '#aab4ff'], spoke: '#eceaff', hub: '#ffe890' }))],

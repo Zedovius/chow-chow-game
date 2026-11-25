@@ -4,7 +4,6 @@
 //
 // tools/publicar.mjs copia assets/images/ y el service worker la guarda para jugar sin internet.
 
-import { ANIMAL_ART } from './animalArt.js';
 import { BOSS_ART } from './bossArt.js';
 
 const levelArt = () => ({
@@ -23,9 +22,6 @@ export const IMAGES = {
   fireball: null,
   // La estrella del vuelo (la genera tools/sprites/pickups.mjs)
   star: 'assets/images/pickups/estrella.png',
-  // El retrato de cada animal, para la rueda del zodiaco (sus hojas para jugar las carga
-  // graphics/animalPainter.js, solo la del animal que se usa)
-  animals: Object.fromEntries(Object.entries(ANIMAL_ART).filter(([, { portrait }]) => portrait).map(([id, { portrait }]) => [id, { icon: portrait }])),
   // Los jefes que ya tienen dibujo (tools/sprites/jefes.mjs): el cuerpo, el brazo y la moneda
   bosses: Object.fromEntries(Object.entries(BOSS_ART).map(([id, { body, arm, coin }]) => [id, { body, arm, coin }])),
   // Un dibujo por cóctel (sus nombres están en entities/Pickup.js)
@@ -34,8 +30,6 @@ export const IMAGES = {
     'margarita-lichi': 'assets/images/pickups/margarita-lichi.png',
     'mezcal-jengibre': 'assets/images/pickups/mezcal-jengibre.png',
   },
-  // El trago del signo, al final (ui/drink.js): genérico hasta tener el de cada uno (world/cocktails.js)
-  drink: 'assets/images/pickups/trago.png',
   // Los ingredientes del trío (también los genera tools/sprites/pickups.mjs)
   ingredients: {
     hongo: 'assets/images/pickups/hongo.png',

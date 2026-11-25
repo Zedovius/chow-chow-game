@@ -20,6 +20,7 @@ import { Legend } from './ui/Legend.js';
 import { TouchPad } from './ui/TouchPad.js';
 import { boardsNode } from './ui/leaderboard.js';
 import { setUpStick } from './ui/stickSetup.js';
+import { showDrink } from './ui/drinkScreen.js';
 import { applyLanguage, onLanguageChange, t } from './i18n/i18n.js';
 
 applyLanguage();
@@ -200,3 +201,6 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   if (document.readyState === 'complete') register();
   else window.addEventListener('load', register, { once: true });
 }
+
+// Para probar la pantalla del trago (?trago=dragon, solo en localhost)
+if (CONFIG.showDrink) showDrink({ dialogs, sign: CONFIG.showDrink });

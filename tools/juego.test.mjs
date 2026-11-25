@@ -1117,17 +1117,30 @@ test('la cruceta táctil: una dirección a la vez, nada en el centro y sin cambi
   assert.equal(padDirection(-0.3, 0.7, 'left'), 'down');
 });
 
-test('el trío: un hongo, un agave y un chile en tres mundos distintos al azar; cada signo tiene su cóctel', async () => {
+test('el trago del final: cada signo con su trago, su vaso y su logo, y la pantalla espera un minuto', async () => {
   const { cocktailOf } = await import('../js/world/cocktails.js');
+  const { SHEET, glassSheet } = await import('../js/graphics/glassArt.js');
   const { es } = await import('../js/i18n/es.js');
   const { en } = await import('../js/i18n/en.js');
-  for (const sign of ZODIAC) {
-    const drink = cocktailOf(sign.id);
-    assert.ok(drink?.name, `${sign.id}: sin cóctel`);
-    for (const part of [drink.ferment, drink.mexican, drink.chinese]) {
-      assert.ok(es[`ingredient.${part}`] && en[`ingredient.${part}`], `${sign.id}: falta el texto de ${part}`);
-    }
+  const { readFileSync } = await import('node:fs');
+  const names = new Set();
+  for (const { id } of ZODIAC) {
+    const { name, taste } = cocktailOf(id);
+    names.add(name);
+    assert.ok(es[`drinks.${id}`] && en[`drinks.${id}`], id);
+    assert.equal(taste.length, 3, id);
+    for (const [key, amount] of taste) assert.ok(es[`taste.${key}`] && en[`taste.${key}`] && amount >= 0 && amount <= 1, `${id} ${key}`);
+    const png = readFileSync(new URL(`../${glassSheet(id)}`, import.meta.url));
+    assert.equal(png.readUInt32BE(16), SHEET.w * SHEET.columns, id);
+    assert.equal(png.readUInt32BE(20), SHEET.h * Math.ceil(SHEET.frames / SHEET.columns), id);
+    assert.ok(readFileSync(new URL(`../assets/images/logos/${id}.svg`, import.meta.url), 'utf8').includes('<path'), id);
   }
+  assert.equal(names.size, 12);
+  assert.equal(CONFIG.drinkScreen.seconds, 60);
+  assert.ok(CONFIG.drinkScreen.seconds + CONFIG.leaderboard.idleSeconds < CONFIG.idleSeconds); // no se regresa al menú a media pantalla
+});
+
+test('el trío: un hongo, un agave y un chile en tres mundos distintos al azar', () => {
   const seenLevels = new Set();
   for (let i = 0; i < 300; i++) {
     const plan = planTrio(11);

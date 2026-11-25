@@ -36,6 +36,7 @@ import { Camera } from '../graphics/Camera.js';
 import { enterName } from '../ui/NameEntry.js';
 import { recordNode } from '../ui/record.js';
 import { drinkNode } from '../ui/drink.js';
+import { showDrink } from '../ui/drinkScreen.js';
 import { pad } from '../ui/HUD.js';
 import { t } from '../i18n/i18n.js';
 
@@ -789,7 +790,10 @@ export class Game {
     this.hideBanner();
     saveRecord(this.record);
     this.events.emit('ending', { score: this.score });
-    const { timedOut, asked } = await this.askForName();
+    // Primero el premio, solo: el trago de su signo. Luego, el nombre
+    await showDrink({ dialogs: this.dialogs, sign: this.sign });
+    if (flow !== this.flow) return;
+    const { timedOut } = await this.askForName();
     if (flow !== this.flow) return;
     // Nadie enfrente de la máquina: de regreso al inicio, sin quedarse esperando
     if (timedOut) {
@@ -799,8 +803,7 @@ export class Game {
     await this.dialogs.show({
       title: t('menu.end'),
       lines: [{ text: t('menu.finalScore', { score: pad(this.score) }) }],
-      // Si no entró a HI RECORDS (no vio la pantalla del nombre), su trago va aquí
-      extra: [...(asked ? [] : [drinkNode(this.sign)].filter(Boolean)), ...this.recordExtra()],
+      extra: this.recordExtra(),
       actions: [{ label: t('menu.playAgain'), value: 'again', primary: true }],
     });
     if (flow !== this.flow) return;
@@ -812,12 +815,12 @@ export class Game {
     const { difficulty, score } = this;
     const entries = loadBoards()[difficulty];
     const place = placeIn(entries, score);
-    if (!place) return { timedOut: false, asked: false };
+    if (!place) return { timedOut: false };
     this.events.emit('highScore', { place });
     // Al escribir su nombre, también su trago (el del bar para su signo)
     const { name, timedOut } = await enterName({ dialogs: this.dialogs, entries, difficulty, score, place, drink: drinkNode(this.sign) });
     if (name && !CONFIG.test) addScore(difficulty, name, score); // si no escribió nada, no se guarda ninguna fila
-    return { timedOut, asked: true };
+    return { timedOut };
   }
 
   // --- Puntos, récord y corazones -------------------------------------------------

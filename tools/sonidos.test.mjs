@@ -63,7 +63,7 @@ test('cada aviso pide efectos que existen, suenan solo los que deben y ninguno s
   let now = '';
   const audio = {};
   for (const key of ['sfx', 'hold']) audio[key] = (name, options) => asked.set(now, [...(asked.get(now) ?? []), [name, options?.index ?? 0]]);
-  for (const key of ['release', 'music', 'setQuiet', 'stopMusic', 'toggleMute']) audio[key] = () => {};
+  for (const key of ['release', 'music', 'chooseSoundtrack', 'setQuiet', 'stopMusic', 'toggleMute']) audio[key] = () => {};
   const events = new Events();
   connectAudio(audio, events);
   const game = readFileSync(path.join(root, 'js/core/Game.js'), 'utf8');

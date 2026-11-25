@@ -76,7 +76,7 @@ export const ZODIAC = [
   { id: 'horse', hanzi: '馬', simplified: '马', pinyin: 'mǎ', sky: ['#2a1414', '#8a3a2a'], ground: '#421f1a', obstacle: '#e07a5f', body: '#a0522d', fire: '#ffd23f' },
   { id: 'goat', hanzi: '羊', simplified: '羊', pinyin: 'yáng', sky: ['#1d2125', '#7d8a8f'], ground: '#33393d', obstacle: '#d8e0e2', body: '#e9e2cf', fire: '#fff4c2' },
   { id: 'monkey', hanzi: '猴', simplified: '猴', pinyin: 'hóu', sky: ['#22180c', '#9a7a2a'], ground: '#3a2c12', obstacle: '#f2d06b', body: '#c98a4b', fire: '#ffc14d' },
-  { id: 'rooster', hanzi: '雞', simplified: '鸡', pinyin: 'jī', noGround: true, wings: true, sky: ['#2a0f12', '#b23a3a'], ground: '#f6d5c8', obstacle: '#ff8a5c', body: '#e23b3b', fire: '#ff5a5a' },
+  { id: 'rooster', hanzi: '鷄', simplified: '鸡', pinyin: 'jī', noGround: true, wings: true, sky: ['#2a0f12', '#b23a3a'], ground: '#f6d5c8', obstacle: '#ff8a5c', body: '#e23b3b', fire: '#ff5a5a' },
   { id: 'dog', hanzi: '狗', simplified: '狗', pinyin: 'gǒu', sky: ['#171a12', '#5f6a3a'], ground: '#2a2f1c', obstacle: '#c8b07a', body: '#d9a066', fire: '#5ad1ff' },
   { id: 'pig', hanzi: '豬', simplified: '猪', pinyin: 'zhū', sky: ['#24121c', '#a45a7c'], ground: '#3d1d2e', obstacle: '#f2a0c2', body: '#f4a6b8', fire: '#ff8fab' },
 ];

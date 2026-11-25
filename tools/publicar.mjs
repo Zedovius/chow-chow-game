@@ -47,8 +47,9 @@ if (await exists(dest)) {
 }
 await mkdir(dest, { recursive: true });
 
-// Los README de las carpetas no se publican
-const notDocs = (src) => !src.endsWith('.md');
+// Los README de las carpetas no se publican, ni el material de trabajo: las muestras de la música y las fotos de la carta
+const WORK = [path.join(root, 'assets', 'audio', 'samples'), path.join(root, 'assets', 'images', 'info-logo-tragos')];
+const notDocs = (src) => !src.endsWith('.md') && !WORK.includes(path.resolve(src));
 for (const item of REQUIRED) await cp(path.join(root, item), path.join(dest, item), { recursive: true, filter: notDocs });
 for (const item of OPTIONAL) {
   if (await exists(path.join(root, item))) await cp(path.join(root, item), path.join(dest, item), { recursive: true, filter: notDocs });

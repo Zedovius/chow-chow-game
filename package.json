@@ -7,9 +7,11 @@
     "test": "node --test tools/*.test.mjs",
     "mundos": "node tools/sprites/mundos.mjs",
     "obstaculos": "node tools/sprites/obstaculos.mjs",
+    "tragos": "node tools/sprites/tragos.mjs",
     "animales": "node tools/sprites/animales.mjs",
     "jefes": "node tools/sprites/jefes.mjs",
     "sonidos": "node tools/sonidos.mjs",
+    "musica": "node tools/musica.mjs",
     "publicar": "node tools/publicar.mjs",
     "parking": "node tools/publicar.mjs ../../parkingPage/chow-chow",
     "presentacion": "node tools/presentacion.mjs"
