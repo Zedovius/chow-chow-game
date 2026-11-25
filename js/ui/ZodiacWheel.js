@@ -87,7 +87,8 @@ export class ZodiacWheel {
     this.why = make('span', 'wheel__detail', this.rival.value);
     this.ok = make('button', 'button button--primary wheel__ok', this.card);
     this.ok.type = 'button';
-    this.ok.textContent = '▶';
+    this.okLabel = make('span', 'wheel__ok-label', this.ok); // solo se ve en el celular
+    this.ok.append('▶');
     this.ok.addEventListener('click', () => this.confirm());
     root.replaceChildren(this.dial, this.card);
     root.dataset.nativeKeys = '';
@@ -199,6 +200,7 @@ export class ZodiacWheel {
       this.why.replaceChildren(clash, t(`rivalry.${sign.id}`));
     }
     this.ok.hidden = !this.stopped;
+    this.okLabel.textContent = t('drink.next');
     this.root.setAttribute('aria-label', sign ? t('sign.labelRival', { name: t(`zodiac.${sign.id}`), rival: t(`zodiac.${rival.id}`) }) : '');
   }
 
